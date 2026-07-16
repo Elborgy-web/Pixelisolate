@@ -12,8 +12,8 @@ export default function PricingModal({ isOpen, onClose, userId }: PricingModalPr
 
   // Lemon Squeezy variants (mock store checkout links or real ones)
   const LEMON_SQUEEZY_STORE_URL = import.meta.env.VITE_LEMON_SQUEEZY_STORE_URL || "https://checkout.lemonsqueezy.com";
-  const PRO_VARIANT_ID = "1225493"; // Pro Subscription Variant
-  const CREDITS_100_VARIANT_ID = "1225505"; // 100 Credits Variant
+  const PRO_VARIANT_ID = import.meta.env.VITE_LEMON_SQUEEZY_PRO_VARIANT_ID || "1225493"; // Pro Subscription Variant
+  const CREDITS_100_VARIANT_ID = import.meta.env.VITE_LEMON_SQUEEZY_CREDITS_VARIANT_ID || "1225505"; // 100 Credits Variant
 
   const handleCheckout = (variantId: string) => {
     if (!userId) {
