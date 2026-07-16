@@ -224,8 +224,9 @@ app.post("/api/webhooks/lemon-squeezy", async (req: any, res) => {
       const attributes = orderData.attributes;
       const variantId = attributes.first_order_item?.variant_id?.toString();
 
-      // Check if it's the 100 Credits package variant (1225505)
-      if (variantId === "1225505") {
+      // Check if it's the 100 Credits package variant (default 1225505)
+      const targetCreditsVariant = process.env.LEMON_SQUEEZY_CREDITS_VARIANT_ID || "1225505";
+      if (variantId === targetCreditsVariant) {
         // Fetch current credits
         const { data: profile, error: getError } = await supabaseAdmin
           .from("profiles")
