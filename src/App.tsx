@@ -1,0 +1,300 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect } from "react";
+import ChromaKeyer from "./components/ChromaKeyer";
+import HistoryGallery from "./components/HistoryGallery";
+import AuthModal from "./components/AuthModal";
+import PricingModal from "./components/PricingModal";
+import { supabase } from "./utils/supabaseClient";
+import { 
+  FileCheck, 
+  Layers, 
+  LogIn, 
+  LogOut, 
+  Sparkles, 
+  History, 
+  Sliders 
+} from "lucide-react";
+
+export default function App() {
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [currentTab, setCurrentTab] = useState<"editor" | "history">("editor");
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [pricingModalOpen, setPricingModalOpen] = useState(false);
+
+  // Global-like Alert UI state
+  const [customAlert, setCustomAlert] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    title: "Notification",
+    message: "",
+  });
+
+  useEffect(() => {
+    // 1. Initial session load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const activeUser = session?.user ?? null;
+      setUser(activeUser);
+      if (activeUser) {
+        fetchProfile(activeUser.id, activeUser.email || "");
+      }
+    });
+
+    // 2. Auth state subscription
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const activeUser = session?.user ?? null;
+      setUser(activeUser);
+      if (activeUser) {
+        fetchProfile(activeUser.id, activeUser.email || "");
+      } else {
+        setProfile(null);
+      }
+    });
+
+    // 3. Override standard window.alert with our premium custom dialog
+    window.alert = (message: string) => {
+      setCustomAlert({
+        isOpen: true,
+        title: "Workspace Message",
+        message: message,
+      });
+    };
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const fetchProfile = async (userId: string, email: string) => {
+    try {
+      let { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      
+      // Fallback: If profile row not found in database, insert it immediately client-side
+      if (error && (error.code === "PGRST116" || error.message?.includes("rows"))) {
+        console.info("[Auth] Profile not found in database. Auto-creating client-side...");
+        const { data: newProfile, error: insertError } = await supabase
+          .from("profiles")
+          .insert({ id: userId, email: email, credits: 10, is_pro: false })
+          .select()
+          .single();
+        
+        if (!insertError) {
+          data = newProfile;
+          error = null;
+        } else {
+          console.warn("[Auth] Client-side profile insert failed:", insertError);
+        }
+      }
+
+      if (error) {
+        console.warn("Profile fetch failed, using memory state:", error);
+        setProfile({
+          id: userId,
+          email: email,
+          credits: 10,
+          is_pro: false
+        });
+      } else {
+        setProfile(data);
+      }
+    } catch (err) {
+      console.error("Error loading profile:", err);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
+    setCurrentTab("editor");
+  };
+
+  return (
+    <div id="app-container" className="min-h-screen bg-[#0a0b0d] text-gray-100 flex flex-col antialiased selection:bg-emerald-500/30 selection:text-white">
+      {/* Upper Navigation / Editorial Header */}
+      <header className="border-b border-gray-900 bg-gray-950/40 backdrop-blur-md sticky top-0 z-40 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+              <Layers className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-white font-sans">
+                Pixel-Level Image Isolation Workspace
+              </h1>
+              <p className="text-[10px] font-mono text-gray-500 mt-0.5">
+                Freemium precision chroma transformation with secure history storage
+              </p>
+            </div>
+          </div>
+
+          {/* Navigation Controls and User Account Block */}
+          <div className="flex flex-wrap items-center gap-4">
+            {/* View Tabs */}
+            <div className="flex bg-gray-950 p-1 rounded-xl border border-gray-850">
+              <button
+                onClick={() => setCurrentTab("editor")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                  currentTab === "editor"
+                    ? "bg-gray-850 text-white"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                <Sliders className="h-3.5 w-3.5" />
+                <span>Editor Workspace</span>
+              </button>
+              <button
+                onClick={() => {
+                  if (!user) {
+                    setAuthModalOpen(true);
+                  } else {
+                    setCurrentTab("history");
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                  currentTab === "history"
+                    ? "bg-gray-850 text-white"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                <History className="h-3.5 w-3.5" />
+                <span>My History</span>
+              </button>
+            </div>
+
+            {/* Profile Info / Auth Actions */}
+            {user ? (
+              <div className="flex items-center gap-3 bg-gray-950/80 border border-gray-850 px-4.5 py-1.5 rounded-xl text-xs font-mono">
+                <div className="flex flex-col text-left">
+                  <span className="text-[9px] text-gray-500 truncate max-w-[120px]">{user.email}</span>
+                  {profile?.is_pro ? (
+                    <span className="text-emerald-400 font-bold flex items-center gap-1 text-[10px] uppercase tracking-wider">
+                      <Sparkles className="h-3 w-3 animate-pulse" />
+                      Pro Tier
+                    </span>
+                  ) : (
+                    <span className="text-teal-400 text-[10px] font-semibold">
+                      Credits: {profile?.credits ?? 0} remaining
+                    </span>
+                  )}
+                </div>
+
+                {!profile?.is_pro && (
+                  <button
+                    onClick={() => setPricingModalOpen(true)}
+                    className="px-2.5 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-[10px] rounded-lg hover:shadow-lg transition cursor-pointer"
+                  >
+                    Upgrade
+                  </button>
+                )}
+
+                <button
+                  onClick={handleLogout}
+                  className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-red-400 transition cursor-pointer"
+                  title="Logout"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setAuthModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-gray-950 hover:bg-gray-800 border border-gray-850 text-xs font-semibold text-gray-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <LogIn className="h-3.5 w-3.5" />
+                  <span>Sign In</span>
+                </button>
+                <button
+                  onClick={() => setAuthModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold hover:shadow-lg transition cursor-pointer"
+                >
+                  Get 10 Free Credits
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Workspace Frame */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
+        {currentTab === "editor" ? (
+          <ChromaKeyer 
+            user={user} 
+            profile={profile} 
+            onRefreshProfile={() => user && fetchProfile(user.id, user.email || "")} 
+            onOpenPricing={() => setPricingModalOpen(true)}
+            onOpenAuth={() => setAuthModalOpen(true)}
+          />
+        ) : (
+          <HistoryGallery userId={user?.id} isPro={profile?.is_pro ?? false} />
+        )}
+      </main>
+
+      {/* Footer Details */}
+      <footer className="border-t border-gray-900 bg-gray-950/30 py-6 px-6">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row gap-4 justify-between items-center text-[11px] font-mono text-gray-500">
+          <p>© 2026 Chroma Isolate Engine. Powered by Supabase & Lemon Squeezy.</p>
+          <div className="flex gap-4">
+            <span className="hover:text-gray-300 transition cursor-help flex items-center gap-1">
+              <FileCheck className="h-3 w-3" />
+              Subpixel Feathering Mode Active
+            </span>
+          </div>
+        </div>
+      </footer>
+
+      {/* Modals */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onSuccess={() => {
+          // Profile updates automatically
+        }}
+      />
+
+      <PricingModal
+        isOpen={pricingModalOpen}
+        onClose={() => setPricingModalOpen(false)}
+        userId={user?.id || null}
+      />
+
+      {/* Custom Alert Modal */}
+      {customAlert.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-sm animate-fade-in" onClick={() => setCustomAlert(prev => ({ ...prev, isOpen: false }))}>
+          <div className="relative w-full max-w-sm bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl overflow-hidden text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute -top-16 -left-16 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 w-fit mx-auto mb-4">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            
+            <h3 className="text-base font-bold text-white tracking-tight">{customAlert.title}</h3>
+            <p className="text-xs text-gray-400 mt-2 mb-6 leading-relaxed whitespace-pre-line">
+              {customAlert.message}
+            </p>
+            
+            <button
+              onClick={() => setCustomAlert(prev => ({ ...prev, isOpen: false }))}
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs hover:shadow-lg transition cursor-pointer"
+            >
+              Okay
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,1 @@
+{"name":"Pixel-Level Image Isolation Engine","description":"Precisely segment subjects and isolate foregrounds using automatic green-screen masking and pixel-perfect alpha chroma extraction.","requestFramePermissions":[],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
