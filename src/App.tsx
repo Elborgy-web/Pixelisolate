@@ -126,7 +126,7 @@ export default function App() {
       <header className="border-b border-gray-900 bg-gray-950/40 backdrop-blur-md sticky top-0 z-40 px-6 py-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
           <div className="flex items-center">
-            <img src="/logo.png" alt="Pixel-Level Image Isolation Workspace" className="h-10 md:h-12 w-auto object-contain" />
+            <img src="/logo.png" alt="Pixel-Level Image Isolation Workspace" className="h-16 md:h-20 w-auto object-contain -my-4 md:-my-5" />
           </div>
 
           {/* Navigation Controls and User Account Block */}
