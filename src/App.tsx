@@ -125,18 +125,8 @@ export default function App() {
       {/* Upper Navigation / Editorial Header */}
       <header className="border-b border-gray-900 bg-gray-950/40 backdrop-blur-md sticky top-0 z-40 px-6 py-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-              <Layers className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-white font-sans">
-                Pixel-Level Image Isolation Workspace
-              </h1>
-              <p className="text-[10px] font-mono text-gray-500 mt-0.5">
-                Freemium precision chroma transformation with secure history storage
-              </p>
-            </div>
+          <div className="flex items-center">
+            <img src="/logo.png" alt="Pixel-Level Image Isolation Workspace" className="h-10 md:h-12 w-auto object-contain" />
           </div>
 
           {/* Navigation Controls and User Account Block */}
