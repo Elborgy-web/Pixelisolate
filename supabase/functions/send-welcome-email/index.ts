@@ -23,21 +23,42 @@ serve(async (req) => {
         to: [userEmail],
         subject: 'Welcome to the workspace. Your 10 free credits are active. ⚡',
         html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0B0F19; color: #F3F4F6; border-radius: 8px;">
-            <h2 style="color: #00A896;">Hi ${userName},</h2>
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; background-color: #0B0F19; color: #F3F4F6; border-radius: 12px; border: 1px solid #1F2937;">
+            <h2 style="color: #00A896; margin-top: 0;">Hi ${userName},</h2>
             <p>Welcome to <strong>PixelIsolate.online</strong>—your new command center for high-precision, subpixel image extraction.</p>
             <p>To get you moving at terminal speed, we’ve successfully initialized your profile and credited your account with <strong>10 Free High-Definition Isolation Credits</strong>.</p>
-            <h3 style="color: #E5E7EB;">Here is what you can deploy right now:</h3>
-            <ul>
-              <li><strong>Single Subject Isolation:</strong> Experience zero-compromise edge refinement and HSV masking.</li>
-              <li><strong>The Bulk Remover:</strong> Drag-and-drop up to 50 assets concurrently (Pro feature preview).</li>
-              <li><strong>Secure History Gallery:</strong> Access and re-download your isolated assets anytime.</li>
+            
+            <h3 style="color: #E5E7EB; margin-top: 25px;">Here is what you can deploy right now:</h3>
+            <ul style="padding-left: 20px; color: #9CA3AF;">
+              <li style="margin-bottom: 8px;"><strong>Single Subject Isolation:</strong> Experience zero-compromise edge refinement and HSV masking.</li>
+              <li style="margin-bottom: 8px;"><strong>The Bulk Remover:</strong> Drag-and-drop multiple assets concurrently (Pro feature preview).</li>
+              <li style="margin-bottom: 8px;"><strong>Secure History Gallery:</strong> Access and re-download your isolated assets anytime.</li>
             </ul>
-            <p>Ready to initialize your first pipeline?</p>
-            <p style="margin-top: 25px;"><a href="https://pixelisolate.online" style="background-color: #00A896; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">Launch Your Workspace Now</a></p>
+            
+            <p style="margin: 25px 0;"><a href="https://pixelisolate.online" style="background-color: #00A896; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold; text-align: center;">Launch Your Workspace Now</a></p>
+
+            <h3 style="color: #E5E7EB; margin-top: 35px; border-top: 1px solid #1F2937; padding-top: 20px;">⚡ Supercharge Your Workspace</h3>
+            <p style="color: #9CA3AF; font-size: 0.95em;">Need more processing volume or bulk queues? Upgrade your account for maximum speed:</p>
+            
+            <div style="margin: 20px 0;">
+              <!-- Pro Subscription Card -->
+              <div style="background-color: #111827; border: 1px solid #1F2937; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <h4 style="color: #00A896; margin: 0 0 6px 0; font-size: 1.05em; font-weight: bold;">Pro Workspace Subscription — $9/month</h4>
+                <p style="color: #9CA3AF; font-size: 0.88em; margin: 0 0 12px 0; line-height: 1.5;">Unlock unlimited high-definition subject cuts, priority processing queues, and full access to the Bulk Remover (process up to 50 images concurrently).</p>
+                <a href="https://pixelisolate.online" style="color: #34D399; font-weight: bold; text-decoration: none; font-size: 0.88em;">Upgrade to Pro Plan →</a>
+              </div>
+              
+              <!-- 100 Credits Card -->
+              <div style="background-color: #111827; border: 1px solid #1F2937; border-radius: 8px; padding: 16px;">
+                <h4 style="color: #00A896; margin: 0 0 6px 0; font-size: 1.05em; font-weight: bold;">100 Isolation Credits Pack — $5 (One-time)</h4>
+                <p style="color: #9CA3AF; font-size: 0.88em; margin: 0 0 12px 0; line-height: 1.5;">Running low on trial credits? Top up your balance with 100 high-resolution download credits. Credits never expire and carry over monthly.</p>
+                <a href="https://pixelisolate.online" style="color: #34D399; font-weight: bold; text-decoration: none; font-size: 0.88em;">Get 100 Credits Top-Up →</a>
+              </div>
+            </div>
+            
             <br>
-            <p style="color: #9CA3AF; font-size: 0.9em;">Precision cuts await,</p>
-            <p><strong>The PixelIsolate Team</strong></p>
+            <p style="color: #9CA3AF; font-size: 0.9em; margin-bottom: 4px;">Precision cuts await,</p>
+            <p style="margin: 0; font-weight: bold; color: #ffffff;">The PixelIsolate Team</p>
           </div>
         `,
       }),
