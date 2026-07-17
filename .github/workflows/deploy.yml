@@ -25,6 +25,9 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_LEMON_SQUEEZY_STORE_URL: ${{ secrets.VITE_LEMON_SQUEEZY_STORE_URL }}
+          VITE_LEMON_SQUEEZY_PRO_VARIANT_ID: ${{ secrets.VITE_LEMON_SQUEEZY_PRO_VARIANT_ID }}
+          VITE_LEMON_SQUEEZY_CREDITS_VARIANT_ID: ${{ secrets.VITE_LEMON_SQUEEZY_CREDITS_VARIANT_ID }}
         run: npm run build
 
       - name: Deploy to Cloudflare Pages
