@@ -310,7 +310,14 @@ export default function App() {
       {/* Footer Details */}
       <footer className="border-t border-gray-900 bg-gray-950/30 py-6 px-6">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row gap-4 justify-between items-center text-[11px] font-mono text-gray-500">
-          <p>© 2026 Chroma Isolate Engine. Powered by Supabase & Lemon Squeezy.</p>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-6">
+            <span>© 2026 Chroma Isolate Engine. Powered by Supabase & Lemon Squeezy.</span>
+            <div className="flex gap-4">
+              <a href="/terms" className="hover:text-gray-300 transition duration-150">Terms of Service</a>
+              <a href="/privacy" className="hover:text-gray-300 transition duration-150">Privacy Policy</a>
+              <a href="mailto:muhammad.elborgy@gmail.com" className="hover:text-gray-300 transition duration-150">Contact Support</a>
+            </div>
+          </div>
           <div className="flex gap-4">
             <span className="hover:text-gray-300 transition cursor-help flex items-center gap-1">
               <FileCheck className="h-3 w-3" />
