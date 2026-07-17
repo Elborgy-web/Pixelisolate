@@ -573,7 +573,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
           </div>
 
           {/* Pricing presentation cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
             {/* Free Tier Card */}
             <div className="bg-gray-950/40 border border-gray-850 rounded-2xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden">
               <div>
@@ -610,6 +610,45 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                 className="w-full py-3 bg-gray-900 border border-gray-850 hover:bg-gray-800 text-white rounded-xl text-xs font-semibold active:scale-[0.99] transition duration-150 cursor-pointer"
               >
                 Start Isolating Free
+              </button>
+            </div>
+
+            {/* 100 Credit Bundle Card */}
+            <div className="bg-gray-950/40 border border-gray-850 rounded-2xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden">
+              <div>
+                <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block mb-2">Pay-As-You-Go</span>
+                <h3 className="text-xl font-bold text-white">100 Credit Bundle</h3>
+                <div className="my-4 flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold text-white">$5</span>
+                  <span className="text-gray-500 text-xs font-mono">one-time</span>
+                </div>
+                <p className="text-xs text-gray-400 mb-6 leading-relaxed">
+                  Perfect for casual users who only need high-resolution asset downloads occasionally.
+                </p>
+                <ul className="space-y-3 font-mono text-[10px] text-gray-300 mb-8">
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>100 Credits added to account</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>HD / Full-Resolution exports</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>Credits never expire</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>Single subject isolation mode only</span>
+                  </li>
+                </ul>
+              </div>
+              <button
+                onClick={onOpenAuth}
+                className="w-full py-3 bg-gray-900 border border-gray-850 hover:bg-gray-800 text-white rounded-xl text-xs font-semibold active:scale-[0.99] transition duration-150 cursor-pointer"
+              >
+                Purchase Credits
               </button>
             </div>
 
@@ -671,6 +710,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                   <tr className="border-b border-gray-900 bg-gray-950/50 text-gray-500">
                     <th className="p-4 font-semibold uppercase">Capability Vector</th>
                     <th className="p-4 font-semibold uppercase">Free Tier Plan</th>
+                    <th className="p-4 font-semibold uppercase">100 Credit Bundle</th>
                     <th className="p-4 font-semibold uppercase">Pro Tier Plan</th>
                   </tr>
                 </thead>
@@ -678,15 +718,18 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                   <tr className="hover:bg-gray-900/20 transition">
                     <td className="p-4 font-bold text-gray-300">Initial Allotted Credits</td>
                     <td className="p-4">10 Trial Credits</td>
+                    <td className="p-4">100 Credits</td>
                     <td className="p-4 text-emerald-400 font-bold">Unlimited Access</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
                     <td className="p-4 font-bold text-gray-300">Max Download Resolution</td>
                     <td className="p-4">Standard Resolution (500px)</td>
+                    <td className="p-4">Full Original HD / Ultra-HD</td>
                     <td className="p-4 text-emerald-400 font-bold">Full Original HD / Ultra-HD</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
                     <td className="p-4 font-bold text-gray-300">Ingestion Capacity</td>
+                    <td className="p-4">Single File Processing</td>
                     <td className="p-4">Single File Processing</td>
                     <td className="p-4 text-emerald-400 font-bold">Parallel Mass Bulk (50+ Files)</td>
                   </tr>
@@ -694,14 +737,17 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                     <td className="p-4 font-bold text-gray-300">Mask Customization Tools</td>
                     <td className="p-4">Included</td>
                     <td className="p-4">Included</td>
+                    <td className="p-4">Included</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
                     <td className="p-4 font-bold text-gray-300">Cloud Archive Storage</td>
+                    <td className="p-4">Standard (Restricted)</td>
                     <td className="p-4">Standard (Restricted)</td>
                     <td className="p-4 text-emerald-400 font-bold">Extended Lifecycle</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
                     <td className="p-4 font-bold text-gray-300">Export Formats</td>
+                    <td className="p-4">Raw PNG</td>
                     <td className="p-4">Raw PNG</td>
                     <td className="p-4 text-emerald-400 font-bold">Structured ZIP Archive</td>
                   </tr>
