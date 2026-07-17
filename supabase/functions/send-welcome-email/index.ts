@@ -1,177 +1,58 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 
 serve(async (req) => {
-  // Handle CORS Preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
+  if (req.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405 })
   }
 
   try {
-    const payload = await req.json();
-    const email = payload?.record?.email;
+    const payload = await req.json()
+    const userEmail = payload.record.email
+    const userName = payload.record.raw_user_meta_data?.full_name || 'there'
 
-    if (!email) {
-      return new Response(JSON.stringify({ error: "Missing recipient email in payload record." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    if (!RESEND_API_KEY) {
-      console.error("Missing RESEND_API_KEY Deno environment variable.");
-      return new Response(JSON.stringify({ error: "Email provider configuration missing." }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    // HTML Email Template matching the premium PixelIsolate branding
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Welcome to Pixel Isolate</title>
-        <style>
-          body {
-            background-color: #050505;
-            color: #d1d5db;
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            margin: 0;
-            padding: 40px 20px;
-          }
-          .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #0a0b0d;
-            border: 1px solid #1f2937;
-            border-radius: 16px;
-            padding: 40px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 30px;
-          }
-          .logo {
-            font-size: 20px;
-            font-weight: 800;
-            letter-spacing: -0.025em;
-            color: #ffffff;
-            margin: 0;
-          }
-          .logo span {
-            color: #10b981;
-          }
-          h1 {
-            color: #ffffff;
-            font-size: 22px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            text-align: center;
-          }
-          p {
-            font-size: 15px;
-            line-height: 1.6;
-            margin-bottom: 24px;
-            color: #9ca3af;
-          }
-          .btn-container {
-            text-align: center;
-            margin: 35px 0;
-          }
-          .btn {
-            background-color: #10b981;
-            color: #ffffff !important;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            padding: 12px 30px;
-            border-radius: 10px;
-            display: inline-block;
-            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
-            transition: all 0.2s ease;
-          }
-          .footer {
-            margin-top: 40px;
-            border-top: 1px solid #1f2937;
-            padding-top: 25px;
-            text-align: center;
-            font-size: 12px;
-            color: #4b5563;
-            font-family: monospace;
-          }
-          .footer a {
-            color: #6b7280;
-            text-decoration: none;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h2 class="logo">PIXEL<span>ISOLATE</span></h2>
-          </div>
-          <h1>Welcome to Pixel Isolate!</h1>
-          <p>We are thrilled to welcome you to our freemium, high-precision image isolation workspace.</p>
-          <p>Your account has been successfully created and instantly credited with <strong>10 free trial credits</strong> to isolate, feather, and remove backgrounds with pixel-perfect accuracy.</p>
-          
-          <div class="btn-container">
-            <a href="https://pixelisolate.online" class="btn" target="_blank">Launch Workspace</a>
-          </div>
-
-          <p>If you have any questions, feedback, or need billing support, don't hesitate to reach out directly to our engineering team at <a href="mailto:contact@pixelisolate.online" style="color: #10b981; text-decoration: none;">contact@pixelisolate.online</a>.</p>
-          
-          <div class="footer">
-            <p>© 2026 Pixel Isolate Workspace. All rights reserved.</p>
-            <p><a href="https://pixelisolate.online/privacy" target="_blank">Privacy Policy</a> | <a href="https://pixelisolate.online/terms" target="_blank">Terms of Service</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    // Send email using Resend API
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Pixel Isolate <welcome@pixelisolate.online>",
-        to: [email],
-        subject: "Welcome to Pixel Isolate!",
-        html: emailHtml,
+        from: 'PixelIsolate <contact@pixelisolate.online>',
+        to: [userEmail],
+        subject: 'Welcome to the workspace. Your 10 free credits are active. ⚡',
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0B0F19; color: #F3F4F6; border-radius: 8px;">
+            <h2 style="color: #00A896;">Hi ${userName},</h2>
+            <p>Welcome to <strong>PixelIsolate.online</strong>—your new command center for high-precision, subpixel image extraction.</p>
+            <p>To get you moving at terminal speed, we’ve successfully initialized your profile and credited your account with <strong>10 Free High-Definition Isolation Credits</strong>.</p>
+            <h3 style="color: #E5E7EB;">Here is what you can deploy right now:</h3>
+            <ul>
+              <li><strong>Single Subject Isolation:</strong> Experience zero-compromise edge refinement and HSV masking.</li>
+              <li><strong>The Bulk Remover:</strong> Drag-and-drop up to 50 assets concurrently (Pro feature preview).</li>
+              <li><strong>Secure History Gallery:</strong> Access and re-download your isolated assets anytime.</li>
+            </ul>
+            <p>Ready to initialize your first pipeline?</p>
+            <p style="margin-top: 25px;"><a href="https://pixelisolate.online" style="background-color: #00A896; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">Launch Your Workspace Now</a></p>
+            <br>
+            <p style="color: #9CA3AF; font-size: 0.9em;">Precision cuts await,</p>
+            <p><strong>The PixelIsolate Team</strong></p>
+          </div>
+        `,
       }),
-    });
+    })
 
-    const resData = await res.json();
-
-    return new Response(JSON.stringify({ success: true, data: resData }), {
+    const result = await response.json()
+    return new Response(JSON.stringify(result), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
+      headers: { 'Content-Type': 'application/json' },
+    })
 
   } catch (error: any) {
-    console.error("Welcome email execution failed:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
-});
+})
