@@ -81,7 +81,7 @@ export default function SubscriptionManager({ userId, credits, isPro, onOpenPric
           <span className="text-xs text-gray-500 font-mono">Querying database states...</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={isPro ? "max-w-md mx-auto" : "grid grid-cols-1 md:grid-cols-2 gap-6"}>
           {/* Active Plan Management */}
           <div className="relative bg-gray-900/40 border border-gray-850 rounded-2xl p-6 shadow-xl backdrop-blur-md overflow-hidden">
             <div className="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -151,41 +151,43 @@ export default function SubscriptionManager({ userId, credits, isPro, onOpenPric
           </div>
 
           {/* Credit Balance Tracker */}
-          <div className="relative bg-gray-900/40 border border-gray-850 rounded-2xl p-6 shadow-xl backdrop-blur-md overflow-hidden">
-            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
-            <div className="relative z-10 flex flex-col h-full justify-between">
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">Credits Monitor</span>
-                  <span className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                    <Coins className="h-4 w-4" />
-                  </span>
-                </div>
-
-                <div className="mb-4">
-                  <div className="text-3xl font-extrabold text-white tracking-tight font-sans flex items-baseline gap-1">
-                    <span>{credits}</span>
-                    <span className="text-xs font-mono font-medium text-gray-500 uppercase tracking-wide">credits</span>
+          {!isPro && (
+            <div className="relative bg-gray-900/40 border border-gray-850 rounded-2xl p-6 shadow-xl backdrop-blur-md overflow-hidden">
+              <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
+              <div className="relative z-10 flex flex-col h-full justify-between">
+                <div>
+                  <div className="flex justify-between items-center mb-6">
+                    <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">Credits Monitor</span>
+                    <span className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                      <Coins className="h-4 w-4" />
+                    </span>
                   </div>
-                  <span className="text-[10px] font-mono text-emerald-400 mt-1 block">HD Extraction Balance Active</span>
+
+                  <div className="mb-4">
+                    <div className="text-3xl font-extrabold text-white tracking-tight font-sans flex items-baseline gap-1">
+                      <span>{credits}</span>
+                      <span className="text-xs font-mono font-medium text-gray-500 uppercase tracking-wide">credits</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-emerald-400 mt-1 block">HD Extraction Balance Active</span>
+                  </div>
+
+                  <p className="text-xs text-gray-400 mb-6 leading-relaxed">
+                    Every high-definition cut or feathering download utilizes 1 credit. Buy one-time credit top-up bundles if you run out of trial allocations. Credits never expire and carry over.
+                  </p>
                 </div>
 
-                <p className="text-xs text-gray-400 mb-6 leading-relaxed">
-                  Every high-definition cut or feathering download utilizes 1 credit. Buy one-time credit top-up bundles if you run out of trial allocations. Credits never expire and carry over.
-                </p>
-              </div>
-
-              <div>
-                <button
-                  onClick={onOpenPricing}
-                  className="w-full bg-gray-950 hover:bg-gray-800 border border-gray-850 rounded-xl py-3 text-white font-medium text-xs flex items-center justify-center gap-2 transition duration-200 cursor-pointer"
-                >
-                  <Coins className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>Top Up Balance — Get 100 Credits ($5)</span>
-                </button>
+                <div>
+                  <button
+                    onClick={onOpenPricing}
+                    className="w-full bg-gray-950 hover:bg-gray-800 border border-gray-850 rounded-xl py-3 text-white font-medium text-xs flex items-center justify-center gap-2 transition duration-200 cursor-pointer"
+                  >
+                    <Coins className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Top Up Balance — Get 100 Credits ($5)</span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
