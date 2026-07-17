@@ -44,6 +44,13 @@ serve(async (req) => {
     })
 
     const result = await response.json()
+    if (!response.ok) {
+      console.error("Resend API Error Payload:", result);
+      return new Response(JSON.stringify(result), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
