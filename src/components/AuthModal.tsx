@@ -45,7 +45,23 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         onClose();
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Authentication failed. Please try again.");
+      console.error("Auth error details:", err);
+      let message = "Authentication failed. Please try again.";
+      if (err) {
+        if (typeof err.message === "string") {
+          message = err.message;
+        } else if (typeof err.error === "string") {
+          message = err.error;
+        } else if (typeof err.error_description === "string") {
+          message = err.error_description;
+        } else {
+          try {
+            const str = JSON.stringify(err);
+            if (str !== "{}") message = str;
+          } catch (_) {}
+        }
+      }
+      setErrorMsg(message);
     } finally {
       setLoading(false);
     }
