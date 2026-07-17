@@ -9,6 +9,7 @@ import HistoryGallery from "./components/HistoryGallery";
 import AuthModal from "./components/AuthModal";
 import PricingModal from "./components/PricingModal";
 import SubscriptionManager from "./components/SubscriptionManager";
+import LandingPage from "./components/LandingPage";
 import { supabase } from "./utils/supabaseClient";
 import { 
   FileCheck, 
@@ -208,52 +209,54 @@ export default function App() {
           {/* Navigation Controls and User Account Block */}
           <div className="flex flex-wrap items-center gap-4">
             {/* View Tabs */}
-            <div className="flex bg-gray-950 p-1 rounded-xl border border-gray-850">
-              <button
-                onClick={() => setCurrentTab("editor")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
-                  currentTab === "editor"
-                    ? "bg-gray-850 text-white"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
-              >
-                <Sliders className="h-3.5 w-3.5" />
-                <span>Editor Workspace</span>
-              </button>
-              <button
-                onClick={() => {
-                  if (!user) {
-                    setAuthModalOpen(true);
-                  } else if (!profile?.is_pro) {
-                    setPricingModalOpen(true);
-                    alert("History Gallery is a Pro feature. Please upgrade your workspace to automatically archive and re-download your isolated assets.");
-                  } else {
-                    setCurrentTab("history");
-                  }
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
-                  currentTab === "history"
-                    ? "bg-gray-850 text-white"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
-              >
-                <History className="h-3.5 w-3.5" />
-                <span>My History</span>
-              </button>
-              {user && (
+            {user && (
+              <div className="flex bg-gray-950 p-1 rounded-xl border border-gray-850">
                 <button
-                  onClick={() => setCurrentTab("billing")}
+                  onClick={() => setCurrentTab("editor")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
-                    currentTab === "billing"
+                    currentTab === "editor"
                       ? "bg-gray-850 text-white"
                       : "text-gray-400 hover:text-gray-200"
                   }`}
                 >
-                  <CreditCard className="h-3.5 w-3.5" />
-                  <span>Billing & Subscription</span>
+                  <Sliders className="h-3.5 w-3.5" />
+                  <span>Editor Workspace</span>
                 </button>
-              )}
-            </div>
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      setAuthModalOpen(true);
+                    } else if (!profile?.is_pro) {
+                      setPricingModalOpen(true);
+                      alert("History Gallery is a Pro feature. Please upgrade your workspace to automatically archive and re-download your isolated assets.");
+                    } else {
+                      setCurrentTab("history");
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                    currentTab === "history"
+                      ? "bg-gray-850 text-white"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  <History className="h-3.5 w-3.5" />
+                  <span>My History</span>
+                </button>
+                {user && (
+                  <button
+                    onClick={() => setCurrentTab("billing")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                      currentTab === "billing"
+                        ? "bg-gray-850 text-white"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <CreditCard className="h-3.5 w-3.5" />
+                    <span>Billing & Subscription</span>
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Profile Info / Auth Actions */}
             {user ? (
@@ -311,28 +314,32 @@ export default function App() {
       </header>
 
       {/* Main Workspace Frame */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
-        {currentTab === "editor" && (
-          <ChromaKeyer 
-            user={user} 
-            profile={profile} 
-            onRefreshProfile={() => user && fetchProfile(user.id, user.email || "")} 
-            onOpenPricing={() => setPricingModalOpen(true)}
-            onOpenAuth={() => setAuthModalOpen(true)}
-          />
-        )}
-        {currentTab === "history" && (
-          <HistoryGallery userId={user?.id} isPro={profile?.is_pro ?? false} />
-        )}
-        {currentTab === "billing" && user && (
-          <SubscriptionManager 
-            userId={user.id} 
-            credits={profile?.credits ?? 0} 
-            isPro={profile?.is_pro ?? false} 
-            onOpenPricing={() => setPricingModalOpen(true)}
-          />
-        )}
-      </main>
+      {user ? (
+        <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
+          {currentTab === "editor" && (
+            <ChromaKeyer 
+              user={user} 
+              profile={profile} 
+              onRefreshProfile={() => user && fetchProfile(user.id, user.email || "")} 
+              onOpenPricing={() => setPricingModalOpen(true)}
+              onOpenAuth={() => setAuthModalOpen(true)}
+            />
+          )}
+          {currentTab === "history" && (
+            <HistoryGallery userId={user?.id} isPro={profile?.is_pro ?? false} />
+          )}
+          {currentTab === "billing" && user && (
+            <SubscriptionManager 
+              userId={user.id} 
+              credits={profile?.credits ?? 0} 
+              isPro={profile?.is_pro ?? false} 
+              onOpenPricing={() => setPricingModalOpen(true)}
+            />
+          )}
+        </main>
+      ) : (
+        <LandingPage onOpenAuth={() => setAuthModalOpen(true)} />
+      )}
 
       {/* Footer Details */}
       <footer className="border-t border-gray-900 bg-gray-950/30 py-6 px-6">
