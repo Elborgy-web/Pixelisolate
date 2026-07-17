@@ -315,7 +315,7 @@ export default function App() {
             <div className="flex gap-4">
               <a href="/terms" className="hover:text-gray-300 transition duration-150">Terms of Service</a>
               <a href="/privacy" className="hover:text-gray-300 transition duration-150">Privacy Policy</a>
-              <a href="mailto:muhammad.elborgy@gmail.com" className="hover:text-gray-300 transition duration-150">Contact Support</a>
+              <a href="mailto:contact@pixelisolate.online" className="hover:text-gray-300 transition duration-150">Contact Support</a>
             </div>
           </div>
           <div className="flex gap-4">
