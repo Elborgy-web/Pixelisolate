@@ -96,6 +96,10 @@ export default function PricingModal({ isOpen, onClose, userId }: PricingModalPr
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span><strong>Secure History Gallery</strong> (Re-download assets anytime)</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="h-4 w-4 text-emerald-400 shrink-0" />
                   <span>Priority WASM execution speeds</span>
                 </li>
               </ul>

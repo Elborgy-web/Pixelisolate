@@ -224,6 +224,9 @@ export default function App() {
                 onClick={() => {
                   if (!user) {
                     setAuthModalOpen(true);
+                  } else if (!profile?.is_pro) {
+                    setPricingModalOpen(true);
+                    alert("History Gallery is a Pro feature. Please upgrade your workspace to automatically archive and re-download your isolated assets.");
                   } else {
                     setCurrentTab("history");
                   }
