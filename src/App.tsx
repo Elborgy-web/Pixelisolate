@@ -8,6 +8,7 @@ import ChromaKeyer from "./components/ChromaKeyer";
 import HistoryGallery from "./components/HistoryGallery";
 import AuthModal from "./components/AuthModal";
 import PricingModal from "./components/PricingModal";
+import SubscriptionManager from "./components/SubscriptionManager";
 import { supabase } from "./utils/supabaseClient";
 import { 
   FileCheck, 
@@ -16,7 +17,8 @@ import {
   LogOut, 
   Sparkles, 
   History, 
-  Sliders 
+  Sliders,
+  CreditCard
 } from "lucide-react";
 
 // Helper: Dynamically crop blank/transparent padding edges from the logo PNG on the client side
@@ -82,7 +84,7 @@ function cropImageTransparentEdges(imgElement: HTMLImageElement): string {
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [currentTab, setCurrentTab] = useState<"editor" | "history">("editor");
+  const [currentTab, setCurrentTab] = useState<"editor" | "history" | "billing">("editor");
   const [logoSrc, setLogoSrc] = useState("/logo.png");
 
   useEffect(() => {
@@ -235,6 +237,19 @@ export default function App() {
                 <History className="h-3.5 w-3.5" />
                 <span>My History</span>
               </button>
+              {user && (
+                <button
+                  onClick={() => setCurrentTab("billing")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                    currentTab === "billing"
+                      ? "bg-gray-850 text-white"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                  <span>Billing & Subscription</span>
+                </button>
+              )}
             </div>
 
             {/* Profile Info / Auth Actions */}
@@ -294,7 +309,7 @@ export default function App() {
 
       {/* Main Workspace Frame */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
-        {currentTab === "editor" ? (
+        {currentTab === "editor" && (
           <ChromaKeyer 
             user={user} 
             profile={profile} 
@@ -302,8 +317,17 @@ export default function App() {
             onOpenPricing={() => setPricingModalOpen(true)}
             onOpenAuth={() => setAuthModalOpen(true)}
           />
-        ) : (
+        )}
+        {currentTab === "history" && (
           <HistoryGallery userId={user?.id} isPro={profile?.is_pro ?? false} />
+        )}
+        {currentTab === "billing" && user && (
+          <SubscriptionManager 
+            userId={user.id} 
+            credits={profile?.credits ?? 0} 
+            isPro={profile?.is_pro ?? false} 
+            onOpenPricing={() => setPricingModalOpen(true)}
+          />
         )}
       </main>
 
