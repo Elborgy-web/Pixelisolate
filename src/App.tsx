@@ -19,10 +19,84 @@ import {
   Sliders 
 } from "lucide-react";
 
+// Helper: Dynamically crop blank/transparent padding edges from the logo PNG on the client side
+function cropImageTransparentEdges(imgElement: HTMLImageElement): string {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return imgElement.src;
+
+  canvas.width = imgElement.naturalWidth;
+  canvas.height = imgElement.naturalHeight;
+  ctx.drawImage(imgElement, 0, 0);
+
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imgData.data;
+  const width = imgData.width;
+  const height = imgData.height;
+
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (alpha > 0) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (minX > maxX || minY > maxY) {
+    return imgElement.src;
+  }
+
+  const cropWidth = maxX - minX + 1;
+  const cropHeight = maxY - minY + 1;
+
+  const cropCanvas = document.createElement("canvas");
+  cropCanvas.width = cropWidth;
+  cropCanvas.height = cropHeight;
+  const cropCtx = cropCanvas.getContext("2d");
+  if (!cropCtx) return imgElement.src;
+
+  cropCtx.drawImage(
+    canvas,
+    minX,
+    minY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    cropWidth,
+    cropHeight
+  );
+
+  return cropCanvas.toDataURL();
+}
+
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [currentTab, setCurrentTab] = useState<"editor" | "history">("editor");
+  const [logoSrc, setLogoSrc] = useState("/logo.png");
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = "/logo.png";
+    img.onload = () => {
+      try {
+        const cropped = cropImageTransparentEdges(img);
+        setLogoSrc(cropped);
+      } catch (e) {
+        console.warn("Failed to crop transparent edges of logo:", e);
+      }
+    };
+  }, []);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
 
@@ -126,7 +200,7 @@ export default function App() {
       <header className="border-b border-gray-900 bg-gray-950/40 backdrop-blur-md sticky top-0 z-40 px-6 py-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
           <div className="flex items-center">
-            <img src="/logo.png" alt="Pixel-Level Image Isolation Workspace" className="h-16 md:h-20 w-auto object-contain -my-4 md:-my-5" />
+            <img src={logoSrc} alt="Pixel-Level Image Isolation Workspace" className="h-11 md:h-13 w-auto object-contain" />
           </div>
 
           {/* Navigation Controls and User Account Block */}
