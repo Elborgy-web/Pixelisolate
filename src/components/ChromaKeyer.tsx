@@ -79,9 +79,13 @@ export default function ChromaKeyer({
   const [showBatchUpsell, setShowBatchUpsell] = useState<boolean>(false);
   const [downloadingCloud, setDownloadingCloud] = useState<boolean>(false);
 
-  // Helper: Scale down canvas image to max 500px longest dimension
-  const scaleDownImage = (dataUri: string, maxDim = 500): Promise<string> => {
+  // Helper: Scale down canvas image and compress for lightweight history storage
+  const scaleDownImage = (dataUri: string, maxDim = 500, format = "image/png", quality = 0.85): Promise<string> => {
     return new Promise((resolve) => {
+      if (!dataUri) {
+        resolve("");
+        return;
+      }
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
@@ -102,7 +106,10 @@ export default function ChromaKeyer({
         if (ctx) {
           ctx.drawImage(img, 0, 0, w, h);
         }
-        resolve(canvas.toDataURL("image/png"));
+        resolve(canvas.toDataURL(format, quality));
+      };
+      img.onerror = () => {
+        resolve("");
       };
       img.src = dataUri;
     });
@@ -126,12 +133,17 @@ export default function ChromaKeyer({
 
   // Helper: Upload input + transparent result to user history storage via backend API
   const uploadImagePairToHistory = async (originalBase64: string, isolatedBase64: string) => {
-    if (!user) return;
+    if (!originalBase64 || !isolatedBase64) return;
     
     try {
-      // Scale down original and isolated images to max 1000px for lightweight preview storage
-      const scaledOrig = await scaleDownImage(originalBase64, 1000);
-      const scaledProc = await scaleDownImage(isolatedBase64, 1000);
+      // Scale down original and isolated images to max 450px and compress as JPEG for ultra-lightweight storage (under 50KB total!)
+      const scaledOrig = await scaleDownImage(originalBase64, 450, "image/jpeg", 0.75);
+      const scaledProc = await scaleDownImage(isolatedBase64, 450, "image/jpeg", 0.75);
+
+      if (!scaledOrig || !scaledProc) {
+        console.warn("Base64 image scaling failed, skipping history save.");
+        return;
+      }
 
       const response = await fetch("/api/history", {
         method: "POST",
@@ -146,7 +158,7 @@ export default function ChromaKeyer({
       });
 
       if (!response.ok) {
-        let errMsg = "Failed to save history via backend API.";
+        let errMsg = `Failed to save history via backend API (HTTP ${response.status} ${response.statusText}).`;
         try {
           const contentType = response.headers.get("content-type");
           if (contentType && contentType.includes("application/json")) {
@@ -154,7 +166,9 @@ export default function ChromaKeyer({
             errMsg = errData.error || errMsg;
           } else {
             const textData = await response.text();
-            errMsg = textData || errMsg;
+            if (textData && textData.length < 200) {
+              errMsg = textData;
+            }
           }
         } catch (e) {
           console.warn("Could not parse error response:", e);
