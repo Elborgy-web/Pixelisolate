@@ -152,7 +152,7 @@ export default function ChromaKeyer({
       }
 
       const apiBase = import.meta.env.VITE_API_URL || "";
-      const response = await fetch(`${apiBase}/api/history`, {
+      const response = await fetch(`${apiBase}/api/vault`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -279,7 +279,7 @@ app.post("/api/webhooks/lemon-squeezy", async (req: any, res) => {
 
 
 // API Endpoint: Save processed image pair to history (bypasses RLS & storage policies via admin client)
-app.post("/api/history", async (req, res) => {
+app.post("/api/vault", async (req, res) => {
   try {
     const { userId, originalBase64, processedBase64 } = req.body;
     if (!userId || !originalBase64 || !processedBase64) {
@@ -362,7 +362,7 @@ app.post("/api/history", async (req, res) => {
 });
 
 // API Endpoint: Delete history item (bypasses storage & DB policies via admin client)
-app.delete("/api/history/:id", async (req, res) => {
+app.delete("/api/vault/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { userId } = req.body;
