@@ -1,4 +1,3 @@
--- 1. Create a trigger helper function to automatically insert a profile row on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user_profile()
 RETURNS TRIGGER
 SECURITY DEFINER
@@ -7,7 +6,12 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, credits, is_pro)
-  VALUES (NEW.id, NEW.email, 10, false)
+  VALUES (
+    NEW.id, 
+    NEW.email, 
+    CASE WHEN NEW.email IN ('muhammad.elborgy@gmail.com', 'mohamedkamel93930@gmail.com') THEN 100 ELSE 10 END, 
+    NEW.email IN ('muhammad.elborgy@gmail.com', 'mohamedkamel93930@gmail.com')
+  )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
