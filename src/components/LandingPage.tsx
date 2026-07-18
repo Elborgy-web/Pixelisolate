@@ -330,6 +330,9 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
               <div className="flex-1 flex items-center justify-center py-6">
                 <svg width="100%" height="100%" viewBox="0 0 200 200" className="w-full h-full max-h-[220px] object-contain">
                   <defs>
+                    <clipPath id="simulator-clip">
+                      <rect x="0" y="0" width="200" height="200" rx="12" />
+                    </clipPath>
                     <pattern id="simulator-checkerboard" width="16" height="16" patternUnits="userSpaceOnUse">
                       <rect width="8" height="8" fill="#0c0d12" />
                       <rect x="8" width="8" height="8" fill="#151720" />
@@ -354,6 +357,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                   {/* Dynamic Render Subject */}
                   <g 
                     filter="url(#sim-feather)" 
+                    clipPath="url(#simulator-clip)"
                     style={{ 
                       transform: `scale(${1 - (simulatedErosion * 0.025)})`, 
                       transformOrigin: 'center' 
@@ -362,18 +366,20 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                     {selectedPreset === "badge" ? (
                       <image 
                         href="/logo.png" 
-                        x="30" 
-                        y="70" 
-                        width="140" 
-                        height="60" 
+                        x="5" 
+                        y="5" 
+                        width="190" 
+                        height="190" 
+                        preserveAspectRatio="xMidYMid meet"
                       />
                     ) : (
                       <image 
                         href={simulatedBgType === "solid" ? "/model.jpg" : "/model_isolated.png"} 
-                        x="20" 
-                        y="20" 
-                        width="160" 
-                        height="160" 
+                        x="0" 
+                        y="0" 
+                        width="200" 
+                        height="200" 
+                        preserveAspectRatio="xMidYMid slice"
                       />
                     )}
                   </g>
