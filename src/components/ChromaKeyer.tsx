@@ -44,6 +44,7 @@ export default function ChromaKeyer({
 }: ChromaKeyerProps) {
   // Image sources
   const [sourceImageUri, setSourceImageUri] = useState<string | null>(null);
+  const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
   const [greenScreenImageUri, setGreenScreenImageUri] = useState<string | null>(null);
   const [isolatedImageUri, setIsolatedImageUri] = useState<string | null>(null);
 
@@ -241,9 +242,14 @@ export default function ChromaKeyer({
     setIsolatedImageUri(null);
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       if (event.target?.result) {
-        setSourceImageUri(event.target.result as string);
+        const rawUri = event.target.result as string;
+        setSourceImageUri(rawUri);
+        
+        // Generate a fast working preview image (capped at 2048px) for smooth real-time slider rendering
+        const scaledPreview = await scaleDownImage(rawUri, 2048);
+        setPreviewImageUri(scaledPreview);
         setActiveTab("original");
       }
     };
@@ -256,7 +262,11 @@ export default function ChromaKeyer({
       const img = originalImageRef.current;
       const w = img.naturalWidth;
       const h = img.naturalHeight;
-      setFileDimensions({ w, h });
+
+      // Only set file dimensions when loading the original raw base64 source image URI
+      if (sourceImageUri && img.src.startsWith(sourceImageUri.substring(0, 150))) {
+        setFileDimensions({ w, h });
+      }
 
       // Instant client-side Corner Background Color Detection!
       try {
@@ -291,23 +301,28 @@ export default function ChromaKeyer({
       } catch (err) {
         console.warn("Corner detection failed, using fallback:", err);
       }
-
-      // Call standard Groq analysis in the background for refinement
-      runGenAIAnalysis();
     }
   };
 
+  // Trigger GenAI analysis whenever a new image is ingested
+  useEffect(() => {
+    if (sourceImageUri) {
+      runGenAIAnalysis();
+    }
+  }, [sourceImageUri]);
+
   // Run Step 1: GenAI Image analysis (Server-Side proxying of Groq Llama 3.2 Vision)
   const runGenAIAnalysis = async () => {
-    if (!sourceImageUri) return;
+    const analysisTarget = previewImageUri || sourceImageUri;
+    if (!analysisTarget) return;
     setIsAnalyzing(true);
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          imageBase64: sourceImageUri,
-          mimeType: sourceImageUri.split(";")[0].split(":")[1] || "image/png",
+          imageBase64: analysisTarget,
+          mimeType: analysisTarget.split(";")[0].split(":")[1] || "image/png",
         }),
       });
 
@@ -450,7 +465,7 @@ export default function ChromaKeyer({
 
   // Interactive Live Render of Step 2 (Chroma/AI mask) & Step 3 (Erosions/Dilation & isolate PNG)
   useEffect(() => {
-    if (!sourceImageUri || !originalImageRef.current) return;
+    if (!previewImageUri || !originalImageRef.current) return;
 
     // Wait until image loads
     const imgObj = originalImageRef.current;
@@ -468,9 +483,9 @@ export default function ChromaKeyer({
 
     if (!ctxSrc || !ctxGreen || !ctxIsolated) return;
 
-    // Set canvas dimensions to match source file
-    const w = fileDimensions.w || imgObj.naturalWidth || 800;
-    const h = fileDimensions.h || imgObj.naturalHeight || 600;
+    // Set canvas dimensions to match the optimized preview file width & height
+    const w = imgObj.naturalWidth || 800;
+    const h = imgObj.naturalHeight || 600;
 
     canvasSrc.width = w;
     canvasSrc.height = h;
@@ -652,7 +667,7 @@ export default function ChromaKeyer({
 
     runRenderPipeline();
   }, [
-    sourceImageUri,
+    previewImageUri,
     fileDimensions,
     sampledColor,
     sampledColor2,
@@ -700,7 +715,8 @@ export default function ChromaKeyer({
 
   // Trigger local IMG.LY high-precision background removal in AI Mode (PhotoRoom quality)
   useEffect(() => {
-    if (!sourceImageUri || segmentationMode !== "ai") return;
+    const activeTarget = previewImageUri || sourceImageUri;
+    if (!activeTarget || segmentationMode !== "ai") return;
 
     let active = true;
     const runImglyRemoval = async () => {
@@ -716,8 +732,8 @@ export default function ChromaKeyer({
           }
         };
         
-        // Feed the base64 source image URI directly into the WASM pipeline
-        const blob = await imglyRemoveBackground(sourceImageUri, config);
+        // Feed the optimized preview base64 image URI directly into the WASM pipeline
+        const blob = await imglyRemoveBackground(activeTarget, config);
         if (!active) return;
         
         const url = URL.createObjectURL(blob);
@@ -730,8 +746,8 @@ export default function ChromaKeyer({
           imgIsolated.onerror = reject;
         });
 
-        const w = fileDimensions.w || imgIsolated.naturalWidth || 800;
-        const h = fileDimensions.h || imgIsolated.naturalHeight || 600;
+        const w = imgIsolated.naturalWidth || 800;
+        const h = imgIsolated.naturalHeight || 600;
 
         const canvasAI = document.createElement("canvas");
         canvasAI.width = w;
@@ -766,7 +782,7 @@ export default function ChromaKeyer({
     return () => {
       active = false;
     };
-  }, [sourceImageUri, segmentationMode, chromaColorName, fileDimensions]);
+  }, [previewImageUri, sourceImageUri, segmentationMode, chromaColorName, fileDimensions]);
 
   // Synchronize manual adjustments made in Single Mode back to the Bulk queue array in real-time!
   useEffect(() => {
@@ -814,9 +830,273 @@ export default function ChromaKeyer({
     greenScreenImageUri,
   ]);
 
+  // Helper: Computes the full-resolution chroma key result on-the-fly for downloads
+  const getFullResolutionUri = async (type: "greenscreen" | "isolated"): Promise<string> => {
+    if (!sourceImageUri) throw new Error("No source image");
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+
+        const canvasSrc = document.createElement("canvas");
+        const canvasGreen = document.createElement("canvas");
+        const canvasIsolated = document.createElement("canvas");
+
+        canvasSrc.width = w;
+        canvasSrc.height = h;
+        canvasGreen.width = w;
+        canvasGreen.height = h;
+        canvasIsolated.width = w;
+        canvasIsolated.height = h;
+
+        const ctxSrc = canvasSrc.getContext("2d");
+        const ctxGreen = canvasGreen.getContext("2d");
+        const ctxIsolated = canvasIsolated.getContext("2d");
+
+        if (!ctxSrc || !ctxGreen || !ctxIsolated) {
+          reject(new Error("Could not create canvas contexts"));
+          return;
+        }
+
+        ctxSrc.drawImage(img, 0, 0, w, h);
+        const originalData = ctxSrc.getImageData(0, 0, w, h);
+        const currentChroma = CHROMA_OPTIONS.find(c => c.name === chromaColorName) || CHROMA_OPTIONS[0];
+
+        if (segmentationMode === "ai" || segmentationMode === "frame") {
+          let initialAlpha = new Uint8Array(w * h);
+
+          if (segmentationMode === "ai") {
+            const previewAlpha = aiAlphaMaskRef.current;
+            if (previewAlpha && previewImageUri) {
+              const scaleCanvas = document.createElement("canvas");
+              const previewImg = new Image();
+              previewImg.onload = () => {
+                const pw = previewImg.width;
+                const ph = previewImg.height;
+                scaleCanvas.width = pw;
+                scaleCanvas.height = ph;
+                const sCtx = scaleCanvas.getContext("2d");
+                if (sCtx) {
+                  const alphaImgData = sCtx.createImageData(pw, ph);
+                  for (let i = 0; i < pw * ph; i++) {
+                    const val = previewAlpha[i];
+                    alphaImgData.data[i * 4] = val;
+                    alphaImgData.data[i * 4 + 1] = val;
+                    alphaImgData.data[i * 4 + 2] = val;
+                    alphaImgData.data[i * 4 + 3] = 255;
+                  }
+                  sCtx.putImageData(alphaImgData, 0, 0);
+
+                  const targetCanvas = document.createElement("canvas");
+                  targetCanvas.width = w;
+                  targetCanvas.height = h;
+                  const tCtx = targetCanvas.getContext("2d");
+                  if (tCtx) {
+                    tCtx.drawImage(scaleCanvas, 0, 0, w, h);
+                    const scaledMaskData = tCtx.getImageData(0, 0, w, h);
+                    for (let i = 0; i < w * h; i++) {
+                      const alphaVal = scaledMaskData.data[i * 4];
+                      if (isInvertedMask) {
+                        initialAlpha[i] = alphaVal > 0 ? 0 : 255;
+                      } else {
+                        initialAlpha[i] = alphaVal;
+                      }
+                    }
+
+                    let processedAlpha = initialAlpha;
+                    if (erosionSize > 0) {
+                      processedAlpha = erodeAlpha(processedAlpha, w, h, erosionSize);
+                    }
+                    if (dilationSize > 0) {
+                      processedAlpha = dilateAlpha(processedAlpha, w, h, dilationSize);
+                    }
+                    if (featherRadius > 0) {
+                      processedAlpha = blurAlpha(processedAlpha, w, h, featherRadius);
+                    }
+
+                    if (type === "greenscreen") {
+                      const greenData = ctxGreen.createImageData(w, h);
+                      const dstGreen = greenData.data;
+                      const src = originalData.data;
+                      for (let i = 0; i < w * h * 4; i += 4) {
+                        const pixelIdx = i / 4;
+                        if (processedAlpha[pixelIdx] === 0) {
+                          dstGreen[i] = currentChroma.rgb.r;
+                          dstGreen[i + 1] = currentChroma.rgb.g;
+                          dstGreen[i + 2] = currentChroma.rgb.b;
+                          dstGreen[i + 3] = 255;
+                        } else {
+                          dstGreen[i] = src[i];
+                          dstGreen[i + 1] = src[i + 1];
+                          dstGreen[i + 2] = src[i + 2];
+                          dstGreen[i + 3] = 255;
+                        }
+                      }
+                      ctxGreen.putImageData(greenData, 0, 0);
+                      resolve(canvasGreen.toDataURL("image/png"));
+                    } else {
+                      const isolatedData = ctxIsolated.createImageData(w, h);
+                      const dstIsolated = isolatedData.data;
+                      const src = originalData.data;
+                      for (let i = 0; i < w * h * 4; i += 4) {
+                        const pixelIdx = i / 4;
+                        dstIsolated[i] = src[i];
+                        dstIsolated[i + 1] = src[i + 1];
+                        dstIsolated[i + 2] = src[i + 2];
+                        dstIsolated[i + 3] = processedAlpha[pixelIdx];
+                        if (processedAlpha[pixelIdx] === 0) {
+                          dstIsolated[i] = 0;
+                          dstIsolated[i + 1] = 0;
+                          dstIsolated[i + 2] = 0;
+                        }
+                      }
+                      ctxIsolated.putImageData(isolatedData, 0, 0);
+                      resolve(canvasIsolated.toDataURL("image/png"));
+                    }
+                  }
+                }
+              };
+              previewImg.src = previewImageUri;
+            } else {
+              resolve(sourceImageUri);
+            }
+          } else {
+            // frame mode
+            const bgRgb = { r: originalData.data[0], g: originalData.data[1], b: originalData.data[2] };
+            let minX = w;
+            let maxX = 0;
+            let minY = h;
+            let maxY = 0;
+            let found = false;
+            const data = originalData.data;
+            for (let y = 0; y < h; y++) {
+              for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+                const a = data[idx + 3];
+                if (a < 10) continue;
+                const diff = Math.abs(r - bgRgb.r) + Math.abs(g - bgRgb.g) + Math.abs(b - bgRgb.b);
+                if (diff > 35) {
+                  if (x < minX) minX = x;
+                  if (x > maxX) maxX = x;
+                  if (y < minY) minY = y;
+                  if (y > maxY) maxY = y;
+                  found = true;
+                }
+              }
+            }
+            if (!found) {
+              minX = 0;
+              maxX = w - 1;
+              minY = 0;
+              maxY = h - 1;
+            }
+            for (let y = 0; y < h; y++) {
+              for (let x = 0; x < w; x++) {
+                const idx = y * w + x;
+                const inside = x >= minX && x <= maxX && y >= minY && y <= maxY;
+                const keepPixel = isInvertedMask ? !inside : inside;
+                initialAlpha[idx] = keepPixel ? 255 : 0;
+              }
+            }
+            let processedAlpha = initialAlpha;
+            if (erosionSize > 0) processedAlpha = erodeAlpha(processedAlpha, w, h, erosionSize);
+            if (dilationSize > 0) processedAlpha = dilateAlpha(processedAlpha, w, h, dilationSize);
+            if (featherRadius > 0) processedAlpha = blurAlpha(processedAlpha, w, h, featherRadius);
+
+            if (type === "greenscreen") {
+              const greenData = ctxGreen.createImageData(w, h);
+              const dstGreen = greenData.data;
+              const src = originalData.data;
+              for (let i = 0; i < w * h * 4; i += 4) {
+                const pixelIdx = i / 4;
+                if (processedAlpha[pixelIdx] === 0) {
+                  dstGreen[i] = currentChroma.rgb.r;
+                  dstGreen[i + 1] = currentChroma.rgb.g;
+                  dstGreen[i + 2] = currentChroma.rgb.b;
+                  dstGreen[i + 3] = 255;
+                } else {
+                  dstGreen[i] = src[i];
+                  dstGreen[i + 1] = src[i + 1];
+                  dstGreen[i + 2] = src[i + 2];
+                  dstGreen[i + 3] = 255;
+                }
+              }
+              ctxGreen.putImageData(greenData, 0, 0);
+              resolve(canvasGreen.toDataURL("image/png"));
+            } else {
+              const isolatedData = ctxIsolated.createImageData(w, h);
+              const dstIsolated = isolatedData.data;
+              const src = originalData.data;
+              for (let i = 0; i < w * h * 4; i += 4) {
+                const pixelIdx = i / 4;
+                dstIsolated[i] = src[i];
+                dstIsolated[i + 1] = src[i + 1];
+                dstIsolated[i + 2] = src[i + 2];
+                dstIsolated[i + 3] = processedAlpha[pixelIdx];
+                if (processedAlpha[pixelIdx] === 0) {
+                  dstIsolated[i] = 0;
+                  dstIsolated[i + 1] = 0;
+                  dstIsolated[i + 2] = 0;
+                }
+              }
+              ctxIsolated.putImageData(isolatedData, 0, 0);
+              resolve(canvasIsolated.toDataURL("image/png"));
+            }
+          }
+        } else {
+          // Standard Chroma Key Mode at full resolution
+          const greenScreenData = createChromaGreenTransform(
+            originalData,
+            sampledColor,
+            sampledColor2,
+            isCheckerboard,
+            useConnectivity,
+            similarity,
+            featherRadius,
+            currentChroma.rgb
+          );
+          ctxGreen.putImageData(greenScreenData, 0, 0);
+
+          if (type === "greenscreen") {
+            resolve(canvasGreen.toDataURL("image/png"));
+          } else {
+            const isolatedData = isolateSubjectFromChroma(
+              greenScreenData,
+              hueMin,
+              hueMax,
+              satMin,
+              satMax,
+              valMin,
+              valMax,
+              erosionSize,
+              dilationSize,
+              featherRadius,
+              useBoundingBox ? analysisReport?.boundingBox : null
+            );
+            ctxIsolated.putImageData(isolatedData, 0, 0);
+            resolve(canvasIsolated.toDataURL("image/png"));
+          }
+        }
+      };
+      img.onerror = reject;
+      img.src = sourceImageUri;
+    });
+  };
+
   // Download Output files
   const downloadAsset = async (type: "greenscreen" | "isolated") => {
-    let uri = type === "greenscreen" ? greenScreenImageUri : isolatedImageUri;
+    let uri = "";
+    try {
+      uri = await getFullResolutionUri(type);
+    } catch (e) {
+      console.error("Full resolution render failed, falling back to preview", e);
+      uri = type === "greenscreen" ? (greenScreenImageUri || "") : (isolatedImageUri || "");
+    }
     let fileNameExt = type === "greenscreen" ? "chroma_greenscreen.png" : "isolated_asset.png";
 
     if (!uri) return;
@@ -2418,7 +2698,7 @@ export default function ChromaKeyer({
                     {segmentationMode === "chroma" && (
                       <div className="flex flex-col gap-2 bg-gray-950/40 p-3.5 rounded-lg border border-gray-880">
                         <span className="text-[11px] font-mono font-bold text-gray-400 uppercase tracking-wide">
-                          HSV Green-Key Bounds (#00ff00 targets)
+                          HSV {chromaColorName}-Key Bounds ({CHROMA_OPTIONS.find(c => c.name === chromaColorName)?.hex || "#00ff00"} targets)
                         </span>
 
                         <div className="grid grid-cols-2 gap-4 mt-2">
@@ -2639,7 +2919,7 @@ export default function ChromaKeyer({
 
                     <img
                       ref={originalImageRef}
-                      src={sourceImageUri}
+                      src={previewImageUri || sourceImageUri || ""}
                       onLoad={handleOriginalImageLoad}
                       className="hidden"
                       crossOrigin="anonymous"
