@@ -583,14 +583,52 @@ export default function ChromaKeyer({
             processedAlpha = blurAlpha(processedAlpha, w, h, featherRadius);
           }
 
+          // Apply AI-Chroma Hybrid Keying to refine the AI mask near borders
+          const src = originalData.data;
+          const hybridAlpha = new Uint8Array(w * h);
+          for (let idx = 0; idx < w * h; idx++) {
+            const i = idx * 4;
+            const alphaVal = processedAlpha[idx];
+            const r = src[i];
+            const g = src[i + 1];
+            const b = src[i + 2];
+
+            const dR1 = r - sampledColor.r;
+            const dG1 = g - sampledColor.g;
+            const dB1 = b - sampledColor.b;
+            const dist1 = Math.sqrt(dR1 * dR1 + dG1 * dG1 + dB1 * dB1);
+
+            let minDist = dist1;
+            if (sampledColor2) {
+              const dR2 = r - sampledColor2.r;
+              const dG2 = g - sampledColor2.g;
+              const dB2 = b - sampledColor2.b;
+              const dist2 = Math.sqrt(dR2 * dR2 + dG2 * dG2 + dB2 * dB2);
+              minDist = Math.min(minDist, dist2);
+            }
+
+            const maxDistThreshold = 95;
+            let finalAlphaVal = alphaVal;
+
+            if (minDist < maxDistThreshold) {
+              const factor = minDist / maxDistThreshold;
+              if (alphaVal < 255) {
+                finalAlphaVal = Math.round(alphaVal * factor);
+              } else if (minDist < 60) {
+                finalAlphaVal = Math.round(255 * (minDist / 60));
+              }
+            }
+
+            hybridAlpha[idx] = finalAlphaVal;
+          }
+
           // Draw green mask canvas
           const greenData = ctxGreen.createImageData(w, h);
           const dstGreen = greenData.data;
-          const src = originalData.data;
 
           for (let i = 0; i < w * h * 4; i += 4) {
             const pixelIdx = i / 4;
-            if (processedAlpha[pixelIdx] === 0) {
+            if (hybridAlpha[pixelIdx] === 0) {
               dstGreen[i] = currentChroma.rgb.r;
               dstGreen[i + 1] = currentChroma.rgb.g;
               dstGreen[i + 2] = currentChroma.rgb.b;
@@ -610,7 +648,7 @@ export default function ChromaKeyer({
 
           for (let i = 0; i < w * h * 4; i += 4) {
             const pixelIdx = i / 4;
-            const alphaVal = processedAlpha[pixelIdx];
+            const alphaVal = hybridAlpha[pixelIdx];
             dstIsolated[i + 3] = alphaVal;
 
             if (alphaVal === 0) {
@@ -943,13 +981,52 @@ export default function ChromaKeyer({
                       processedAlpha = blurAlpha(processedAlpha, w, h, featherRadius);
                     }
 
+                    // Apply AI-Chroma Hybrid Keying to refine the AI mask near borders at full resolution
+                    const hybridAlpha = new Uint8Array(w * h);
+                    const src = originalData.data;
+
+                    for (let idx = 0; idx < w * h; idx++) {
+                      const i = idx * 4;
+                      const alphaVal = processedAlpha[idx];
+                      const r = src[i];
+                      const g = src[i + 1];
+                      const b = src[i + 2];
+
+                      const dR1 = r - sampledColor.r;
+                      const dG1 = g - sampledColor.g;
+                      const dB1 = b - sampledColor.b;
+                      const dist1 = Math.sqrt(dR1 * dR1 + dG1 * dG1 + dB1 * dB1);
+
+                      let minDist = dist1;
+                      if (sampledColor2) {
+                        const dR2 = r - sampledColor2.r;
+                        const dG2 = g - sampledColor2.g;
+                        const dB2 = b - sampledColor2.b;
+                        const dist2 = Math.sqrt(dR2 * dR2 + dG2 * dG2 + dB2 * dB2);
+                        minDist = Math.min(minDist, dist2);
+                      }
+
+                      const maxDistThreshold = 95;
+                      let finalAlphaVal = alphaVal;
+
+                      if (minDist < maxDistThreshold) {
+                        const factor = minDist / maxDistThreshold;
+                        if (alphaVal < 255) {
+                          finalAlphaVal = Math.round(alphaVal * factor);
+                        } else if (minDist < 60) {
+                          finalAlphaVal = Math.round(255 * (minDist / 60));
+                        }
+                      }
+
+                      hybridAlpha[idx] = finalAlphaVal;
+                    }
+
                     if (type === "greenscreen") {
                       const greenData = ctxGreen.createImageData(w, h);
                       const dstGreen = greenData.data;
-                      const src = originalData.data;
                       for (let i = 0; i < w * h * 4; i += 4) {
                         const pixelIdx = i / 4;
-                        if (processedAlpha[pixelIdx] === 0) {
+                        if (hybridAlpha[pixelIdx] === 0) {
                           dstGreen[i] = currentChroma.rgb.r;
                           dstGreen[i + 1] = currentChroma.rgb.g;
                           dstGreen[i + 2] = currentChroma.rgb.b;
@@ -966,10 +1043,9 @@ export default function ChromaKeyer({
                     } else {
                       const isolatedData = ctxIsolated.createImageData(w, h);
                       const dstIsolated = isolatedData.data;
-                      const src = originalData.data;
                       for (let i = 0; i < w * h * 4; i += 4) {
                         const pixelIdx = i / 4;
-                        const alphaVal = processedAlpha[pixelIdx];
+                        const alphaVal = hybridAlpha[pixelIdx];
                         dstIsolated[i + 3] = alphaVal;
                         
                         if (alphaVal === 0) {

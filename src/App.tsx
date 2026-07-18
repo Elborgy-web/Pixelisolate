@@ -316,7 +316,7 @@ export default function App() {
       {/* Main Workspace Frame */}
       {user ? (
         <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
-          {currentTab === "editor" && (
+          <div className={currentTab === "editor" ? "block" : "hidden"}>
             <ChromaKeyer 
               user={user} 
               profile={profile} 
@@ -324,7 +324,7 @@ export default function App() {
               onOpenPricing={() => setPricingModalOpen(true)}
               onOpenAuth={() => setAuthModalOpen(true)}
             />
-          )}
+          </div>
           {currentTab === "history" && (
             <HistoryGallery userId={user?.id} isPro={profile?.is_pro ?? false} />
           )}
