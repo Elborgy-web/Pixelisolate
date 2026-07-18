@@ -1,0 +1,14 @@
+# ==========================================
+# CLOUDFLARE PAGES PROXY REWRITES (_redirects)
+# ==========================================
+# Cloudflare Pages is a static hosting provider and cannot execute the Node.js Express server.
+# To route your backend API requests (/api/*) to your active Express backend:
+# 
+# OPTION A: Replace the URL below with your deployed production backend API endpoint.
+#           Cloudflare Pages will proxy requests securely (returning HTTP 200).
+# 
+# OPTION B: Set the VITE_API_URL environment variable in your Cloudflare Pages dashboard 
+#           or GitHub Actions secrets to point to your backend.
+#
+# Replace the placeholder URL with your actual backend:
+/api/*  https://your-backend-server-endpoint.com/api/:splat  200

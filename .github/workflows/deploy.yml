@@ -23,6 +23,7 @@ jobs:
 
       - name: Build static files (Injects secrets into static JS)
         env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_LEMON_SQUEEZY_STORE_URL: ${{ secrets.VITE_LEMON_SQUEEZY_STORE_URL }}

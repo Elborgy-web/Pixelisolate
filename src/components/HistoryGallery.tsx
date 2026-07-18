@@ -61,7 +61,8 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
   const handleDelete = async (item: HistoryItem) => {
     setDeletingId(item.id);
     try {
-      const response = await fetch(`/api/history/${item.id}`, {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const response = await fetch(`${apiBase}/api/history/${item.id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

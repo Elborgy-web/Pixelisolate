@@ -145,7 +145,8 @@ export default function ChromaKeyer({
         return;
       }
 
-      const response = await fetch("/api/history", {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const response = await fetch(`${apiBase}/api/history`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -331,7 +332,8 @@ export default function ChromaKeyer({
     if (!analysisTarget) return;
     setIsAnalyzing(true);
     try {
-      const res = await fetch("/api/analyze", {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${apiBase}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1447,7 +1449,8 @@ export default function ChromaKeyer({
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout for fast bulk processing
-          const res = await fetch("/api/analyze", {
+          const apiBase = import.meta.env.VITE_API_URL || "";
+          const res = await fetch(`${apiBase}/api/analyze`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
