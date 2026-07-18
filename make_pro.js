@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 );
 
 async function elevateToPro() {
-  const targetEmails = ["muhammad.elborgy@gmail.com", "ideoborgy1@gmail.com"];
+  const targetEmails = ["muhammad.elborgy@gmail.com"];
 
   console.log("Connecting to Supabase Database...");
   
