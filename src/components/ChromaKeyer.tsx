@@ -135,6 +135,12 @@ export default function ChromaKeyer({
   const uploadImagePairToHistory = async (originalBase64: string, isolatedBase64: string) => {
     if (!originalBase64 || !isolatedBase64) return;
     
+    // History saving is a Pro-only feature. Skip uploading silently for Free/Credit Bundle users.
+    const isPro = profile?.is_pro === true;
+    if (!isPro) {
+      return;
+    }
+    
     try {
       // Scale down original and isolated images to max 450px and compress as JPEG for ultra-lightweight storage (under 50KB total!)
       const scaledOrig = await scaleDownImage(originalBase64, 450, "image/jpeg", 0.75);
