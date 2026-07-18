@@ -168,15 +168,15 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                           onClick={() => { setSelectedPreset("badge"); setSimulatedBgType("solid"); }}
                           className={`p-3 rounded-xl border text-left transition ${selectedPreset === "badge" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-400 hover:text-gray-200"}`}
                         >
-                          <span className="block text-[10px] font-mono font-bold">badge_logo_vector</span>
-                          <span className="block text-[8px] font-mono text-gray-500 mt-1">2048 x 2048px | SVG</span>
+                          <span className="block text-[10px] font-mono font-bold">brand_logo_workspace</span>
+                          <span className="block text-[8px] font-mono text-gray-500 mt-1">1000 x 300px | PNG</span>
                         </button>
                         <button
                           onClick={() => { setSelectedPreset("sneaker"); setSimulatedBgType("solid"); }}
                           className={`p-3 rounded-xl border text-left transition ${selectedPreset === "sneaker" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-400 hover:text-gray-200"}`}
                         >
-                          <span className="block text-[10px] font-mono font-bold">sneaker_product_run</span>
-                          <span className="block text-[8px] font-mono text-gray-500 mt-1">1024 x 1024px | SVG</span>
+                          <span className="block text-[10px] font-mono font-bold">model_hair_refinement</span>
+                          <span className="block text-[8px] font-mono text-gray-500 mt-1">1024 x 680px | JPG</span>
                         </button>
                       </div>
                     </div>
@@ -355,30 +355,26 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                   <g 
                     filter="url(#sim-feather)" 
                     style={{ 
-                      transform: `scale(${1 - (simulatedErosion * 0.02)})`, 
+                      transform: `scale(${1 - (simulatedErosion * 0.025)})`, 
                       transformOrigin: 'center' 
                     }}
                   >
                     {selectedPreset === "badge" ? (
-                      <>
-                        <polygon points="100,35 150,65 150,125 100,155 50,125 50,65" fill="#111827" stroke="#00a896" strokeWidth="6" />
-                        <line x1="100" y1="20" x2="100" y2="180" stroke="#00a896" strokeWidth="1" strokeDasharray="4 4" opacity="0.6" />
-                        <line x1="20" y1="100" x2="180" y2="100" stroke="#00a896" strokeWidth="1" strokeDasharray="4 4" opacity="0.6" />
-                        <rect x="85" y="85" width="30" height="30" rx="4" fill="#00a896" />
-                        <circle cx="100" cy="100" r="8" fill="#0b0f19" />
-                        <text x="100" y="55" textAnchor="middle" fill="#00ffff" fontSize="9" fontFamily="monospace" fontWeight="bold">PIXEL_ISOLATE</text>
-                        <text x="100" y="145" textAnchor="middle" fill="#9ca3af" fontSize="8" fontFamily="monospace">[ ACTIVE_ENGINE ]</text>
-                      </>
+                      <image 
+                        href="/logo.png" 
+                        x="30" 
+                        y="70" 
+                        width="140" 
+                        height="60" 
+                      />
                     ) : (
-                      <>
-                        {/* Interactive Shoe Mockup */}
-                        <circle cx="100" cy="100" r="60" fill="none" stroke="#00a896" strokeWidth="2" strokeDasharray="6 6" />
-                        <path d="M 60,110 C 60,110 70,80 110,80 C 130,80 150,95 150,110 C 150,115 130,125 100,125 C 75,125 60,110 60,110 Z" fill="#111827" stroke="#00a896" strokeWidth="4" />
-                        <path d="M 60,110 L 145,122" stroke="#00ffff" strokeWidth="3" opacity="0.8" />
-                        <path d="M 120,80 L 135,95" stroke="#00a896" strokeWidth="2" />
-                        <circle cx="95" cy="100" r="6" fill="#00ffff" />
-                        <text x="100" y="145" textAnchor="middle" fill="#9ca3af" fontSize="8" fontFamily="monospace">PRODUCT_LINE_ALPHA</text>
-                      </>
+                      <image 
+                        href={simulatedBgType === "solid" ? "/model.jpg" : "/model_isolated.png"} 
+                        x="20" 
+                        y="20" 
+                        width="160" 
+                        height="160" 
+                      />
                     )}
                   </g>
                 </svg>
