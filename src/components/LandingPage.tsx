@@ -28,6 +28,23 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
   const [simulatedErosion, setSimulatedErosion] = useState<number>(0);
   const [simulatedBlur, setSimulatedBlur] = useState<number>(0);
 
+  // AI Magic Simulator State
+  const [magicPreset, setMagicPreset] = useState<"model" | "sneaker">("model");
+  const [magicMode, setMagicMode] = useState<"chroma" | "magic">("magic");
+  const [magicInvert, setMagicInvert] = useState<boolean>(false);
+  const [magicBg, setMagicBg] = useState<"transparent" | "green" | "magenta" | "black">("transparent");
+  const [magicLoading, setMagicLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (magicMode === "magic") {
+      setMagicLoading(true);
+      const timer = setTimeout(() => {
+        setMagicLoading(false);
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [magicMode, magicPreset]);
+
   // Bulk Simulator state
   const [bulkStatus, setBulkStatus] = useState<"ready" | "processing" | "completed">("ready");
   const [bulkProgress, setBulkProgress] = useState<number>(0);
@@ -391,6 +408,225 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                 <div>[ EROSION: {simulatedErosion}px ]</div>
                 <div>[ FEATHERING: {simulatedBlur}px ]</div>
                 <div>[ BACKDROP: {simulatedBgType === "solid" ? "SOLID" : "CHECKERBOARD"} ]</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2.5 AI Magic Showcase Simulator */}
+      <section className="py-20 border-b border-gray-900 bg-[#07080a]">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">[ Neural Segmentation Module ]</span>
+            <h2 className="text-2xl font-bold text-white tracking-tight mt-1">AI Magic Isolation Engine</h2>
+            <p className="text-xs text-gray-500 font-mono mt-1">Experience browser-side neural network segmentation that auto-detects complex subjects</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+            {/* Left Controls Column (Interactive Inputs) */}
+            <div className="lg:col-span-5 flex flex-col justify-between bg-gray-900/30 border border-gray-850 rounded-2xl p-6 backdrop-blur-sm">
+              <div>
+                {/* Step 1: AI Subject Vector Analysis */}
+                <div className="mb-6 p-4 rounded-xl bg-gray-950/60 border border-gray-850/80 font-mono text-[10px] space-y-4">
+                  <div className="flex justify-between items-center border-b border-gray-900 pb-2">
+                    <span className="text-emerald-400 uppercase font-bold text-[9px] flex items-center gap-1">
+                      <Sparkles className="h-3 w-3 animate-pulse" />
+                      STEP 1: AI SUBJECT VECTOR ANALYSIS
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800 text-[8px] text-gray-500">Groq Llama 4</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-gray-500 text-[8px] uppercase">Subject Name:</div>
+                      <div className="text-white font-bold text-xs mt-0.5">
+                        {magicPreset === "model" ? "Messy Hair Portrait" : "Puma Sneaker Product"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 text-[8px] uppercase">Outline Complexity:</div>
+                      <div className="mt-0.5">
+                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${magicPreset === "model" ? "bg-red-500/10 border border-red-500/20 text-red-400" : "bg-amber-500/10 border border-amber-500/20 text-amber-400"}`}>
+                          {magicPreset === "model" ? "VERY HIGH" : "MEDIUM"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-gray-500 text-[8px] uppercase">Color Edge Bleed Risks:</div>
+                    <div className="text-gray-300 text-[9px] mt-1 p-2 rounded bg-gray-900/50 border border-gray-900 leading-normal">
+                      {magicPreset === "model" 
+                        ? "Fine hair strands overlap with background, risk of halos in chroma keying." 
+                        : "Standard contrast. Background is easily separated from subject edge vectors."}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-gray-500 text-[8px] uppercase">Sub-surface Extraction Advice:</div>
+                    <div className="text-gray-400 text-[9px] mt-0.5 leading-normal">
+                      {magicPreset === "model" 
+                        ? '"Chroma keying will eat into dark hair. Neural AI Segmenter is highly recommended."' 
+                        : '"Sample background directly on canvas. Set HSV parameters standard ranges [35-85] chroma green key."'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 2: AI Subject Segmentation */}
+                <div className="mb-6 p-4 rounded-xl bg-gray-950/60 border border-gray-850/80 font-mono text-[10px] space-y-4">
+                  <div className="text-emerald-400 uppercase font-bold text-[9px] flex items-center gap-1 border-b border-gray-900 pb-2">
+                    <Sliders className="h-3 w-3" />
+                    STEP 2: AI SUBJECT SEGMENTATION
+                  </div>
+
+                  {/* Preset Selector */}
+                  <div>
+                    <span className="block text-[8px] text-gray-500 uppercase mb-2">Ingest Demo Subject</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button 
+                        onClick={() => setMagicPreset("model")}
+                        className={`py-2 text-center rounded-lg border transition text-[9px] font-bold ${magicPreset === "model" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-500 hover:text-gray-300"}`}
+                      >
+                        model_hair_portrait
+                      </button>
+                      <button 
+                        onClick={() => setMagicPreset("sneaker")}
+                        className={`py-2 text-center rounded-lg border transition text-[9px] font-bold ${magicPreset === "sneaker" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-500 hover:text-gray-300"}`}
+                      >
+                        sneaker_mockup
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mode Toggles */}
+                  <div>
+                    <span className="block text-[8px] text-gray-500 uppercase mb-2">Segmentation Mode</span>
+                    <div className="grid grid-cols-2 p-0.5 bg-gray-950 rounded-lg border border-gray-850">
+                      <button 
+                        onClick={() => setMagicMode("chroma")}
+                        className={`py-1.5 text-center rounded-md transition text-[9px] font-bold ${magicMode === "chroma" ? "bg-gray-850 text-white" : "text-gray-500 hover:text-gray-300"}`}
+                      >
+                        Chroma Key
+                      </button>
+                      <button 
+                        onClick={() => setMagicMode("magic")}
+                        className={`py-1.5 text-center rounded-md transition text-[9px] font-bold flex items-center justify-center gap-1 ${magicMode === "magic" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "text-gray-500 hover:text-gray-300"}`}
+                      >
+                        <Sparkles className="h-3 w-3 fill-current" />
+                        AI Magic
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Toggles */}
+                  <div className="flex justify-between items-center border-t border-gray-900 pt-3">
+                    <div>
+                      <div className="font-bold text-white text-[9px]">Invert Mask Direction</div>
+                      <div className="text-[8px] text-gray-500 mt-0.5">Toggle subject vs background extraction</div>
+                    </div>
+                    <button
+                      onClick={() => setMagicInvert(!magicInvert)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${magicInvert ? "bg-emerald-500" : "bg-gray-800"}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${magicInvert ? "translate-x-4" : "translate-x-0"}`} />
+                    </button>
+                  </div>
+
+                  {/* AI Pro-Tip */}
+                  <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-lg text-[9px] text-emerald-400 leading-normal">
+                    <span className="font-bold">★ AI PRO-TIP:</span> For complex subject outlines (like curly hair, fine fur, or product textures) the neural AI Segmenter provides a complete alpha mask without requiring chroma values or connectivity samples.
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Footer Label */}
+              <div className="pt-4 border-t border-gray-850/60 flex justify-between items-center font-mono text-[9px] text-gray-600">
+                <span>[ Neural Node: Connected ]</span>
+                <button
+                  onClick={onOpenAuth}
+                  className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-bold transition cursor-pointer"
+                >
+                  Test AI Magic Live <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Right Output Column (Interactive Render) */}
+            <div className="lg:col-span-7 flex flex-col justify-between bg-gray-950 border border-gray-850 rounded-2xl p-4 overflow-hidden relative min-h-[350px]">
+              {/* Accents/Labels */}
+              <div className="flex justify-between items-center border-b border-gray-900 pb-3 mb-4 font-mono text-[9px] text-gray-600">
+                <span>[ CHANNEL: RGBA_PREVIEW ]</span>
+                <span className="text-emerald-500 font-bold">100% RENDER ENGINE ACTIVE</span>
+              </div>
+
+              {/* Backdrop Toggle */}
+              <div className="absolute top-12 right-4 z-25 flex gap-1.5 font-mono text-[8px] bg-gray-900/80 backdrop-blur border border-gray-800 p-1 rounded-lg">
+                <button 
+                  onClick={() => setMagicBg("transparent")}
+                  className={`px-1.5 py-0.5 rounded transition ${magicBg === "transparent" ? "bg-gray-800 text-white font-bold" : "text-gray-500 hover:text-gray-300"}`}
+                >
+                  Checkers
+                </button>
+                <button 
+                  onClick={() => setMagicBg("green")}
+                  className={`px-1.5 py-0.5 rounded transition ${magicBg === "green" ? "bg-green-600 text-white font-bold" : "text-gray-500 hover:text-gray-300"}`}
+                >
+                  Green
+                </button>
+                <button 
+                  onClick={() => setMagicBg("magenta")}
+                  className={`px-1.5 py-0.5 rounded transition ${magicBg === "magenta" ? "bg-fuchsia-600 text-white font-bold" : "text-gray-500 hover:text-gray-300"}`}
+                >
+                  Magenta
+                </button>
+                <button 
+                  onClick={() => setMagicBg("black")}
+                  className={`px-1.5 py-0.5 rounded transition ${magicBg === "black" ? "bg-black text-white font-bold" : "text-gray-500 hover:text-gray-300"}`}
+                >
+                  Black
+                </button>
+              </div>
+
+              {/* Dynamic Preview Box */}
+              <div className="flex-1 flex items-center justify-center py-6 relative">
+                <div 
+                  className={`w-full max-w-[240px] aspect-square rounded-2xl border border-gray-850 relative overflow-hidden flex items-center justify-center transition-all duration-300 ${
+                    magicBg === "transparent" 
+                      ? "bg-[linear-gradient(45deg,#15171a_25%,transparent_25%),linear-gradient(-45deg,#15171a_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#15171a_75%),linear-gradient(-45deg,transparent_75%,#15171a_75%)] bg-[size:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0px]" 
+                      : magicBg === "green" 
+                      ? "bg-[#00FF00]" 
+                      : magicBg === "magenta" 
+                      ? "bg-[#FF00FF]" 
+                      : "bg-[#000000]"
+                  }`}
+                >
+                  {magicLoading ? (
+                    <div className="flex flex-col gap-2 items-center justify-center z-30 font-mono text-[9px] text-emerald-400 bg-gray-950/80 backdrop-blur-md absolute inset-0">
+                      <Loader2 className="h-5 w-5 animate-spin shrink-0" />
+                      <span>Loading Neural Model (2.7 MB)...</span>
+                    </div>
+                  ) : (
+                    <img 
+                      src={
+                        magicMode === "magic" 
+                          ? (magicPreset === "model" ? "/model_isolated.png" : "/history_sneaker.png")
+                          : (magicPreset === "model" ? "/model.jpg" : "/history_sneaker.png")
+                      } 
+                      className={`max-w-full max-h-full object-contain p-2 z-10 transition-all duration-300 ${
+                        magicMode === "chroma" && magicPreset === "sneaker" ? "bg-white" : ""
+                      } ${magicInvert ? "invert" : ""}`}
+                      alt="Neural isolation preview" 
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Technical Indicator labels */}
+              <div className="border-t border-gray-900 pt-3 mt-4 flex justify-between font-mono text-[9px] text-gray-500">
+                <div>Format: <span className="text-gray-300">PNG</span></div>
+                <div>Mode: <span className="text-gray-300">{magicMode === "magic" ? "NEURAL MASK" : "CHROMA LOCK"}</span></div>
+                <div>Channel: <span className="text-gray-300">{magicInvert ? "INVERTED" : "RGBA (8-bit)"}</span></div>
               </div>
             </div>
           </div>
