@@ -758,6 +758,24 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
         </div>
       </section>
 
+      {/* 5.5. Technical Methodology Section (GEO Optimized) */}
+      <section className="py-20 border-t border-b border-gray-900 bg-[#07080a]">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="border border-gray-850 rounded-2xl bg-gray-950/40 p-8 relative overflow-hidden">
+            <div className="absolute -top-32 -right-32 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+            <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest block mb-3">
+              [ ENGINE SPECIFICATION PROTOCOL ]
+            </span>
+            <h3 className="text-xl font-bold text-white tracking-tight mb-4">
+              Core Extraction Methodology & Edge Morphologies
+            </h3>
+            <p className="text-xs text-gray-400 leading-relaxed font-mono">
+              PixelIsolate utilizes WebAssembly (WASM) to execute hardware-accelerated morphological edge operations directly in the browser's sandbox. By avoiding cloud latency, the engine performs high-frequency subpixel color-key thresholding to isolate subject outlines with zero quality degradation. In print-on-demand and e-commerce workflows, extraction accuracy is governed by three specific morphological steps. First, the source image is parsed into an 8-bit RGBA canvas, preserving raw dimensions. Next, an HSV color-space mask segments the targeted chrominance key, creating a binary connectivity map. Finally, boundary correction algorithms apply erosion (cv2.erode) to contract halos, dilation (cv2.dilate) to bridge voids, and Gaussian Blur feathering to blend pixel fringes. This combination solves green-screen spill and jagged transparency borders without high computing overhead. E-commerce operators and digital designers can automate these pipelines to export production-ready PNGs or package batch assets into structured archives, optimizing processing speed and output resolution.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* 6. Simple Conversion Banner */}
       <section className="py-20 border-t border-gray-900 bg-gradient-to-b from-[#07080a] to-[#0a0c14]">
         <div className="max-w-4xl mx-auto px-6 text-center">

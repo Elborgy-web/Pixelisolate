@@ -1,0 +1,5 @@
+- [x] Create `public/robots.txt`
+- [x] Modify `index.html` with meta tags and JSON-LD application schema
+- [x] Modify `LandingPage.tsx` with the GEO-optimized technical methodology passage
+- [x] Verify build and typechecks
+- [x] Commit and push to GitHub
