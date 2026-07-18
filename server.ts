@@ -154,6 +154,49 @@ app.post("/api/analyze", async (req, res) => {
 });
 
 
+// Helper to send transactional thank you email via Supabase Edge Function
+const triggerPurchaseEmail = async (userId: string, purchaseType: "subscription" | "credits") => {
+  try {
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", userId)
+      .single();
+
+    if (profile?.email) {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+      
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/send-purchase-email`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            email: profile.email,
+            purchaseType,
+            userName: profile.full_name,
+          }),
+        }
+      );
+      
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`[Webhook] Failed to invoke purchase email function: ${response.status} ${response.statusText} - ${errText}`);
+      } else {
+        console.log(`[Webhook] Successfully triggered purchase email for user ${profile.email}`);
+      }
+    } else {
+      console.warn(`[Webhook] No email found in profile for user ID ${userId}, skipping purchase email.`);
+    }
+  } catch (err) {
+    console.error("[Webhook] Error triggering purchase email helper:", err);
+  }
+};
+
 // Webhook endpoint to listen for billing events from Lemon Squeezy
 app.post("/api/webhooks/lemon-squeezy", async (req: any, res) => {
   try {
@@ -221,6 +264,11 @@ app.post("/api/webhooks/lemon-squeezy", async (req: any, res) => {
 
       if (profileError) throw profileError;
 
+      // Trigger transactional purchase thank-you email for new Pro subscriptions
+      if (eventName === "subscription_created" && isPro) {
+        triggerPurchaseEmail(userId, "subscription");
+      }
+
     } else if (eventName === "subscription_cancelled" || eventName === "subscription_expired") {
       const subData = payload.data;
       const subId = subData.id;
@@ -267,6 +315,9 @@ app.post("/api/webhooks/lemon-squeezy", async (req: any, res) => {
           .eq("id", userId);
 
         if (updateError) throw updateError;
+
+        // Trigger transactional purchase thank-you email for 100 Credits package
+        triggerPurchaseEmail(userId, "credits");
       }
     }
 

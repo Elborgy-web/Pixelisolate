@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4"
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ""
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ""
+
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 serve(async (req) => {
   if (req.method !== 'POST') {
@@ -10,7 +15,35 @@ serve(async (req) => {
   try {
     const payload = await req.json()
     const userEmail = payload.record.email
-    const userName = payload.record.raw_user_meta_data?.full_name || 'there'
+    const userId = payload.record.id
+    
+    if (!userId || !userEmail) {
+      return new Response(JSON.stringify({ error: 'Missing userId or email in trigger record' }), { status: 400 })
+    }
+
+    const userMetaData = payload.record.raw_user_meta_data || {}
+    const userName = userMetaData.full_name || 'there'
+
+    // Deduplication check: Check if welcome_sent is already set in metadata
+    if (userMetaData.welcome_sent === true) {
+      console.log(`[Welcome Email] Welcome email already sent for user ID ${userId} (${userEmail}), skipping.`);
+      return new Response(JSON.stringify({ success: true, message: 'Welcome email already sent' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Mark as sent in user auth metadata to prevent duplicate triggering
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      userId,
+      { user_metadata: { ...userMetaData, welcome_sent: true } }
+    )
+    
+    if (updateError) {
+      console.error(`[Welcome Email] Failed to update user metadata for ${userId}:`, updateError.message);
+    }
+
+    console.log(`[Welcome Email] Sending welcome email to ${userEmail}...`);
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
