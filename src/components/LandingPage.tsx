@@ -374,7 +374,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                       />
                     ) : (
                       <image 
-                        href={simulatedBgType === "solid" ? "/model.jpg" : "/model_isolated.png"} 
+                        href={activeStep === 1 ? "/model.jpg" : "/model_isolated.png"} 
                         x="0" 
                         y="0" 
                         width="200" 
