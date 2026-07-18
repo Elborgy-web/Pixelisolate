@@ -38,6 +38,18 @@ app.use(
 );
 
 // REST API for Subject Identity & Analysis (Step 1)
+// Health check: Verify server is running and env vars are configured
+app.get("/api/health", (req, res) => {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  res.status(200).json({
+    status: "ok",
+    supabaseUrl: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : "MISSING",
+    serviceKey: serviceKey ? `${serviceKey.substring(0, 20)}...` : "MISSING",
+    nodeEnv: process.env.NODE_ENV || "undefined",
+  });
+});
+
 app.post("/api/analyze", async (req, res) => {
   try {
     const { imageBase64, mimeType } = req.body;

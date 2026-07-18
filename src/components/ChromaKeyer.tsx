@@ -2265,6 +2265,7 @@ export default function ChromaKeyer({
     
     // 2. Populate Single Mode parameters from this bulk item
     setSourceImageUri(item.sourceUri);
+    setPreviewImageUri(item.sourceUri); // ← CRITICAL: rendering pipeline requires previewImageUri to be non-null
     setFileName(item.fileName);
     
     setSampledColor(item.detectedColorRgb);
@@ -2288,7 +2289,10 @@ export default function ChromaKeyer({
     setGreenScreenImageUri(item.greenScreenUri);
     setIsolatedImageUri(item.isolatedUri);
     
-    // 3. Switch view mode to "single" to load the advanced editor
+    // 3. Always start on the Original tab so user can see the source image
+    setActiveTab("original");
+    
+    // 4. Switch view mode to "single" to load the advanced editor
     setWorkMode("single");
   };
 
