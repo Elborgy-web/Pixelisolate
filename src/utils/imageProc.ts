@@ -550,6 +550,8 @@ export function isolateSubjectFromChroma(
   }
 
   // Step E: Write final processed alpha channel and apply cinematic edge de-spilling
+  const rangeCenter = hMin <= hMax ? (hMin + hMax) / 2 : hMin;
+
   for (let i = 0; i < dst.length; i += 4) {
     const pixelIdx = i / 4;
     const finalAlpha = processedAlpha[pixelIdx];
@@ -559,29 +561,45 @@ export function isolateSubjectFromChroma(
       dst[i] = 0;
       dst[i + 1] = 0;
       dst[i + 2] = 0;
-    } else if (finalAlpha < 255) {
-      // De-spill green/magenta/cyan cast from semi-transparent edges to avoid colored halos
-      const alphaRatio = finalAlpha / 255;
+    } else {
       const h = originalHues[pixelIdx];
-      const r = dst[i];
-      const g = dst[i + 1];
-      const b = dst[i + 2];
+      let r = dst[i];
+      let g = dst[i + 1];
+      let b = dst[i + 2];
 
-      if (h >= 35 && h <= 85) {
-        // Green backdrop: clamp green channel to prevent green spill
-        const maxOther = Math.max(r, b);
-        if (g > maxOther) {
-          dst[i + 1] = Math.round(maxOther * (1 - alphaRatio) + g * alphaRatio);
+      const inKeyRange = hMin <= hMax 
+        ? (h >= hMin - 5 && h <= hMax + 5) 
+        : (h >= hMin - 5 || h <= hMax + 5);
+
+      // De-spill green/magenta/cyan cast from edges and key-like zones to prevent colored fringes/halos
+      if (finalAlpha < 255 || inKeyRange) {
+        const alphaRatio = finalAlpha / 255;
+        if (rangeCenter >= 35 && rangeCenter <= 85) {
+          // Green backdrop: clamp green channel to prevent green spill
+          const maxOther = Math.max(r, b);
+          if (g > maxOther) {
+            g = Math.round(maxOther * (1 - alphaRatio) + g * alphaRatio);
+          }
+        } else if (rangeCenter >= 120 && rangeCenter <= 175) {
+          // Magenta backdrop: desaturate/clamp red and blue channels based on green channel
+          const magentaComponent = Math.min(r, b) - g;
+          if (magentaComponent > 0) {
+            r = Math.round(r - magentaComponent * (1 - alphaRatio));
+            b = Math.round(b - magentaComponent * (1 - alphaRatio));
+          }
+        } else if (rangeCenter >= 75 && rangeCenter <= 115) {
+          // Cyan backdrop: desaturate/clamp green and blue channels based on red channel
+          const cyanComponent = Math.min(g, b) - r;
+          if (cyanComponent > 0) {
+            g = Math.round(g - cyanComponent * (1 - alphaRatio));
+            b = Math.round(b - cyanComponent * (1 - alphaRatio));
+          }
         }
-      } else if (h >= 135 && h <= 165) {
-        // Magenta backdrop: clamp red and blue channels
-        if (r > g) dst[i] = Math.round(g * (1 - alphaRatio) + r * alphaRatio);
-        if (b > g) dst[i + 2] = Math.round(g * (1 - alphaRatio) + b * alphaRatio);
-      } else if (h >= 75 && h <= 105) {
-        // Cyan backdrop: clamp green and blue channels
-        if (g > r) dst[i + 1] = Math.round(r * (1 - alphaRatio) + g * alphaRatio);
-        if (b > r) dst[i + 2] = Math.round(r * (1 - alphaRatio) + b * alphaRatio);
       }
+
+      dst[i] = r;
+      dst[i + 1] = g;
+      dst[i + 2] = b;
     }
   }
 

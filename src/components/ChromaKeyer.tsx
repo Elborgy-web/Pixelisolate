@@ -604,21 +604,48 @@ export default function ChromaKeyer({
           }
           ctxGreen.putImageData(greenData, 0, 0);
 
-          // Draw isolated canvas
+          // Draw isolated canvas with edge decontamination
           const isolatedData = ctxIsolated.createImageData(w, h);
           const dstIsolated = isolatedData.data;
 
           for (let i = 0; i < w * h * 4; i += 4) {
             const pixelIdx = i / 4;
-            dstIsolated[i] = src[i];
-            dstIsolated[i + 1] = src[i + 1];
-            dstIsolated[i + 2] = src[i + 2];
-            dstIsolated[i + 3] = processedAlpha[pixelIdx];
+            const alphaVal = processedAlpha[pixelIdx];
+            dstIsolated[i + 3] = alphaVal;
 
-            if (processedAlpha[pixelIdx] === 0) {
+            if (alphaVal === 0) {
               dstIsolated[i] = 0;
               dstIsolated[i + 1] = 0;
               dstIsolated[i + 2] = 0;
+            } else {
+              let r = src[i];
+              let g = src[i + 1];
+              let b = src[i + 2];
+
+              // If edge boundary, apply decontamination to remove color spill
+              if (alphaVal < 255) {
+                const alphaRatio = alphaVal / 255;
+                if (chromaColorName === "Green") {
+                  const maxOther = Math.max(r, b);
+                  if (g > maxOther) g = Math.round(maxOther * (1 - alphaRatio) + g * alphaRatio);
+                } else if (chromaColorName === "Magenta") {
+                  const magentaComponent = Math.min(r, b) - g;
+                  if (magentaComponent > 0) {
+                    r = Math.round(r - magentaComponent * (1 - alphaRatio));
+                    b = Math.round(b - magentaComponent * (1 - alphaRatio));
+                  }
+                } else if (chromaColorName === "Cyan") {
+                  const cyanComponent = Math.min(g, b) - r;
+                  if (cyanComponent > 0) {
+                    g = Math.round(g - cyanComponent * (1 - alphaRatio));
+                    b = Math.round(b - cyanComponent * (1 - alphaRatio));
+                  }
+                }
+              }
+
+              dstIsolated[i] = r;
+              dstIsolated[i + 1] = g;
+              dstIsolated[i + 2] = b;
             }
           }
           ctxIsolated.putImageData(isolatedData, 0, 0);
@@ -942,14 +969,41 @@ export default function ChromaKeyer({
                       const src = originalData.data;
                       for (let i = 0; i < w * h * 4; i += 4) {
                         const pixelIdx = i / 4;
-                        dstIsolated[i] = src[i];
-                        dstIsolated[i + 1] = src[i + 1];
-                        dstIsolated[i + 2] = src[i + 2];
-                        dstIsolated[i + 3] = processedAlpha[pixelIdx];
-                        if (processedAlpha[pixelIdx] === 0) {
+                        const alphaVal = processedAlpha[pixelIdx];
+                        dstIsolated[i + 3] = alphaVal;
+                        
+                        if (alphaVal === 0) {
                           dstIsolated[i] = 0;
                           dstIsolated[i + 1] = 0;
                           dstIsolated[i + 2] = 0;
+                        } else {
+                          let r = src[i];
+                          let g = src[i + 1];
+                          let b = src[i + 2];
+
+                          if (alphaVal < 255) {
+                            const alphaRatio = alphaVal / 255;
+                            if (chromaColorName === "Green") {
+                              const maxOther = Math.max(r, b);
+                              if (g > maxOther) g = Math.round(maxOther * (1 - alphaRatio) + g * alphaRatio);
+                            } else if (chromaColorName === "Magenta") {
+                              const magentaComponent = Math.min(r, b) - g;
+                              if (magentaComponent > 0) {
+                                r = Math.round(r - magentaComponent * (1 - alphaRatio));
+                                b = Math.round(b - magentaComponent * (1 - alphaRatio));
+                              }
+                            } else if (chromaColorName === "Cyan") {
+                              const cyanComponent = Math.min(g, b) - r;
+                              if (cyanComponent > 0) {
+                                g = Math.round(g - cyanComponent * (1 - alphaRatio));
+                                b = Math.round(b - cyanComponent * (1 - alphaRatio));
+                              }
+                            }
+                          }
+
+                          dstIsolated[i] = r;
+                          dstIsolated[i + 1] = g;
+                          dstIsolated[i + 2] = b;
                         }
                       }
                       ctxIsolated.putImageData(isolatedData, 0, 0);
