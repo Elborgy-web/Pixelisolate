@@ -391,7 +391,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                       />
                     ) : (
                       <image 
-                        href={activeStep === 1 ? "/model.jpg" : "/model_isolated.png"} 
+                        href="/model_isolated.png" 
                         x="0" 
                         y="0" 
                         width="200" 
