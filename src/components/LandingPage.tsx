@@ -531,11 +531,11 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                 <span className="text-[9px] text-gray-500">7/16/2026</span>
                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px]">PRO</span>
               </div>
-              <div className="aspect-video w-full rounded-lg bg-gray-950 border border-gray-850 flex items-center justify-center mb-3">
-                <Layers className="h-6 w-6 text-gray-600" />
+              <div className="aspect-video w-full rounded-lg bg-gray-950 border border-gray-850 flex items-center justify-center mb-3 relative overflow-hidden bg-[linear-gradient(45deg,#15171a_25%,transparent_25%),linear-gradient(-45deg,#15171a_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#15171a_75%),linear-gradient(-45deg,transparent_75%,#15171a_75%)] bg-[size:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0px] p-3 select-none">
+                <img src="/logo.png" className="max-w-full max-h-full object-contain z-10" alt="brand logo isolation preview" />
               </div>
-              <div className="truncate font-bold text-white">unity_logo_white.png</div>
-              <div className="text-[9px] text-gray-500 mt-1">2048 x 2048px | Original & Isolated</div>
+              <div className="truncate font-bold text-white">brand_logo_isolated.png</div>
+              <div className="text-[9px] text-gray-500 mt-1">1000 x 300px | Original & Isolated</div>
             </div>
 
             <div className="p-4 bg-gray-900/30 border border-gray-850 rounded-2xl text-left relative overflow-hidden group">
@@ -543,11 +543,11 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                 <span className="text-[9px] text-gray-500">7/16/2026</span>
                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px]">PRO</span>
               </div>
-              <div className="aspect-video w-full rounded-lg bg-gray-950 border border-gray-850 flex items-center justify-center mb-3">
-                <Layers className="h-6 w-6 text-gray-600" />
+              <div className="aspect-video w-full rounded-lg bg-gray-950 border border-gray-850 flex items-center justify-center mb-3 relative overflow-hidden bg-[linear-gradient(45deg,#15171a_25%,transparent_25%),linear-gradient(-45deg,#15171a_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#15171a_75%),linear-gradient(-45deg,transparent_75%,#15171a_75%)] bg-[size:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0px] p-3 select-none">
+                <img src="/history_model.png" className="max-w-full max-h-full object-contain z-10" alt="model isolation preview" />
               </div>
-              <div className="truncate font-bold text-white">retro_logowear.png</div>
-              <div className="text-[9px] text-gray-500 mt-1">1024 x 1024px | Original & Isolated</div>
+              <div className="truncate font-bold text-white">model_isolated.png</div>
+              <div className="text-[9px] text-gray-500 mt-1">1024 x 680px | Original & Isolated</div>
             </div>
 
             <div className="p-4 bg-gray-900/30 border border-gray-850 rounded-2xl text-left relative overflow-hidden group">
@@ -555,10 +555,10 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                 <span className="text-[9px] text-gray-500">7/16/2026</span>
                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px]">PRO</span>
               </div>
-              <div className="aspect-video w-full rounded-lg bg-gray-950 border border-gray-850 flex items-center justify-center mb-3">
-                <Layers className="h-6 w-6 text-gray-600" />
+              <div className="aspect-video w-full rounded-lg bg-gray-950 border border-gray-850 flex items-center justify-center mb-3 relative overflow-hidden bg-[linear-gradient(45deg,#15171a_25%,transparent_25%),linear-gradient(-45deg,#15171a_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#15171a_75%),linear-gradient(-45deg,transparent_75%,#15171a_75%)] bg-[size:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0px] p-3 select-none">
+                <img src="/history_sneaker.png" className="max-w-full max-h-full object-contain z-10" alt="sneaker isolation preview" />
               </div>
-              <div className="truncate font-bold text-white">sneaker_product_run.png</div>
+              <div className="truncate font-bold text-white">sneaker_isolated.png</div>
               <div className="text-[9px] text-gray-500 mt-1">1024 x 1024px | Original & Isolated</div>
             </div>
           </div>
