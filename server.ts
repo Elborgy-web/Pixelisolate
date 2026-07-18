@@ -287,6 +287,9 @@ app.post("/api/history", async (req, res) => {
       return;
     }
 
+    // Sanitize userId to only allow UUID-safe characters (alphanumeric + hyphens)
+    const safeUserId = String(userId).replace(/[^a-zA-Z0-9\-_]/g, "_").substring(0, 64);
+
     // Helper: Convert base64 DataURI to Buffer
     const base64ToBuffer = (base64Str: string) => {
       const splitIdx = base64Str.indexOf(",");
@@ -298,26 +301,34 @@ app.post("/api/history", async (req, res) => {
     const procBuffer = base64ToBuffer(processedBase64);
 
     const timestamp = Date.now();
-    const origPath = `${userId}/${timestamp}-original.png`;
-    const procPath = `${userId}/${timestamp}-isolated.png`;
+    const origPath = `${safeUserId}/${timestamp}-original.jpg`;
+    const procPath = `${safeUserId}/${timestamp}-isolated.jpg`;
+
+    console.log(`[History] Uploading for user ${safeUserId}, paths: ${origPath}, ${procPath}`);
 
     // 1. Upload original using admin client
     const { error: origError } = await supabaseAdmin.storage
       .from("history_images")
       .upload(origPath, origBuffer, {
-        contentType: "image/png",
+        contentType: "image/jpeg",
         upsert: true,
       });
-    if (origError) throw origError;
+    if (origError) {
+      console.error("[History] Original upload error:", JSON.stringify(origError));
+      throw origError;
+    }
 
     // 2. Upload isolated using admin client
     const { error: procError } = await supabaseAdmin.storage
       .from("history_images")
       .upload(procPath, procBuffer, {
-        contentType: "image/png",
+        contentType: "image/jpeg",
         upsert: true,
       });
-    if (procError) throw procError;
+    if (procError) {
+      console.error("[History] Isolated upload error:", JSON.stringify(procError));
+      throw procError;
+    }
 
     // 3. Get public URLs
     const { data: origUrlData } = supabaseAdmin.storage.from("history_images").getPublicUrl(origPath);
@@ -333,8 +344,12 @@ app.post("/api/history", async (req, res) => {
       })
       .select();
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.error("[History] DB insert error:", JSON.stringify(dbError));
+      throw dbError;
+    }
 
+    console.log(`[History] Successfully saved history record for user ${safeUserId}`);
     res.status(200).json({ success: true, data: inserted });
   } catch (err: any) {
     console.error("Failed to save history via backend API:", err);
