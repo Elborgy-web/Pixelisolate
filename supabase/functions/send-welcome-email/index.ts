@@ -76,7 +76,7 @@ serve(async (req) => {
             <div style="margin: 20px 0;">
               <!-- Pro Subscription Card -->
               <div style="background-color: #111827; border: 1px solid #1F2937; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                <h4 style="color: #00A896; margin: 0 0 6px 0; font-size: 1.05em; font-weight: bold;">Pro Workspace Subscription — $9/month</h4>
+                <h4 style="color: #00A896; margin: 0 0 6px 0; font-size: 1.05em; font-weight: bold;">Pro Workspace Subscription — $7.99/month</h4>
                 <p style="color: #9CA3AF; font-size: 0.88em; margin: 0 0 12px 0; line-height: 1.5;">Unlock unlimited high-definition subject cuts, priority processing queues, and full access to the Bulk Remover (process up to 50 images concurrently).</p>
                 <a href="https://pixelisolate.online" style="color: #34D399; font-weight: bold; text-decoration: none; font-size: 0.88em;">Upgrade to Pro Plan →</a>
               </div>

@@ -143,7 +143,7 @@ export default function SubscriptionManager({ userId, credits, isPro, onOpenPric
                     className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-xs hover:shadow-lg hover:shadow-emerald-500/10 active:scale-[0.99] transition duration-200 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Sparkles className="h-3.5 w-3.5" />
-                    <span>Upgrade to Pro Plan — $9/mo</span>
+                    <span>Upgrade to Pro Plan — $7.99/mo</span>
                   </button>
                 )}
               </div>

@@ -77,7 +77,7 @@ export default function PricingModal({ isOpen, onClose, userId }: PricingModalPr
               <p className="text-gray-400 text-xs mt-1.5 mb-6">Perfect for designers, creators, and daily power-users.</p>
               
               <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-3xl font-extrabold text-white">$9</span>
+                <span className="text-3xl font-extrabold text-white">$7.99</span>
                 <span className="text-gray-500 text-xs font-mono">/ month</span>
               </div>
 
