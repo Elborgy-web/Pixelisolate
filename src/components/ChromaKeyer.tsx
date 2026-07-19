@@ -17,6 +17,8 @@ import {
   Trash2,
   Layers,
   Plus,
+  Minus,
+  Brush,
   X,
   Crop,
 } from "lucide-react";
@@ -226,6 +228,87 @@ export default function ChromaKeyer({
   const greenScreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isolatedCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const aiAlphaMaskRef = useRef<Uint8Array | null>(null);
+
+  // Manual brush mask refinement state
+  const [brushMode, setBrushMode] = useState<"none" | "restore" | "erase">("none");
+  const [brushSize, setBrushSize] = useState<number>(20);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [renderTrigger, setRenderTrigger] = useState(0);
+
+  const getActiveCanvas = () => {
+    if (activeTab === "original") return originalCanvasRef.current;
+    if (activeTab === "greenscreen") return greenScreenCanvasRef.current;
+    if (activeTab === "isolated") return isolatedCanvasRef.current;
+    return null;
+  };
+
+  const handleDraw = (clientX: number, clientY: number) => {
+    if (brushMode === "none" || !aiAlphaMaskRef.current) return;
+    const canvas = getActiveCanvas();
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor(((clientX - rect.left) / rect.width) * canvas.width);
+    const y = Math.floor(((clientY - rect.top) / rect.height) * canvas.height);
+    const w = canvas.width;
+    const h = canvas.height;
+
+    const radius = brushSize;
+    const targetAlpha = brushMode === "restore" ? 255 : 0;
+    const mask = aiAlphaMaskRef.current;
+
+    let modified = false;
+
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        if (dx * dx + dy * dy <= radius * radius) {
+          const px = x + dx;
+          const py = y + dy;
+          if (px >= 0 && px < w && py >= 0 && py < h) {
+            const idx = py * w + px;
+            if (mask[idx] !== targetAlpha) {
+              mask[idx] = targetAlpha;
+              modified = true;
+            }
+          }
+        }
+      }
+    }
+
+    if (modified) {
+      setRenderTrigger(prev => prev + 1);
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (brushMode === "none") return;
+    e.preventDefault();
+    setIsDrawing(true);
+    handleDraw(e.clientX, e.clientY);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDrawing || brushMode === "none") return;
+    e.preventDefault();
+    handleDraw(e.clientX, e.clientY);
+  };
+
+  const handleMouseUp = () => {
+    setIsDrawing(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (brushMode === "none") return;
+    setIsDrawing(true);
+    const touch = e.touches[0];
+    handleDraw(touch.clientX, touch.clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDrawing || brushMode === "none") return;
+    const touch = e.touches[0];
+    handleDraw(touch.clientX, touch.clientY);
+  };
 
   // Handle Drag & Drop
   const handleDragOver = (e: React.DragEvent) => {
@@ -742,6 +825,7 @@ export default function ChromaKeyer({
     segmentationMode,
     isInvertedMask,
     isModelLoaded,
+    renderTrigger,
   ]);
 
   const preloadImglyModel = async () => {
@@ -2573,6 +2657,76 @@ export default function ChromaKeyer({
                             For cartoon illustrations, graphics, or vectors on solid color backdrops, the <strong className="text-gray-250 font-semibold">Chroma Key + Connected BFS (Smart Mask)</strong> mode is highly recommended. It delivers vector-sharp edges and preserves internal design colors, whereas the neural AI Segmenter is optimized for real-life human photo portraits.
                           </p>
                         </div>
+                        
+                        {/* Manual Mask Refinement Brush */}
+                        <div className="border-t border-gray-850/60 pt-3 flex flex-col gap-3">
+                          <div className="flex items-center gap-1.5 text-amber-500 font-bold font-mono uppercase tracking-wider text-[10px]">
+                            <Brush className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                            <span>Manual Mask Refinement</span>
+                          </div>
+                          
+                          <div className="flex gap-1.5 bg-gray-900 p-0.5 rounded-lg border border-gray-800">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBrushMode("none");
+                                setIsDrawing(false);
+                              }}
+                              className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition cursor-pointer ${
+                                brushMode === "none" ? "bg-gray-800 text-white shadow" : "text-gray-400 hover:text-gray-250"
+                              }`}
+                            >
+                              Off
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBrushMode("restore");
+                                setIsDrawing(false);
+                              }}
+                              className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1 ${
+                                brushMode === "restore" ? "bg-emerald-600 text-white shadow" : "text-gray-400 hover:text-gray-250"
+                              }`}
+                            >
+                              <Plus className="h-2.5 w-2.5" />
+                              Restore
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBrushMode("erase");
+                                setIsDrawing(false);
+                              }}
+                              className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1 ${
+                                brushMode === "erase" ? "bg-red-950/60 text-red-400 border border-red-900/50 shadow" : "text-gray-400 hover:text-gray-250"
+                              }`}
+                            >
+                              <Minus className="h-2.5 w-2.5" />
+                              Erase
+                            </button>
+                          </div>
+
+                          {brushMode !== "none" && (
+                            <div className="flex flex-col gap-1.5 bg-gray-900/40 p-2.5 rounded-lg border border-gray-850">
+                              <div className="flex justify-between items-center text-[10px] text-gray-400">
+                                <span>Brush Size:</span>
+                                <span className="font-mono text-amber-500 font-bold">{brushSize}px</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="5"
+                                max="100"
+                                step="5"
+                                value={brushSize}
+                                onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                                className="w-full accent-amber-500 bg-gray-955 h-1 cursor-ew-resize"
+                              />
+                              <p className="text-[9px] text-gray-500 leading-relaxed mt-1">
+                                Click and drag directly on any of the workspace canvases above to paint corrections onto your image mask.
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -3016,7 +3170,16 @@ export default function ChromaKeyer({
                       alt="original state mapping tool"
                     />
 
-                    <div className="relative max-w-full max-h-full z-1">
+                    <div
+                      className="relative max-w-full max-h-full z-1"
+                      onMouseDown={handleMouseDown}
+                      onMouseMove={handleMouseMove}
+                      onMouseUp={handleMouseUp}
+                      onMouseLeave={handleMouseUp}
+                      onTouchStart={handleTouchStart}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleMouseUp}
+                    >
                       <canvas
                         ref={originalCanvasRef}
                         onClick={handleOriginalCanvasClick}
