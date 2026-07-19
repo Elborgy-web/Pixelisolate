@@ -10,6 +10,7 @@ import AuthModal from "./components/AuthModal";
 import PricingModal from "./components/PricingModal";
 import SubscriptionManager from "./components/SubscriptionManager";
 import LandingPage from "./components/LandingPage";
+import HowToGuide from "./components/HowToGuide";
 import { supabase } from "./utils/supabaseClient";
 import { 
   FileCheck, 
@@ -19,7 +20,8 @@ import {
   Sparkles, 
   History, 
   Sliders,
-  CreditCard
+  CreditCard,
+  HelpCircle
 } from "lucide-react";
 
 // Helper: Dynamically crop blank/transparent padding edges from the logo PNG on the client side
@@ -85,7 +87,7 @@ function cropImageTransparentEdges(imgElement: HTMLImageElement): string {
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [currentTab, setCurrentTab] = useState<"editor" | "history" | "billing">("editor");
+  const [currentTab, setCurrentTab] = useState<"editor" | "history" | "billing" | "howto">("editor");
   const [logoSrc, setLogoSrc] = useState("/logo.png");
 
   useEffect(() => {
@@ -209,40 +211,51 @@ export default function App() {
           {/* Navigation Controls and User Account Block */}
           <div className="flex flex-wrap items-center gap-4">
             {/* View Tabs */}
-            {user && (
-              <div className="flex bg-gray-950 p-1 rounded-xl border border-gray-850">
-                <button
-                  onClick={() => setCurrentTab("editor")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
-                    currentTab === "editor"
-                      ? "bg-gray-850 text-white"
-                      : "text-gray-400 hover:text-gray-200"
-                  }`}
-                >
-                  <Sliders className="h-3.5 w-3.5" />
-                  <span>Editor Workspace</span>
-                </button>
-                <button
-                  onClick={() => {
-                    if (!user) {
-                      setAuthModalOpen(true);
-                    } else if (!profile?.is_pro) {
-                      setPricingModalOpen(true);
-                      alert("History Gallery is a Pro feature. Please upgrade your workspace to automatically archive and re-download your isolated assets.");
-                    } else {
-                      setCurrentTab("history");
-                    }
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
-                    currentTab === "history"
-                      ? "bg-gray-850 text-white"
-                      : "text-gray-400 hover:text-gray-200"
-                  }`}
-                >
-                  <History className="h-3.5 w-3.5" />
-                  <span>My History</span>
-                </button>
-                {user && (
+            <div className="flex bg-gray-950 p-1 rounded-xl border border-gray-850">
+              <button
+                onClick={() => setCurrentTab("editor")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                  currentTab === "editor"
+                    ? "bg-gray-850 text-white"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                <Sliders className="h-3.5 w-3.5" />
+                <span>Editor Workspace</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentTab("howto")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                  currentTab === "howto"
+                    ? "bg-gray-850 text-white"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+                <span>How It Works</span>
+              </button>
+
+              {user && (
+                <>
+                  <button
+                    onClick={() => {
+                      if (!profile?.is_pro) {
+                        setPricingModalOpen(true);
+                        alert("History Gallery is a Pro feature. Please upgrade your workspace to automatically archive and re-download your isolated assets.");
+                      } else {
+                        setCurrentTab("history");
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                      currentTab === "history"
+                        ? "bg-gray-850 text-white"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <History className="h-3.5 w-3.5" />
+                    <span>My History</span>
+                  </button>
                   <button
                     onClick={() => setCurrentTab("billing")}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
@@ -254,9 +267,9 @@ export default function App() {
                     <CreditCard className="h-3.5 w-3.5" />
                     <span>Billing & Subscription</span>
                   </button>
-                )}
-              </div>
-            )}
+                </>
+              )}
+            </div>
 
             {/* Profile Info / Auth Actions */}
             {user ? (
@@ -314,9 +327,22 @@ export default function App() {
       </header>
 
       {/* Main Workspace Frame */}
-      {user ? (
-        <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
-          <div className={currentTab === "editor" ? "block" : "hidden"}>
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
+        {currentTab === "howto" && (
+          <HowToGuide 
+            onGoToEditor={() => {
+              if (user) {
+                setCurrentTab("editor");
+              } else {
+                setAuthModalOpen(true);
+              }
+            }}
+            isLoggedIn={!!user}
+          />
+        )}
+        
+        {currentTab === "editor" && (
+          user ? (
             <ChromaKeyer 
               user={user} 
               profile={profile} 
@@ -324,22 +350,24 @@ export default function App() {
               onOpenPricing={() => setPricingModalOpen(true)}
               onOpenAuth={() => setAuthModalOpen(true)}
             />
-          </div>
-          {currentTab === "history" && (
-            <HistoryGallery userId={user?.id} isPro={profile?.is_pro ?? false} />
-          )}
-          {currentTab === "billing" && user && (
-            <SubscriptionManager 
-              userId={user.id} 
-              credits={profile?.credits ?? 0} 
-              isPro={profile?.is_pro ?? false} 
-              onOpenPricing={() => setPricingModalOpen(true)}
-            />
-          )}
-        </main>
-      ) : (
-        <LandingPage onOpenAuth={() => setAuthModalOpen(true)} />
-      )}
+          ) : (
+            <LandingPage onOpenAuth={() => setAuthModalOpen(true)} />
+          )
+        )}
+
+        {currentTab === "history" && user && (
+          <HistoryGallery userId={user?.id} isPro={profile?.is_pro ?? false} />
+        )}
+
+        {currentTab === "billing" && user && (
+          <SubscriptionManager 
+            userId={user.id} 
+            credits={profile?.credits ?? 0} 
+            isPro={profile?.is_pro ?? false} 
+            onOpenPricing={() => setPricingModalOpen(true)}
+          />
+        )}
+      </main>
 
       {/* Footer Details */}
       <footer className="border-t border-gray-900 bg-gray-950/30 py-6 px-6">
@@ -347,6 +375,12 @@ export default function App() {
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-6">
             <span>© 2026 Chroma Isolate Engine. Powered by Supabase & Lemon Squeezy.</span>
             <div className="flex gap-4">
+              <button 
+                onClick={() => setCurrentTab("howto")}
+                className="hover:text-gray-300 transition duration-150 bg-transparent border-none cursor-pointer text-[11px] font-mono text-gray-500"
+              >
+                How It Works
+              </button>
               <a href="/terms" className="hover:text-gray-300 transition duration-150">Terms of Service</a>
               <a href="/privacy" className="hover:text-gray-300 transition duration-150">Privacy Policy</a>
               <a href="mailto:contact@pixelisolate.online" className="hover:text-gray-300 transition duration-150">Contact Support</a>
