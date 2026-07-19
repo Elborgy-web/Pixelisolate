@@ -750,6 +750,7 @@ export default function ChromaKeyer({
     try {
       const tiny1x1 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
       const config = {
+        model: "isnet" as const,
         progress: (key: string, current: number, total: number) => {
           const pct = Math.round((current / total) * 100);
           setModelProgress(`Loading AI Model (${pct}%)`);
@@ -778,6 +779,7 @@ export default function ChromaKeyer({
       setModelError(null);
       try {
         const config = {
+          model: "isnet" as const,
           progress: (key: string, current: number, total: number) => {
             if (!active) return;
             const pct = Math.round((current / total) * 100);
@@ -1417,7 +1419,7 @@ export default function ChromaKeyer({
 
           if (mode === "ai") {
             // AI Magic Cutout Mode using local @imgly/background-removal
-            const blob = await imglyRemoveBackground(item.sourceUri);
+            const blob = await imglyRemoveBackground(item.sourceUri, { model: "isnet" as const });
             const url = URL.createObjectURL(blob);
 
             const imgIsolated = new Image();
@@ -1827,7 +1829,7 @@ export default function ChromaKeyer({
 
         if (mode === "ai") {
           // AI Segmentation Mode using local @imgly/background-removal
-          const blob = await imglyRemoveBackground(mergedItem.sourceUri);
+          const blob = await imglyRemoveBackground(mergedItem.sourceUri, { model: "isnet" as const });
           const url = URL.createObjectURL(blob);
 
           const imgIsolated = new Image();
