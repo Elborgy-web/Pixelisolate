@@ -316,26 +316,36 @@ export function erodeAlpha(
   kernelSize: number
 ): Uint8Array {
   if (kernelSize <= 0) return alphaGrid;
-  const output = new Uint8Array(alphaGrid.length);
-  const offset = Math.floor(kernelSize / 2);
+  const temp = new Uint8Array(alphaGrid.length);
+  const offset = kernelSize;
 
+  // Horizontal minimum pass
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       let minVal = 255;
+      for (let kx = -offset; kx <= offset; kx++) {
+        const nx = x + kx;
+        if (nx >= 0 && nx < width) {
+          minVal = Math.min(minVal, alphaGrid[y * width + nx]);
+        } else {
+          minVal = 0;
+        }
+      }
+      temp[y * width + x] = minVal;
+    }
+  }
 
-      // Scan kernel neighborhood
+  // Vertical minimum pass
+  const output = new Uint8Array(alphaGrid.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let minVal = 255;
       for (let ky = -offset; ky <= offset; ky++) {
-        for (let kx = -offset; kx <= offset; kx++) {
-          const nx = x + kx;
-          const ny = y + ky;
-
-          if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-            const idx = ny * width + nx;
-            minVal = Math.min(minVal, alphaGrid[idx]);
-          } else {
-            // Treat border values as transparent/background during erosion
-            minVal = 0;
-          }
+        const ny = y + ky;
+        if (ny >= 0 && ny < height) {
+          minVal = Math.min(minVal, temp[ny * width + x]);
+        } else {
+          minVal = 0;
         }
       }
       output[y * width + x] = minVal;
@@ -355,23 +365,32 @@ export function dilateAlpha(
   kernelSize: number
 ): Uint8Array {
   if (kernelSize <= 0) return alphaGrid;
-  const output = new Uint8Array(alphaGrid.length);
-  const offset = Math.floor(kernelSize / 2);
+  const temp = new Uint8Array(alphaGrid.length);
+  const offset = kernelSize;
 
+  // Horizontal maximum pass
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       let maxVal = 0;
+      for (let kx = -offset; kx <= offset; kx++) {
+        const nx = x + kx;
+        if (nx >= 0 && nx < width) {
+          maxVal = Math.max(maxVal, alphaGrid[y * width + nx]);
+        }
+      }
+      temp[y * width + x] = maxVal;
+    }
+  }
 
-      // Scan kernel neighborhood
+  // Vertical maximum pass
+  const output = new Uint8Array(alphaGrid.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let maxVal = 0;
       for (let ky = -offset; ky <= offset; ky++) {
-        for (let kx = -offset; kx <= offset; kx++) {
-          const nx = x + kx;
-          const ny = y + ky;
-
-          if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-            const idx = ny * width + nx;
-            maxVal = Math.max(maxVal, alphaGrid[idx]);
-          }
+        const ny = y + ky;
+        if (ny >= 0 && ny < height) {
+          maxVal = Math.max(maxVal, temp[ny * width + x]);
         }
       }
       output[y * width + x] = maxVal;

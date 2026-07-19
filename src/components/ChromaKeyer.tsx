@@ -888,20 +888,31 @@ export default function ChromaKeyer({
               // If edge boundary, apply decontamination to remove color spill
               if (alphaVal < 255) {
                 const alphaRatio = alphaVal / 255;
-                if (chromaColorName === "Green") {
-                  const maxOther = Math.max(r, b);
-                  if (g > maxOther) g = Math.round(maxOther * (1 - alphaRatio) + g * alphaRatio);
-                } else if (chromaColorName === "Magenta") {
-                  const magentaComponent = Math.min(r, b) - g;
-                  if (magentaComponent > 0) {
-                    r = Math.round(r - magentaComponent * (1 - alphaRatio));
-                    b = Math.round(b - magentaComponent * (1 - alphaRatio));
+                if (segmentationMode === "ai") {
+                  if (alphaRatio > 0.05) {
+                    const bgR = sampledColor.r;
+                    const bgG = sampledColor.g;
+                    const bgB = sampledColor.b;
+                    r = Math.max(0, Math.min(255, Math.round((r - bgR * (1 - alphaRatio)) / alphaRatio)));
+                    g = Math.max(0, Math.min(255, Math.round((g - bgG * (1 - alphaRatio)) / alphaRatio)));
+                    b = Math.max(0, Math.min(255, Math.round((b - bgB * (1 - alphaRatio)) / alphaRatio)));
                   }
-                } else if (chromaColorName === "Cyan") {
-                  const cyanComponent = Math.min(g, b) - r;
-                  if (cyanComponent > 0) {
-                    g = Math.round(g - cyanComponent * (1 - alphaRatio));
-                    b = Math.round(b - cyanComponent * (1 - alphaRatio));
+                } else {
+                  if (chromaColorName === "Green") {
+                    const maxOther = Math.max(r, b);
+                    if (g > maxOther) g = Math.round(maxOther * (1 - alphaRatio) + g * alphaRatio);
+                  } else if (chromaColorName === "Magenta") {
+                    const magentaComponent = Math.min(r, b) - g;
+                    if (magentaComponent > 0) {
+                      r = Math.round(r - magentaComponent * (1 - alphaRatio));
+                      b = Math.round(b - magentaComponent * (1 - alphaRatio));
+                    }
+                  } else if (chromaColorName === "Cyan") {
+                    const cyanComponent = Math.min(g, b) - r;
+                    if (cyanComponent > 0) {
+                      g = Math.round(g - cyanComponent * (1 - alphaRatio));
+                      b = Math.round(b - cyanComponent * (1 - alphaRatio));
+                    }
                   }
                 }
               }
@@ -1280,20 +1291,31 @@ export default function ChromaKeyer({
 
                           if (alphaVal < 255) {
                             const alphaRatio = alphaVal / 255;
-                            if (chromaColorName === "Green") {
-                              const maxOther = Math.max(r, b);
-                              if (g > maxOther) g = Math.round(maxOther * (1 - alphaRatio) + g * alphaRatio);
-                            } else if (chromaColorName === "Magenta") {
-                              const magentaComponent = Math.min(r, b) - g;
-                              if (magentaComponent > 0) {
-                                r = Math.round(r - magentaComponent * (1 - alphaRatio));
-                                b = Math.round(b - magentaComponent * (1 - alphaRatio));
+                            if (segmentationMode === "ai") {
+                              if (alphaRatio > 0.05) {
+                                const bgR = sampledColor.r;
+                                const bgG = sampledColor.g;
+                                const bgB = sampledColor.b;
+                                r = Math.max(0, Math.min(255, Math.round((r - bgR * (1 - alphaRatio)) / alphaRatio)));
+                                g = Math.max(0, Math.min(255, Math.round((g - bgG * (1 - alphaRatio)) / alphaRatio)));
+                                b = Math.max(0, Math.min(255, Math.round((b - bgB * (1 - alphaRatio)) / alphaRatio)));
                               }
-                            } else if (chromaColorName === "Cyan") {
-                              const cyanComponent = Math.min(g, b) - r;
-                              if (cyanComponent > 0) {
-                                g = Math.round(g - cyanComponent * (1 - alphaRatio));
-                                b = Math.round(b - cyanComponent * (1 - alphaRatio));
+                            } else {
+                              if (chromaColorName === "Green") {
+                                const maxOther = Math.max(r, b);
+                                if (g > maxOther) g = Math.round(maxOther * (1 - alphaRatio) + g * alphaRatio);
+                              } else if (chromaColorName === "Magenta") {
+                                const magentaComponent = Math.min(r, b) - g;
+                                if (magentaComponent > 0) {
+                                  r = Math.round(r - magentaComponent * (1 - alphaRatio));
+                                  b = Math.round(b - magentaComponent * (1 - alphaRatio));
+                                }
+                              } else if (chromaColorName === "Cyan") {
+                                const cyanComponent = Math.min(g, b) - r;
+                                if (cyanComponent > 0) {
+                                  g = Math.round(g - cyanComponent * (1 - alphaRatio));
+                                  b = Math.round(b - cyanComponent * (1 - alphaRatio));
+                                }
                               }
                             }
                           }
@@ -3228,7 +3250,7 @@ export default function ChromaKeyer({
                         <input
                           type="range"
                           min="0"
-                          max="5"
+                          max="20"
                           step="1"
                           value={erosionSize}
                           onChange={(e) => setErosionSize(parseInt(e.target.value))}
@@ -3250,7 +3272,7 @@ export default function ChromaKeyer({
                         <input
                           type="range"
                           min="0"
-                          max="5"
+                          max="20"
                           step="1"
                           value={dilationSize}
                           onChange={(e) => setDilationSize(parseInt(e.target.value))}
@@ -3272,7 +3294,7 @@ export default function ChromaKeyer({
                         <input
                           type="range"
                           min="0"
-                          max="5"
+                          max="20"
                           step="1"
                           value={featherRadius}
                           onChange={(e) => setFeatherRadius(parseInt(e.target.value))}
