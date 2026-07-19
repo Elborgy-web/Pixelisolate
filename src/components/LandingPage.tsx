@@ -108,11 +108,11 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
           </span>
           
           <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight max-w-4xl mx-auto mb-6">
-            Pixel-Level Precision for <span className="bg-gradient-to-r from-emerald-400 to-teal-500 bg-clip-text text-transparent">High-Volume</span> Digital Creators
+            Pixel Isolate Background Remover for <span className="bg-gradient-to-r from-emerald-400 to-teal-500 bg-clip-text text-transparent">High-Volume</span> Digital Creators
           </h1>
           
           <p className="text-sm md:text-base text-gray-400 max-w-3xl mx-auto mb-8 leading-relaxed font-light">
-            The advanced image isolation workspace built for print-on-demand designers, e-commerce stores, and digital artists. Extract clean alpha masks at subpixel speeds.
+            The advanced pixel isolate background remover built for print-on-demand designers, e-commerce stores, and digital artists. Extract clean alpha masks at subpixel speeds directly in your browser.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -1008,7 +1008,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
               Core Extraction Methodology & Edge Morphologies
             </h3>
             <p className="text-xs text-gray-400 leading-relaxed font-mono">
-              PixelIsolate utilizes WebAssembly (WASM) to execute hardware-accelerated morphological edge operations directly in the browser's sandbox. By avoiding cloud latency, the engine performs high-frequency subpixel color-key thresholding to isolate subject outlines with zero quality degradation. In print-on-demand and e-commerce workflows, extraction accuracy is governed by three specific morphological steps. First, the source image is parsed into an 8-bit RGBA canvas, preserving raw dimensions. Next, an HSV color-space mask segments the targeted chrominance key, creating a binary connectivity map. Finally, boundary correction algorithms apply erosion (cv2.erode) to contract halos, dilation (cv2.dilate) to bridge voids, and Gaussian Blur feathering to blend pixel fringes. This combination solves green-screen spill and jagged transparency borders without high computing overhead. E-commerce operators and digital designers can automate these pipelines to export production-ready PNGs or package batch assets into structured archives, optimizing processing speed and output resolution.
+              The Pixel Isolate Background Remover utilizes WebAssembly (WASM) to execute hardware-accelerated morphological edge operations directly in the browser's sandbox. By avoiding cloud latency, the engine performs high-frequency subpixel color-key thresholding to isolate subject outlines with zero quality degradation. In print-on-demand and e-commerce workflows, extraction accuracy is governed by three specific morphological steps. First, the source image is parsed into an 8-bit RGBA canvas, preserving raw dimensions. Next, an HSV color-space mask segments the targeted chrominance key, creating a binary connectivity map. Finally, boundary correction algorithms apply erosion (cv2.erode) to contract halos, dilation (cv2.dilate) to bridge voids, and Gaussian Blur feathering to blend pixel fringes. This combination solves green-screen spill and jagged transparency borders without high computing overhead. E-commerce operators and digital designers can automate these pipelines to export production-ready PNGs or package batch assets into structured archives, optimizing processing speed and output resolution.
             </p>
           </div>
         </div>
