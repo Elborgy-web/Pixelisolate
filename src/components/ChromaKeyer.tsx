@@ -283,6 +283,7 @@ export default function ChromaKeyer({
   const greenScreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isolatedCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const aiAlphaMaskRef = useRef<Uint8Array | null>(null);
+  const lastDrawPosRef = useRef<{ x: number; y: number } | null>(null);
 
   // Manual brush mask refinement state
   const [brushMode, setBrushMode] = useState<"none" | "restore" | "erase">("none");
@@ -338,17 +339,13 @@ export default function ChromaKeyer({
     return null;
   };
 
-  const handleDraw = (clientX: number, clientY: number) => {
+  const handleDraw = (x: number, y: number) => {
     if (brushMode === "none" || !aiAlphaMaskRef.current) return;
     const canvas = getActiveCanvas();
     if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.floor(((clientX - rect.left) / rect.width) * canvas.width);
-    const y = Math.floor(((clientY - rect.top) / rect.height) * canvas.height);
     const w = canvas.width;
     const h = canvas.height;
-
     const radius = brushSize;
     const targetAlpha = brushMode === "restore" ? 255 : 0;
     const mask = aiAlphaMaskRef.current;
@@ -377,35 +374,92 @@ export default function ChromaKeyer({
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (brushMode === "none") return;
+    if (brushMode === "none" || !aiAlphaMaskRef.current) return;
     e.preventDefault();
     saveToUndoStack();
     setIsDrawing(true);
-    handleDraw(e.clientX, e.clientY);
+    
+    const canvas = getActiveCanvas();
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor(((e.clientX - rect.left) / rect.width) * canvas.width);
+      const y = Math.floor(((e.clientY - rect.top) / rect.height) * canvas.height);
+      lastDrawPosRef.current = { x, y };
+      handleDraw(x, y);
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDrawing || brushMode === "none") return;
     e.preventDefault();
-    handleDraw(e.clientX, e.clientY);
+
+    const canvas = getActiveCanvas();
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor(((e.clientX - rect.left) / rect.width) * canvas.width);
+      const y = Math.floor(((e.clientY - rect.top) / rect.height) * canvas.height);
+
+      if (lastDrawPosRef.current) {
+        const last = lastDrawPosRef.current;
+        const dist = Math.hypot(x - last.x, y - last.y);
+        const steps = Math.max(1, Math.floor(dist / 3)); // Interpolation step every 3 pixels
+        for (let i = 1; i <= steps; i++) {
+          const t = i / steps;
+          const ix = Math.round(last.x * (1 - t) + x * t);
+          const iy = Math.round(last.y * (1 - t) + y * t);
+          handleDraw(ix, iy);
+        }
+      } else {
+        handleDraw(x, y);
+      }
+      lastDrawPosRef.current = { x, y };
+    }
   };
 
   const handleMouseUp = () => {
     setIsDrawing(false);
+    lastDrawPosRef.current = null;
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (brushMode === "none") return;
+    if (brushMode === "none" || !aiAlphaMaskRef.current) return;
     saveToUndoStack();
     setIsDrawing(true);
-    const touch = e.touches[0];
-    handleDraw(touch.clientX, touch.clientY);
+    const canvas = getActiveCanvas();
+    if (canvas) {
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor(((touch.clientX - rect.left) / rect.width) * canvas.width);
+      const y = Math.floor(((touch.clientY - rect.top) / rect.height) * canvas.height);
+      lastDrawPosRef.current = { x, y };
+      handleDraw(x, y);
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!isDrawing || brushMode === "none") return;
-    const touch = e.touches[0];
-    handleDraw(touch.clientX, touch.clientY);
+    const canvas = getActiveCanvas();
+    if (canvas) {
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor(((touch.clientX - rect.left) / rect.width) * canvas.width);
+      const y = Math.floor(((touch.clientY - rect.top) / rect.height) * canvas.height);
+
+      if (lastDrawPosRef.current) {
+        const last = lastDrawPosRef.current;
+        const dist = Math.hypot(x - last.x, y - last.y);
+        const steps = Math.max(1, Math.floor(dist / 3));
+        for (let i = 1; i <= steps; i++) {
+          const t = i / steps;
+          const ix = Math.round(last.x * (1 - t) + x * t);
+          const iy = Math.round(last.y * (1 - t) + y * t);
+          handleDraw(ix, iy);
+        }
+      } else {
+        handleDraw(x, y);
+      }
+      lastDrawPosRef.current = { x, y };
+    }
   };
 
   // Handle Drag & Drop
@@ -859,9 +913,11 @@ export default function ChromaKeyer({
           }
           ctxIsolated.putImageData(isolatedData, 0, 0);
 
-          // Update states
-          setGreenScreenImageUri(canvasGreen.toDataURL());
-          setIsolatedImageUri(canvasIsolated.toDataURL());
+          // Update states (only if not drawing to prevent input lag)
+          if (!isDrawing) {
+            setGreenScreenImageUri(canvasGreen.toDataURL());
+            setIsolatedImageUri(canvasIsolated.toDataURL());
+          }
         } else {
           // Standard Chroma Key Mode
           const greenScreenData = createChromaGreenTransform(
@@ -894,7 +950,9 @@ export default function ChromaKeyer({
             useBoundingBox ? analysisReport?.boundingBox : null
           );
           ctxIsolated.putImageData(isolatedData, 0, 0);
-          setIsolatedImageUri(canvasIsolated.toDataURL());
+          if (!isDrawing) {
+            setIsolatedImageUri(canvasIsolated.toDataURL());
+          }
         }
       } catch (err) {
         console.error("Pipeline render error:", err);
@@ -926,6 +984,7 @@ export default function ChromaKeyer({
     isInvertedMask,
     isModelLoaded,
     renderTrigger,
+    isDrawing,
   ]);
 
   const preloadImglyModel = async () => {
@@ -2572,6 +2631,8 @@ export default function ChromaKeyer({
                           setAnalysisReport(null);
                           aiAlphaMaskRef.current = null;
                           setIsModelLoaded(false);
+                          setUndoStack([]);
+                          setBrushMode("none");
                         }}
                         className="p-1 px-2.5 rounded-md hover:bg-red-950/30 text-gray-500 hover:text-red-400 transition text-[11px] font-mono border border-transparent hover:border-red-900/40"
                       >
