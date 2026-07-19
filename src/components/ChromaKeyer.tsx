@@ -19,6 +19,7 @@ import {
   Plus,
   Minus,
   Brush,
+  RotateCcw,
   X,
   Crop,
 } from "lucide-react";
@@ -28,6 +29,60 @@ import PythonScript from "./PythonScript";
 import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import { supabase } from "../utils/supabaseClient";
 import JSZip from "jszip";
+
+function autoRecoverForeground(
+  mask: Uint8Array,
+  srcData: Uint8ClampedArray,
+  w: number,
+  h: number
+): Uint8Array {
+  const result = new Uint8Array(mask);
+  const queue: number[] = [];
+  const visited = new Uint8Array(w * h);
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      if (mask[idx] === 255) {
+        queue.push(idx);
+        visited[idx] = 1;
+      }
+    }
+  }
+
+  const dx = [1, -1, 0, 0];
+  const dy = [0, 0, 1, -1];
+
+  while (queue.length > 0) {
+    const curr = queue.shift()!;
+    const cx = curr % w;
+    const cy = Math.floor(curr / w);
+
+    for (let i = 0; i < 4; i++) {
+      const nx = cx + dx[i];
+      const ny = cy + dy[i];
+
+      if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+        const nIdx = ny * w + nx;
+        if (!visited[nIdx]) {
+          const sIdx = nIdx * 4;
+          const r = srcData[sIdx];
+          const g = srcData[sIdx + 1];
+          const b = srcData[sIdx + 2];
+          const isLight = r > 185 && g > 185 && b > 185;
+
+          if (isLight) {
+            result[nIdx] = 255;
+            queue.push(nIdx);
+            visited[nIdx] = 1;
+          }
+        }
+      }
+    }
+  }
+
+  return result;
+}
 
 interface ChromaKeyerProps {
   user: any;
@@ -235,6 +290,47 @@ export default function ChromaKeyer({
   const [isDrawing, setIsDrawing] = useState(false);
   const [renderTrigger, setRenderTrigger] = useState(0);
 
+  // Undo state stack
+  const [undoStack, setUndoStack] = useState<Uint8Array[]>([]);
+
+  // Generate dynamic SVG circle cursor matching selected brush size and mode
+  const getBrushCursorStyle = () => {
+    if (brushMode === "none") return {};
+    const displaySize = Math.max(10, Math.min(128, brushSize * 2));
+    const r = displaySize / 2;
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${displaySize}" height="${displaySize}" viewBox="0 0 ${displaySize} ${displaySize}">
+        <circle cx="${r}" cy="${r}" r="${r - 1}" fill="none" stroke="${brushMode === 'restore' ? '#10B981' : '#EF4444'}" stroke-width="1.5" stroke-dasharray="3 2" />
+        <circle cx="${r}" cy="${r}" r="1.5" fill="${brushMode === 'restore' ? '#10B981' : '#EF4444'}" />
+      </svg>
+    `.trim();
+    const encoded = encodeURIComponent(svg);
+    return {
+      cursor: `url("data:image/svg+xml;utf8,${encoded}") ${r} ${r}, auto`,
+    };
+  };
+
+  const saveToUndoStack = () => {
+    if (aiAlphaMaskRef.current) {
+      const nextState = new Uint8Array(aiAlphaMaskRef.current);
+      setUndoStack(prev => {
+        const nextStack = [...prev, nextState];
+        if (nextStack.length > 20) {
+          return nextStack.slice(1);
+        }
+        return nextStack;
+      });
+    }
+  };
+
+  const handleUndo = () => {
+    if (undoStack.length === 0 || !aiAlphaMaskRef.current) return;
+    const previous = undoStack[undoStack.length - 1];
+    setUndoStack(prev => prev.slice(0, -1));
+    aiAlphaMaskRef.current.set(previous);
+    setRenderTrigger(prev => prev + 1);
+  };
+
   const getActiveCanvas = () => {
     if (activeTab === "original") return originalCanvasRef.current;
     if (activeTab === "greenscreen") return greenScreenCanvasRef.current;
@@ -283,6 +379,7 @@ export default function ChromaKeyer({
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (brushMode === "none") return;
     e.preventDefault();
+    saveToUndoStack();
     setIsDrawing(true);
     handleDraw(e.clientX, e.clientY);
   };
@@ -299,6 +396,7 @@ export default function ChromaKeyer({
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (brushMode === "none") return;
+    saveToUndoStack();
     setIsDrawing(true);
     const touch = e.touches[0];
     handleDraw(touch.clientX, touch.clientY);
@@ -370,6 +468,8 @@ export default function ChromaKeyer({
       // Only set file dimensions when loading the original raw base64 source image URI
       if (sourceImageUri && img.src.startsWith(sourceImageUri.substring(0, 150))) {
         setFileDimensions({ w, h });
+        setUndoStack([]);
+        setBrushMode("none");
       }
 
       // Instant client-side Corner Background Color Detection!
@@ -901,8 +1001,31 @@ export default function ChromaKeyer({
           initialAlpha[i] = aiData.data[i * 4 + 3];
         }
 
-        // Store the raw alpha mask in the ref
-        aiAlphaMaskRef.current = initialAlpha;
+        // Automatic Foreground Recovery for light objects (like books) against dark backgrounds
+        const imgObj = originalImageRef.current;
+        if (imgObj) {
+          const canvasSrc = document.createElement("canvas");
+          canvasSrc.width = w;
+          canvasSrc.height = h;
+          const ctxSrc = canvasSrc.getContext("2d");
+          if (ctxSrc) {
+            ctxSrc.drawImage(imgObj, 0, 0, w, h);
+            const srcData = ctxSrc.getImageData(0, 0, w, h).data;
+            const avgBgBrightness = (sampledColor.r + sampledColor.g + sampledColor.b) / 3;
+            
+            if (avgBgBrightness < 165) {
+              const recovered = autoRecoverForeground(initialAlpha, srcData, w, h);
+              aiAlphaMaskRef.current = recovered;
+            } else {
+              aiAlphaMaskRef.current = initialAlpha;
+            }
+          } else {
+            aiAlphaMaskRef.current = initialAlpha;
+          }
+        } else {
+          aiAlphaMaskRef.current = initialAlpha;
+        }
+
         setIsModelLoaded(true);
       } catch (err: any) {
         console.error("Local AI background removal failed:", err);
@@ -2573,7 +2696,12 @@ export default function ChromaKeyer({
                       <div className="flex gap-1.5 mt-1 bg-gray-900 p-1 rounded-xl border border-gray-805">
                         <button
                           type="button"
-                          onClick={() => setSegmentationMode("chroma")}
+                          onClick={() => {
+                            setSegmentationMode("chroma");
+                            setErosionSize(1);
+                            setFeatherRadius(1);
+                            setDilationSize(0);
+                          }}
                           className={`flex-1 py-1.5 px-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-1 ${
                             segmentationMode === "chroma"
                               ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/10 scale-[1.01]"
@@ -2585,7 +2713,12 @@ export default function ChromaKeyer({
                         </button>
                         <button
                           type="button"
-                          onClick={() => setSegmentationMode("ai")}
+                          onClick={() => {
+                            setSegmentationMode("ai");
+                            setErosionSize(0);
+                            setFeatherRadius(0);
+                            setDilationSize(0);
+                          }}
                           className={`flex-1 py-1.5 px-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-1 ${
                             segmentationMode === "ai"
                               ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/10 scale-[1.01]"
@@ -2660,9 +2793,21 @@ export default function ChromaKeyer({
                         
                         {/* Manual Mask Refinement Brush */}
                         <div className="border-t border-gray-850/60 pt-3 flex flex-col gap-3">
-                          <div className="flex items-center gap-1.5 text-amber-500 font-bold font-mono uppercase tracking-wider text-[10px]">
-                            <Brush className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                            <span>Manual Mask Refinement</span>
+                          <div className="flex justify-between items-center text-[10px]">
+                            <div className="flex items-center gap-1.5 text-amber-500 font-bold font-mono uppercase tracking-wider">
+                              <Brush className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                              <span>Manual Mask Refinement</span>
+                            </div>
+                            {undoStack.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={handleUndo}
+                                className="px-2 py-0.5 rounded bg-gray-850 hover:bg-gray-800 text-amber-400 font-mono text-[9px] font-bold border border-gray-750 transition cursor-pointer flex items-center gap-1 shadow"
+                              >
+                                <RotateCcw className="h-2.5 w-2.5 text-amber-400" />
+                                <span>Undo ({undoStack.length})</span>
+                              </button>
+                            )}
                           </div>
                           
                           <div className="flex gap-1.5 bg-gray-900 p-0.5 rounded-lg border border-gray-800">
@@ -3172,6 +3317,7 @@ export default function ChromaKeyer({
 
                     <div
                       className="relative max-w-full max-h-full z-1"
+                      style={getBrushCursorStyle()}
                       onMouseDown={handleMouseDown}
                       onMouseMove={handleMouseMove}
                       onMouseUp={handleMouseUp}
