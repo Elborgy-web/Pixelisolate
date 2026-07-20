@@ -1,35 +1,48 @@
 import React from "react";
 import { Check, X, ShieldAlert, Sparkles, Zap, Package } from "lucide-react";
+import { getPaddleInstance } from "@paddle/paddle-js";
 
 interface PricingModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string | null;
+  userEmail: string | null;
 }
 
-export default function PricingModal({ isOpen, onClose, userId }: PricingModalProps) {
+export default function PricingModal({ isOpen, onClose, userId, userEmail }: PricingModalProps) {
   if (!isOpen) return null;
 
-  // Lemon Squeezy variants (mock store checkout links or real ones)
-  const LEMON_SQUEEZY_STORE_URL = import.meta.env.VITE_LEMON_SQUEEZY_STORE_URL || "https://pixelisolate.lemonsqueezy.com";
-  const PRO_VARIANT_ID = import.meta.env.VITE_LEMON_SQUEEZY_PRO_VARIANT_ID || "1225493"; // Pro Subscription Variant
-  const CREDITS_100_VARIANT_ID = import.meta.env.VITE_LEMON_SQUEEZY_CREDITS_VARIANT_ID || "1225505"; // 100 Credits Variant
+  // Paddle price IDs
+  const PRO_PRICE_ID = import.meta.env.VITE_PADDLE_PRO_PRICE_ID || "pri_01kxzry4t63gx1gg8set3b8352";
+  const TOPUP_PRICE_ID = import.meta.env.VITE_PADDLE_TOPUP_100_PRICE_ID || "pri_01kxzs3cntjbews1fkk8w1fveb";
 
-  const handleCheckout = (variantId: string) => {
+  const handleCheckout = (priceId: string, purchaseType: "subscription" | "credit_topup", creditsToGrant?: number) => {
     if (!userId) {
       alert("Please log in or sign up first to purchase subscriptions or credits.");
       return;
     }
 
-    // Redirect to Lemon Squeezy checkout with custom parameters (user_id)
-    const checkoutUrl = `${LEMON_SQUEEZY_STORE_URL}/checkout/buy/${variantId}?checkout[custom][user_id]=${userId}`;
-    window.open(checkoutUrl, "_blank");
-  };
-
-  const mockTriggerPro = () => {
-    alert(
-      `Redirecting user ${userId ? userId.substring(0, 8) : "guest"} to billing checkout...\n(Mock checkout triggered. In production, this opens Lemon Squeezy checkout.)`
-    );
+    const paddle = getPaddleInstance();
+    if (paddle) {
+      paddle.Checkout.open({
+        items: [{ priceId: priceId, quantity: 1 }],
+        customer: userEmail ? { email: userEmail } : undefined,
+        customData: {
+          userId: userId,
+          purchaseType: purchaseType,
+          creditsToGrant: creditsToGrant || 0,
+        },
+        settings: {
+          displayMode: "overlay",
+          theme: "dark",
+          successUrl: purchaseType === "subscription"
+            ? `${window.location.origin}/dashboard?payment=success`
+            : `${window.location.origin}/dashboard?topup=success`,
+        },
+      });
+    } else {
+      alert("Payment engine loading... Please try again in a moment.");
+    }
   };
 
   return (
@@ -107,8 +120,7 @@ export default function PricingModal({ isOpen, onClose, userId }: PricingModalPr
 
             <button
               onClick={() => {
-                handleCheckout(PRO_VARIANT_ID);
-                mockTriggerPro();
+                handleCheckout(PRO_PRICE_ID, "subscription");
               }}
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-xs hover:shadow-lg hover:shadow-emerald-500/10 active:scale-[0.99] transition duration-200 cursor-pointer flex items-center justify-center gap-1.5"
             >
@@ -154,8 +166,7 @@ export default function PricingModal({ isOpen, onClose, userId }: PricingModalPr
 
             <button
               onClick={() => {
-                handleCheckout(CREDITS_100_VARIANT_ID);
-                mockTriggerPro();
+                handleCheckout(TOPUP_PRICE_ID, "credit_topup", 100);
               }}
               className="w-full py-3 px-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-semibold text-xs active:scale-[0.99] transition duration-200 cursor-pointer flex items-center justify-center gap-1.5 border border-gray-700"
             >

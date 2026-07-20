@@ -18,7 +18,7 @@ export default function SubscriptionManager({ userId, credits, hdCredits, isPro,
     async function loadSubscription() {
       try {
         const { data, error } = await supabase
-          .from("lemon_squeezy_subscriptions")
+          .from("paddle_subscriptions")
           .select("*")
           .eq("user_id", userId)
           .maybeSingle();
@@ -121,7 +121,7 @@ export default function SubscriptionManager({ userId, credits, hdCredits, isPro,
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Next Renewal Date:</span>
-                      <span className="text-gray-300 font-semibold">{formatDate(subscription.renews_at)}</span>
+                      <span className="text-gray-300 font-semibold">{formatDate(subscription.current_period_end)}</span>
                     </div>
                   </div>
                 )}
@@ -130,7 +130,7 @@ export default function SubscriptionManager({ userId, credits, hdCredits, isPro,
               <div>
                 {isPro ? (
                   <a
-                    href="https://pixelisolate.lemonsqueezy.com/billing"
+                    href={import.meta.env.VITE_PADDLE_ENV === "production" ? "https://billing.paddle.com" : "https://sandbox-billing.paddle.com"}
                     target="_blank"
                     rel="noreferrer"
                     className="w-full bg-gray-950 hover:bg-gray-800 border border-gray-850 rounded-xl py-3 text-white font-medium text-xs flex items-center justify-center gap-2 transition duration-200 cursor-pointer"

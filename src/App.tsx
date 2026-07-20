@@ -12,6 +12,7 @@ import SubscriptionManager from "./components/SubscriptionManager";
 import LandingPage from "./components/LandingPage";
 import HowToGuide from "./components/HowToGuide";
 import { supabase } from "./utils/supabaseClient";
+import { initializePaddle } from "@paddle/paddle-js";
 import { 
   FileCheck, 
   Layers, 
@@ -89,6 +90,13 @@ export default function App() {
   const [profile, setProfile] = useState<any>(null);
   const [currentTab, setCurrentTab] = useState<"editor" | "history" | "billing" | "howto">("editor");
   const [logoSrc, setLogoSrc] = useState("/logo.png");
+
+  useEffect(() => {
+    initializePaddle({
+      environment: (import.meta.env.VITE_PADDLE_ENV || "sandbox") as any,
+      token: import.meta.env.VITE_PADDLE_CLIENT_TOKEN || "",
+    });
+  }, []);
 
   useEffect(() => {
     const img = new Image();
@@ -411,6 +419,7 @@ export default function App() {
         isOpen={pricingModalOpen}
         onClose={() => setPricingModalOpen(false)}
         userId={user?.id || null}
+        userEmail={user?.email || null}
       />
 
       {/* Custom Alert Modal */}

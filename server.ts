@@ -197,66 +197,89 @@ const triggerPurchaseEmail = async (userId: string, purchaseType: "subscription"
   }
 };
 
-// Webhook endpoint to listen for billing events from Lemon Squeezy
-app.post("/api/webhooks/lemon-squeezy", async (req: any, res) => {
+// Webhook endpoint to listen for billing events from Paddle Billing v2
+app.post("/api/webhooks/paddle", async (req: any, res) => {
   try {
-    const signature = req.get("X-Signature");
-    const webhookSecret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
+    const signature = req.get("paddle-signature") || "";
+    const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET;
 
     if (!signature || !webhookSecret) {
       res.status(400).json({ error: "Missing webhook signature configurations." });
       return;
     }
 
-    // Verify HMAC SHA256 signature
+    // Parse the paddle-signature header: ts=TIMESTAMP;h1=SIGNATURE
+    const parts = signature.split(";").reduce((acc: any, part: string) => {
+      const [key, val] = part.split("=");
+      if (key && val) acc[key] = val;
+      return acc;
+    }, {});
+
+    const ts = parts.ts;
+    const h1 = parts.h1;
+
+    if (!ts || !h1) {
+      res.status(400).json({ error: "Invalid paddle-signature header structure." });
+      return;
+    }
+
+    // Verify signature manually using crypto and rawBody buffer
+    const rawBodyStr = req.rawBody ? req.rawBody.toString("utf8") : "";
+    const message = `${ts}:${rawBodyStr}`;
+
     const hmac = crypto.createHmac("sha256", webhookSecret);
-    const digest = hmac.update(req.rawBody).digest("hex");
-    
-    // Timing safe comparison to prevent timing attacks
-    const digestBuffer = Buffer.from(digest, "utf8");
-    const signatureBuffer = Buffer.from(signature, "utf8");
-    
+    const computedHash = hmac.update(message).digest("hex");
+
+    const digestBuffer = Buffer.from(computedHash, "hex");
+    const signatureBuffer = Buffer.from(h1, "hex");
+
     if (digestBuffer.length !== signatureBuffer.length || !crypto.timingSafeEqual(digestBuffer, signatureBuffer)) {
       res.status(401).json({ error: "Invalid signature verification failed." });
       return;
     }
 
     const payload = req.body;
-    const eventName = payload.meta?.event_name;
-    const customData = payload.meta?.custom_data;
-    const userId = customData?.user_id;
+    const eventType = payload.event_type;
+    const entityData = payload.data;
+    const customData = entityData?.custom_data;
+    const userId = customData?.userId || customData?.user_id;
 
-    console.log(`[Webhook] Received Lemon Squeezy event: ${eventName} for user: ${userId || "none"}`);
+    console.log(`[Webhook] Received Paddle event: ${eventType} for user: ${userId || "none"}`);
 
     if (!userId) {
-      // Return 200 to acknowledge the event if no user context is associated
-      res.status(200).json({ message: "Webhook received but no user_id found in metadata." });
+      res.status(200).json({ message: "Webhook received but no userId found in customData." });
       return;
     }
 
-    if (eventName === "subscription_created" || eventName === "subscription_updated") {
-      const subData = payload.data;
-      const subId = subData.id;
-      const attributes = subData.attributes;
-      const status = attributes.status; // active, trialling, past_due, paused, cancelled
-      const variantId = attributes.variant_id?.toString();
-      const renewsAt = attributes.renews_at;
+    if (eventType === "subscription.created" || eventType === "subscription.updated") {
+      const subId = entityData.id;
+      const customerId = entityData.customer_id;
+      const status = entityData.status; // active, trialing, past_due, canceled, paused
+      const currentPeriodEnd = entityData.current_period_end || entityData.next_billed_at;
+      
+      // Get price ID from items list
+      let priceId = "";
+      if (entityData.items && entityData.items.length > 0) {
+        priceId = entityData.items[0].price?.id || "";
+      }
 
-      // Upsert subscription table
+      // Upsert paddle_subscriptions table
       const { error: subError } = await supabaseAdmin
-        .from("lemon_squeezy_subscriptions")
+        .from("paddle_subscriptions")
         .upsert({
           id: subId,
           user_id: userId,
+          customer_id: customerId,
           status: status,
-          variant_id: variantId,
-          renews_at: renewsAt,
+          price_id: priceId,
+          current_period_end: currentPeriodEnd,
+          updated_at: new Date().toISOString(),
         });
 
       if (subError) throw subError;
 
       // Update profiles is_pro status
-      const isPro = status === "active" || status === "on_trial";
+      const isPro = status === "active" || status === "trialing";
       const { error: profileError } = await supabaseAdmin
         .from("profiles")
         .update({ is_pro: isPro, updated_at: new Date().toISOString() })
@@ -264,21 +287,19 @@ app.post("/api/webhooks/lemon-squeezy", async (req: any, res) => {
 
       if (profileError) throw profileError;
 
-      // Trigger transactional purchase thank-you email for new Pro subscriptions
-      if (eventName === "subscription_created" && isPro) {
+      // Trigger thank-you email for new subscriptions
+      if (eventType === "subscription.created" && isPro) {
         triggerPurchaseEmail(userId, "subscription");
       }
 
-    } else if (eventName === "subscription_cancelled" || eventName === "subscription_expired") {
-      const subData = payload.data;
-      const subId = subData.id;
-      const attributes = subData.attributes;
-      const status = attributes.status;
+    } else if (eventType === "subscription.canceled" || eventType === "subscription.past_due" || eventType === "subscription.paused") {
+      const subId = entityData.id;
+      const status = entityData.status;
 
       // Update subscription record
       const { error: subError } = await supabaseAdmin
-        .from("lemon_squeezy_subscriptions")
-        .update({ status: status })
+        .from("paddle_subscriptions")
+        .update({ status: status, updated_at: new Date().toISOString() })
         .eq("id", subId);
 
       if (subError) throw subError;
@@ -291,39 +312,42 @@ app.post("/api/webhooks/lemon-squeezy", async (req: any, res) => {
 
       if (profileError) throw profileError;
 
-    } else if (eventName === "order_created") {
-      const orderData = payload.data;
-      const attributes = orderData.attributes;
-      const variantId = attributes.first_order_item?.variant_id?.toString();
-
-      // Check if it's the 100 Credits package variant (default 1225505)
-      const targetCreditsVariant = process.env.LEMON_SQUEEZY_CREDITS_VARIANT_ID || "1225505";
-      if (variantId === targetCreditsVariant) {
+    } else if (eventType === "transaction.completed") {
+      const purchaseType = customData?.purchaseType;
+      
+      if (purchaseType === "credit_topup") {
         // Fetch current credits
         const { data: profile, error: getError } = await supabaseAdmin
           .from("profiles")
-          .select("credits")
+          .select("credits, hd_credits_remaining")
           .eq("id", userId)
           .single();
 
         if (getError) throw getError;
 
         const currentCredits = profile?.credits || 0;
+        const currentHdCredits = profile?.hd_credits_remaining || 0;
+        const creditsToGrant = parseInt(customData.creditsToGrant || "100", 10);
+
         const { error: updateError } = await supabaseAdmin
           .from("profiles")
-          .update({ credits: currentCredits + 100, updated_at: new Date().toISOString() })
+          .update({ 
+            credits: currentCredits + creditsToGrant, 
+            hd_credits_remaining: currentHdCredits + creditsToGrant,
+            updated_at: new Date().toISOString() 
+          })
           .eq("id", userId);
 
         if (updateError) throw updateError;
 
-        // Trigger transactional purchase thank-you email for 100 Credits package
+        // Trigger thank-you email for top-up
         triggerPurchaseEmail(userId, "credits");
       }
     }
 
     res.status(200).json({ success: true });
   } catch (err: any) {
-    console.error("Webhook processing error:", err);
+    console.error("Paddle Webhook processing error:", err);
     res.status(500).json({ error: err.message || "Webhook handling failed." });
   }
 });
