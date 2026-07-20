@@ -130,7 +130,7 @@ export default function SubscriptionManager({ userId, credits, hdCredits, isPro,
               <div>
                 {isPro ? (
                   <a
-                    href={`${import.meta.env.VITE_API_URL || ""}/api/billing/portal?userId=${userId}`}
+                    href={`${(import.meta.env.VITE_API_URL || "").trim()}/api/billing/portal?userId=${userId}`}
                     target="_blank"
                     rel="noreferrer"
                     className="w-full bg-gray-950 hover:bg-gray-800 border border-gray-850 rounded-xl py-3 text-white font-medium text-xs flex items-center justify-center gap-2 transition duration-200 cursor-pointer"
