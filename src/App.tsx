@@ -391,9 +391,9 @@ export default function App() {
               >
                 How It Works
               </button>
-              <a href="/terms" className="hover:text-gray-300 transition duration-150">Terms of Service</a>
-              <a href="/privacy" className="hover:text-gray-300 transition duration-150">Privacy Policy</a>
-              <a href="/refund" className="hover:text-gray-300 transition duration-150">Refund Policy</a>
+              <a href="/terms.html" className="hover:text-gray-300 transition duration-150">Terms of Service</a>
+              <a href="/privacy.html" className="hover:text-gray-300 transition duration-150">Privacy Policy</a>
+              <a href="/refund.html" className="hover:text-gray-300 transition duration-150">Refund Policy</a>
               <a href="mailto:contact@pixelisolate.online" className="hover:text-gray-300 transition duration-150">Contact Support</a>
             </div>
           </div>
