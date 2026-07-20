@@ -168,7 +168,12 @@ const triggerPurchaseEmail = async (userId: string, purchaseType: "subscription"
       const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
       
-      const hostname = supabaseUrl.replace("https://", "").replace("http://", "");
+      let hostname = "";
+      try {
+        hostname = new URL(supabaseUrl).hostname;
+      } catch (e) {
+        hostname = supabaseUrl.replace("https://", "").replace("http://", "").split("/")[0].split(":")[0];
+      }
       const path = "/functions/v1/send-purchase-email";
       
       const payload = JSON.stringify({
