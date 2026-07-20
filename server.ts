@@ -353,6 +353,68 @@ app.post("/api/webhooks/paddle", async (req: any, res) => {
 });
 
 
+// Route to generate a secure customer portal session URL and redirect the user
+app.get("/api/billing/portal", async (req: any, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!userId) {
+      res.status(400).json({ error: "Missing userId parameter." });
+      return;
+    }
+
+    // Fetch paddle subscription to get customer ID
+    const { data: sub, error: subError } = await supabaseAdmin
+      .from("paddle_subscriptions")
+      .select("customer_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (subError || !sub?.customer_id) {
+      console.warn(`[Portal] No active subscription or customer ID found for user ${userId}. Redirecting to default billing portal.`);
+      const fallbackUrl = process.env.VITE_PADDLE_ENV === "production"
+        ? "https://billing.paddle.com"
+        : "https://sandbox-customer-portal.paddle.com";
+      res.redirect(fallbackUrl);
+      return;
+    }
+
+    const customerId = sub.customer_id;
+    const isSandbox = process.env.VITE_PADDLE_ENV !== "production";
+    const paddleBaseUrl = isSandbox ? "https://sandbox-api.paddle.com" : "https://api.paddle.com";
+
+    // Call Paddle API to create a customer portal session
+    const response = await fetch(`${paddleBaseUrl}/customers/${customerId}/portal-sessions`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.PADDLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Paddle API error: ${errText}`);
+    }
+
+    const resData = await response.json();
+    const portalUrl = resData?.data?.url;
+
+    if (portalUrl) {
+      res.redirect(portalUrl);
+    } else {
+      throw new Error("Failed to retrieve portal URL from Paddle response.");
+    }
+  } catch (err: any) {
+    console.error("Failed to generate billing portal session:", err);
+    res.redirect(process.env.VITE_PADDLE_ENV === "production"
+      ? "https://billing.paddle.com"
+      : "https://sandbox-customer-portal.paddle.com"
+    );
+  }
+});
+
+
 // API Endpoint: Save processed image pair to history (bypasses RLS & storage policies via admin client)
 app.post("/api/vault", async (req, res) => {
   try {
