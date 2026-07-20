@@ -22,6 +22,7 @@ import {
   RotateCcw,
   X,
   Crop,
+  Search,
 } from "lucide-react";
 import { SubjectAnalysis, ProcessingSettings, BulkImageItem } from "../types";
 import { rgbToHsv, createChromaGreenTransform, isolateSubjectFromChroma, detectBackgroundColorFromCorners, detectDualBackgroundColorsFromCorners, detectSafestChromaColor, CHROMA_OPTIONS, erodeAlpha, dilateAlpha, blurAlpha } from "../utils/imageProc";
@@ -294,8 +295,22 @@ export default function ChromaKeyer({
   // Undo state stack
   const [undoStack, setUndoStack] = useState<Uint8Array[]>([]);
 
+  // Zoom lens and Toast notification states
+  const [isZoomLensActive, setIsZoomLensActive] = useState(false);
+  const [zoomLensPos, setZoomLensPos] = useState<{ x: number; y: number } | null>(null);
+  const lensCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "info" } | null>(null);
+
+  const showToast = (text: string, type: "success" | "info" = "success") => {
+    setToastMessage({ text, type });
+    // Keep it displayed for 4 seconds
+    const timer = setTimeout(() => setToastMessage(null), 4000);
+    return () => clearTimeout(timer);
+  };
+
   // Generate dynamic SVG circle cursor matching selected brush size and mode
   const getBrushCursorStyle = () => {
+    if (isZoomLensActive) return { cursor: "none" };
     if (brushMode === "none") return {};
     const displaySize = Math.max(10, Math.min(128, brushSize * 2));
     const r = displaySize / 2;
@@ -373,7 +388,102 @@ export default function ChromaKeyer({
     }
   };
 
+  const handleZoomLensMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const canvas = getActiveCanvas();
+    if (!canvas) {
+      setZoomLensPos(null);
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+      setZoomLensPos({ x: e.clientX, y: e.clientY });
+      
+      const lensCanvas = lensCanvasRef.current;
+      if (lensCanvas) {
+        const ctxLens = lensCanvas.getContext("2d");
+        if (ctxLens) {
+          const canvasX = (x / rect.width) * canvas.width;
+          const canvasY = (y / rect.height) * canvas.height;
+          
+          ctxLens.clearRect(0, 0, 200, 200);
+          
+          // Crop centered around canvasX, canvasY
+          const cropW = 200;
+          const cropH = 200;
+          const cropX = canvasX - cropW / 2;
+          const cropY = canvasY - cropH / 2;
+          
+          ctxLens.drawImage(
+            canvas,
+            cropX,
+            cropY,
+            cropW,
+            cropH,
+            0,
+            0,
+            200,
+            200
+          );
+        }
+      }
+    } else {
+      setZoomLensPos(null);
+    }
+  };
+
+  const handleZoomLensTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    const canvas = getActiveCanvas();
+    if (!canvas || e.touches.length === 0) {
+      setZoomLensPos(null);
+      return;
+    }
+
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+      setZoomLensPos({ x: touch.clientX, y: touch.clientY });
+      
+      const lensCanvas = lensCanvasRef.current;
+      if (lensCanvas) {
+        const ctxLens = lensCanvas.getContext("2d");
+        if (ctxLens) {
+          const canvasX = (x / rect.width) * canvas.width;
+          const canvasY = (y / rect.height) * canvas.height;
+          
+          ctxLens.clearRect(0, 0, 200, 200);
+          
+          const cropW = 200;
+          const cropH = 200;
+          const cropX = canvasX - cropW / 2;
+          const cropY = canvasY - cropH / 2;
+          
+          ctxLens.drawImage(
+            canvas,
+            cropX,
+            cropY,
+            cropW,
+            cropH,
+            0,
+            0,
+            200,
+            200
+          );
+        }
+      }
+    } else {
+      setZoomLensPos(null);
+    }
+  };
+
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isZoomLensActive) return;
     if (brushMode === "none" || !aiAlphaMaskRef.current) return;
     e.preventDefault();
     saveToUndoStack();
@@ -390,6 +500,10 @@ export default function ChromaKeyer({
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isZoomLensActive) {
+      handleZoomLensMouseMove(e);
+      return;
+    }
     if (!isDrawing || brushMode === "none") return;
     e.preventDefault();
 
@@ -417,11 +531,19 @@ export default function ChromaKeyer({
   };
 
   const handleMouseUp = () => {
+    if (isZoomLensActive) {
+      setZoomLensPos(null);
+      return;
+    }
     setIsDrawing(false);
     lastDrawPosRef.current = null;
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (isZoomLensActive) {
+      handleZoomLensTouchMove(e);
+      return;
+    }
     if (brushMode === "none" || !aiAlphaMaskRef.current) return;
     saveToUndoStack();
     setIsDrawing(true);
@@ -437,6 +559,10 @@ export default function ChromaKeyer({
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (isZoomLensActive) {
+      handleZoomLensTouchMove(e);
+      return;
+    }
     if (!isDrawing || brushMode === "none") return;
     const canvas = getActiveCanvas();
     if (canvas) {
@@ -1475,6 +1601,10 @@ export default function ChromaKeyer({
     if (!uri) return;
 
     // 1. Check permissions & credits
+    const isPro = profile?.is_pro === true;
+    const hasHdCredits = (profile?.hd_credits_remaining ?? 0) > 0;
+    const isDownloadingHD = isPro || hasHdCredits;
+
     if (!user) {
       // Guest mode
       const guestTrialUsed = localStorage.getItem("guest_trial_used");
@@ -1485,7 +1615,7 @@ export default function ChromaKeyer({
       }
     } else {
       // Logged in user
-      if (profile?.is_pro !== true) {
+      if (!isPro) {
         if ((profile?.credits ?? 0) <= 0) {
           alert("You have 0 credits remaining. Please upgrade or purchase credits to continue downloading.");
           onOpenPricing();
@@ -1494,10 +1624,9 @@ export default function ChromaKeyer({
       }
     }
 
-    // 2. Perform scale down if not pro (longest edge max 500px)
+    // 2. Perform scale down if not downloading in HD (longest edge max 500px)
     let finalUri = uri;
-    const isPro = profile?.is_pro === true;
-    if (!isPro) {
+    if (!isDownloadingHD) {
       try {
         finalUri = await scaleDownImage(uri, 500);
       } catch (e) {
@@ -1521,11 +1650,21 @@ export default function ChromaKeyer({
       // Logged in user
       if (!isPro) {
         try {
-          const { error: rpcError } = await supabase.rpc("decrement_user_credits", {
-            user_id: user.id,
-            amount: 1,
-          });
-          if (rpcError) throw rpcError;
+          if (hasHdCredits) {
+            const { error: rpcError } = await supabase.rpc("decrement_user_hd_credits", {
+              user_id: user.id,
+              amount: 1,
+            });
+            if (rpcError) throw rpcError;
+            showToast(`Used 1 HD Credit (${profile.hd_credits_remaining - 1} remaining)`, "success");
+          } else {
+            const { error: rpcError } = await supabase.rpc("decrement_user_credits", {
+              user_id: user.id,
+              amount: 1,
+            });
+            if (rpcError) throw rpcError;
+            showToast("Used Standard Credit. Upgrade to Pro for unlimited HD downloads.", "info");
+          }
           onRefreshProfile();
         } catch (err) {
           console.error("Failed to decrement credits:", err);
@@ -1935,6 +2074,10 @@ export default function ChromaKeyer({
     if (!item.isolatedUri) return;
 
     // 1. Check permissions & credits
+    const isPro = profile?.is_pro === true;
+    const hasHdCredits = (profile?.hd_credits_remaining ?? 0) > 0;
+    const isDownloadingHD = isPro || hasHdCredits;
+
     if (!user) {
       // Guest mode
       const guestTrialUsed = localStorage.getItem("guest_trial_used");
@@ -1945,7 +2088,7 @@ export default function ChromaKeyer({
       }
     } else {
       // Logged in user
-      if (profile?.is_pro !== true) {
+      if (!isPro) {
         if ((profile?.credits ?? 0) <= 0) {
           alert("You have 0 credits remaining. Please upgrade or purchase credits to continue downloading.");
           onOpenPricing();
@@ -1954,10 +2097,9 @@ export default function ChromaKeyer({
       }
     }
 
-    // 2. Perform scale down if not pro (longest edge max 500px)
+    // 2. Perform scale down if not downloading in HD (longest edge max 500px)
     let finalUri = item.isolatedUri;
-    const isPro = profile?.is_pro === true;
-    if (!isPro) {
+    if (!isDownloadingHD) {
       try {
         finalUri = await scaleDownImage(item.isolatedUri, 500);
       } catch (e) {
@@ -1981,11 +2123,21 @@ export default function ChromaKeyer({
       // Logged in user
       if (!isPro) {
         try {
-          const { error: rpcError } = await supabase.rpc("decrement_user_credits", {
-            user_id: user.id,
-            amount: 1,
-          });
-          if (rpcError) throw rpcError;
+          if (hasHdCredits) {
+            const { error: rpcError } = await supabase.rpc("decrement_user_hd_credits", {
+              user_id: user.id,
+              amount: 1,
+            });
+            if (rpcError) throw rpcError;
+            showToast(`Used 1 HD Credit (${profile.hd_credits_remaining - 1} remaining)`, "success");
+          } else {
+            const { error: rpcError } = await supabase.rpc("decrement_user_credits", {
+              user_id: user.id,
+              amount: 1,
+            });
+            if (rpcError) throw rpcError;
+            showToast("Used Standard Credit. Upgrade to Pro for unlimited HD downloads.", "info");
+          }
           onRefreshProfile();
         } catch (err) {
           console.error("Failed to decrement credits:", err);
@@ -3350,6 +3502,21 @@ export default function ChromaKeyer({
                       >
                         3. Isolated Asset
                       </button>
+                      <button
+                        onClick={() => {
+                          setIsZoomLensActive(!isZoomLensActive);
+                          setZoomLensPos(null);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition flex items-center gap-1.5 ${
+                          isZoomLensActive
+                            ? "bg-teal-950 border border-teal-900 text-teal-400"
+                            : "text-gray-400 hover:text-gray-200"
+                        }`}
+                        title="Toggle 100% HD zoom magnifier lens to inspect pixel-level edges"
+                      >
+                        <Search className="h-3.5 w-3.5" />
+                        <span>Inspect HD Edges</span>
+                      </button>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -3428,8 +3595,36 @@ export default function ChromaKeyer({
                           activeTab === "isolated" ? "block" : "hidden"
                         }`}
                       />
+
+                      {/* Interactive 100% HD Zoom Lens Overlay */}
+                      {isZoomLensActive && zoomLensPos && (
+                        <div
+                          className="pointer-events-none fixed z-50 rounded-full border-2 border-[#00A896] shadow-[0_0_15px_rgba(0,168,150,0.6)] overflow-hidden bg-gray-950 bg-[linear-gradient(45deg,#1c1e22_25%,transparent_25%),linear-gradient(-45deg,#1c1e22_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#1c1e22_75%),linear-gradient(-45deg,transparent_75%,#1c1e22_75%)] bg-[size:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0px]"
+                          style={{
+                            width: "200px",
+                            height: "200px",
+                            left: `${zoomLensPos.x - 100}px`,
+                            top: `${zoomLensPos.y - 100}px`,
+                          }}
+                        >
+                          <canvas
+                            ref={lensCanvasRef}
+                            width={200}
+                            height={200}
+                            className="w-full h-full"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Premium Glassmorphic Toast Notification */}
+                  {toastMessage && (
+                    <div className="fixed bottom-6 right-6 z-50 px-4 py-3 bg-gray-900/90 border border-gray-800 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-3">
+                      <div className={`h-2 w-2 rounded-full ${toastMessage.type === "success" ? "bg-emerald-400 animate-pulse" : "bg-blue-400"}`} />
+                      <span className="text-xs font-mono text-gray-200">{toastMessage.text}</span>
+                    </div>
+                  )}
 
                   {/* Bottom detail status margin lines */}
                   <div className="p-4 bg-gray-900/60 flex items-center justify-between text-[11px] font-mono text-gray-400">

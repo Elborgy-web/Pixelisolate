@@ -164,7 +164,7 @@ export default function App() {
         console.info("[Auth] Profile not found in database. Auto-creating client-side...");
         const { data: newProfile, error: insertError } = await supabase
           .from("profiles")
-          .insert({ id: userId, email: email, credits: 10, is_pro: false })
+          .insert({ id: userId, email: email, credits: 10, hd_credits_remaining: 3, is_pro: false })
           .select()
           .single();
         
@@ -182,6 +182,7 @@ export default function App() {
           id: userId,
           email: email,
           credits: 10,
+          hd_credits_remaining: 3,
           is_pro: false
         });
       } else {
@@ -283,7 +284,7 @@ export default function App() {
                     </span>
                   ) : (
                     <span className="text-teal-400 text-[10px] font-semibold">
-                      Credits: {profile?.credits ?? 0} remaining
+                      Credits: {profile?.credits ?? 0} ({profile?.hd_credits_remaining ?? 0} HD) remaining
                     </span>
                   )}
                 </div>
@@ -363,6 +364,7 @@ export default function App() {
           <SubscriptionManager 
             userId={user.id} 
             credits={profile?.credits ?? 0} 
+            hdCredits={profile?.hd_credits_remaining ?? 0}
             isPro={profile?.is_pro ?? false} 
             onOpenPricing={() => setPricingModalOpen(true)}
           />
@@ -383,6 +385,7 @@ export default function App() {
               </button>
               <a href="/terms" className="hover:text-gray-300 transition duration-150">Terms of Service</a>
               <a href="/privacy" className="hover:text-gray-300 transition duration-150">Privacy Policy</a>
+              <a href="/refund" className="hover:text-gray-300 transition duration-150">Refund Policy</a>
               <a href="mailto:contact@pixelisolate.online" className="hover:text-gray-300 transition duration-150">Contact Support</a>
             </div>
           </div>

@@ -5,11 +5,12 @@ import { CreditCard, Zap, Coins, ArrowUpRight, Loader2, Sparkles, AlertCircle } 
 interface SubscriptionManagerProps {
   userId: string;
   credits: number;
+  hdCredits: number;
   isPro: boolean;
   onOpenPricing: () => void;
 }
 
-export default function SubscriptionManager({ userId, credits, isPro, onOpenPricing }: SubscriptionManagerProps) {
+export default function SubscriptionManager({ userId, credits, hdCredits, isPro, onOpenPricing }: SubscriptionManagerProps) {
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -166,9 +167,13 @@ export default function SubscriptionManager({ userId, credits, isPro, onOpenPric
                   <div className="mb-4">
                     <div className="text-3xl font-extrabold text-white tracking-tight font-sans flex items-baseline gap-1">
                       <span>{credits}</span>
-                      <span className="text-xs font-mono font-medium text-gray-500 uppercase tracking-wide">credits</span>
+                      <span className="text-xs font-mono font-medium text-gray-500 uppercase tracking-wide">total credits</span>
                     </div>
-                    <span className="text-[10px] font-mono text-emerald-400 mt-1 block">HD Extraction Balance Active</span>
+                    {!isPro && (
+                      <span className="text-[10px] font-mono text-emerald-400 mt-1 block">
+                        HD EXTRACTIONS REMAINING: {hdCredits}
+                      </span>
+                    )}
                   </div>
 
                   <p className="text-xs text-gray-400 mb-6 leading-relaxed">
