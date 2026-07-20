@@ -164,28 +164,16 @@ const triggerPurchaseEmail = async (userId: string, purchaseType: "subscription"
       .single();
 
     if (profile?.email) {
-      const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
-      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+      const { data, error } = await supabaseAdmin.functions.invoke("send-purchase-email", {
+        body: {
+          email: profile.email,
+          purchaseType,
+          userName: profile.full_name,
+        },
+      });
       
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/send-purchase-email`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify({
-            email: profile.email,
-            purchaseType,
-            userName: profile.full_name,
-          }),
-        }
-      );
-      
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error(`[Webhook] Failed to invoke purchase email function: ${response.status} ${response.statusText} - ${errText}`);
+      if (error) {
+        console.error(`[Webhook] Failed to invoke purchase email function:`, error);
       } else {
         console.log(`[Webhook] Successfully triggered purchase email for user ${profile.email}`);
       }
