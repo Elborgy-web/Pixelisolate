@@ -94,7 +94,7 @@ export default function App() {
   useEffect(() => {
     initializePaddle({
       environment: (import.meta.env.VITE_PADDLE_ENV || "sandbox") as any,
-      token: import.meta.env.VITE_PADDLE_CLIENT_TOKEN || "",
+      token: import.meta.env.VITE_PADDLE_CLIENT_TOKEN || "test_4956087cf5a94291dfb746bb240",
     });
   }, []);
 
