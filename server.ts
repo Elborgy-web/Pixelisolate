@@ -3,6 +3,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import crypto from "crypto";
+import https from "https";
 import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
@@ -154,7 +155,7 @@ app.post("/api/analyze", async (req, res) => {
 });
 
 
-// Helper to send transactional thank you email via Supabase Edge Function
+// Helper to send transactional thank you email via Supabase Edge Function using native node https module to guarantee execution across all node runtime versions
 const triggerPurchaseEmail = async (userId: string, purchaseType: "subscription" | "credits") => {
   try {
     const { data: profile } = await supabaseAdmin
@@ -164,19 +165,50 @@ const triggerPurchaseEmail = async (userId: string, purchaseType: "subscription"
       .single();
 
     if (profile?.email) {
-      const { data, error } = await supabaseAdmin.functions.invoke("send-purchase-email", {
-        body: {
-          email: profile.email,
-          purchaseType,
-          userName: profile.full_name,
-        },
-      });
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
       
-      if (error) {
-        console.error(`[Webhook] Failed to invoke purchase email function:`, error);
-      } else {
-        console.log(`[Webhook] Successfully triggered purchase email for user ${profile.email}`);
-      }
+      const hostname = supabaseUrl.replace("https://", "").replace("http://", "");
+      const path = "/functions/v1/send-purchase-email";
+      
+      const payload = JSON.stringify({
+        email: profile.email,
+        purchaseType,
+        userName: profile.full_name,
+      });
+
+      const options = {
+        hostname,
+        port: 443,
+        path,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceKey}`,
+          "Content-Length": Buffer.byteLength(payload)
+        }
+      };
+
+      const req = https.request(options, (res) => {
+        let responseBody = "";
+        res.on("data", (chunk) => {
+          responseBody += chunk;
+        });
+        res.on("end", () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            console.log(`[Webhook] Successfully triggered purchase email for user ${profile.email}`);
+          } else {
+            console.error(`[Webhook] Failed to invoke purchase email function: ${res.statusCode} - ${responseBody}`);
+          }
+        });
+      });
+
+      req.on("error", (err) => {
+        console.error("[Webhook] Error invoking purchase email function:", err);
+      });
+
+      req.write(payload);
+      req.end();
     } else {
       console.warn(`[Webhook] No email found in profile for user ID ${userId}, skipping purchase email.`);
     }
