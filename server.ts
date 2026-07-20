@@ -181,7 +181,7 @@ const triggerPurchaseEmail = async (userId: string, purchaseType: "subscription"
   try {
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("email, full_name")
+      .select("email")
       .eq("id", userId)
       .single();
 
@@ -204,7 +204,7 @@ const triggerPurchaseEmail = async (userId: string, purchaseType: "subscription"
       const payload = JSON.stringify({
         email: profile.email,
         purchaseType,
-        userName: profile.full_name,
+        userName: undefined,
       });
 
       const options = {
