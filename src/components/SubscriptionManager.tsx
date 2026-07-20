@@ -111,20 +111,25 @@ export default function SubscriptionManager({ userId, credits, hdCredits, isPro,
                     : "Upgrade to the Pro tier to unlock unlimited removals and bulk upload packaging up to 50 assets concurrently."}
                 </p>
 
-                {isPro && subscription && (
-                  <div className="space-y-3 mb-6 p-4 rounded-xl bg-gray-950/60 border border-gray-850/60 font-mono text-[11px]">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Subscription Status:</span>
-                      <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] uppercase border ${getStatusColor(subscription.status)}`}>
-                        {subscription.status}
-                      </span>
+                {isPro && subscription && (() => {
+                  const displayStatus = (!subscription.current_period_end && subscription.status === "active") 
+                    ? "canceled" 
+                    : subscription.status;
+                  return (
+                    <div className="space-y-3 mb-6 p-4 rounded-xl bg-gray-950/60 border border-gray-850/60 font-mono text-[11px]">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Subscription Status:</span>
+                        <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] uppercase border ${getStatusColor(displayStatus)}`}>
+                          {displayStatus}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Next Renewal Date:</span>
+                        <span className="text-gray-300 font-semibold">{formatDate(subscription.current_period_end)}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Next Renewal Date:</span>
-                      <span className="text-gray-300 font-semibold">{formatDate(subscription.current_period_end)}</span>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               <div>
