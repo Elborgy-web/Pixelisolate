@@ -179,11 +179,15 @@ app.post("/api/analyze", async (req, res) => {
 // Helper to send transactional thank you email via Supabase Edge Function using native node https module to guarantee execution across all node runtime versions
 const triggerPurchaseEmail = async (userId: string, purchaseType: "subscription" | "credits") => {
   try {
-    const { data: profile } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("email, full_name")
       .eq("id", userId)
       .single();
+
+    if (profileError) {
+      logError(`[Webhook] Error fetching profile for user ID ${userId} inside triggerPurchaseEmail:`, profileError);
+    }
 
     if (profile?.email) {
       const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
