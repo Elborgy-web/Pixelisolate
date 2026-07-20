@@ -383,7 +383,7 @@ export default function App() {
       <footer className="border-t border-gray-900 bg-gray-950/30 py-6 px-6">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row gap-4 justify-between items-center text-[11px] font-mono text-gray-500">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-6">
-            <span>© 2026 Chroma Isolate Engine. Powered by Supabase & Lemon Squeezy.</span>
+            <span>© 2026 Chroma Isolate Engine. Powered by Supabase & Paddle.</span>
             <div className="flex gap-4">
               <button 
                 onClick={() => setCurrentTab("howto")}
