@@ -13,8 +13,29 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 );
 
+const serverLogs: string[] = [];
+const logInfo = (msg: string) => {
+  const line = `[INFO] [${new Date().toISOString()}] ${msg}`;
+  console.log(line);
+  serverLogs.push(line);
+  if (serverLogs.length > 500) serverLogs.shift();
+};
+const logError = (msg: string, err?: any) => {
+  const errMsg = err ? (err.message || (typeof err === "object" ? JSON.stringify(err) : String(err))) : "";
+  const line = `[ERROR] [${new Date().toISOString()}] ${msg} ${errMsg}`;
+  console.error(line);
+  serverLogs.push(line);
+  if (serverLogs.length > 500) serverLogs.shift();
+};
+
 const app = express();
 const PORT = 3000;
+
+// Public diagnostics endpoint to inspect backend logs
+app.get("/api/diagnostics/logs", (req, res) => {
+  res.setHeader("Content-Type", "text/plain");
+  res.send(serverLogs.join("\n"));
+});
 
 // Enable Cross-Origin Resource Sharing (CORS) for production API access
 app.use((req, res, next) => {
@@ -201,24 +222,24 @@ const triggerPurchaseEmail = async (userId: string, purchaseType: "subscription"
         });
         res.on("end", () => {
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            console.log(`[Webhook] Successfully triggered purchase email for user ${profile.email}`);
+            logInfo(`[Webhook] Successfully triggered purchase email for user ${profile.email}`);
           } else {
-            console.error(`[Webhook] Failed to invoke purchase email function: ${res.statusCode} - ${responseBody}`);
+            logError(`[Webhook] Failed to invoke purchase email function: ${res.statusCode} - ${responseBody}`);
           }
         });
       });
 
       req.on("error", (err) => {
-        console.error("[Webhook] Error invoking purchase email function:", err);
+        logError("[Webhook] Error invoking purchase email function:", err);
       });
 
       req.write(payload);
       req.end();
     } else {
-      console.warn(`[Webhook] No email found in profile for user ID ${userId}, skipping purchase email.`);
+      logInfo(`[Webhook] No email found in profile for user ID ${userId}, skipping purchase email.`);
     }
   } catch (err) {
-    console.error("[Webhook] Error triggering purchase email helper:", err);
+    logError("[Webhook] Error triggering purchase email helper:", err);
   }
 };
 
@@ -269,9 +290,10 @@ app.post("/api/webhooks/paddle", async (req: any, res) => {
     const customData = entityData?.custom_data;
     const userId = customData?.userId || customData?.user_id;
 
-    console.log(`[Webhook] Received Paddle event: ${eventType} for user: ${userId || "none"}`);
+    logInfo(`[Webhook] Received Paddle event: ${eventType} for user: ${userId || "none"}`);
 
     if (!userId) {
+      logInfo("Webhook received but no userId found in customData.");
       res.status(200).json({ message: "Webhook received but no userId found in customData." });
       return;
     }
@@ -372,7 +394,7 @@ app.post("/api/webhooks/paddle", async (req: any, res) => {
 
     res.status(200).json({ success: true });
   } catch (err: any) {
-    console.error("Paddle Webhook processing error:", err);
+    logError("Paddle Webhook processing error:", err);
     res.status(500).json({ error: err.message || "Webhook handling failed." });
   }
 });
