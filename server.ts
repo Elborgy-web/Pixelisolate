@@ -398,7 +398,7 @@ app.get("/api/billing/portal", async (req: any, res) => {
     }
 
     const resData = await response.json();
-    const portalUrl = resData?.data?.url;
+    const portalUrl = resData?.data?.urls?.general?.overview;
 
     if (portalUrl) {
       res.redirect(portalUrl);
