@@ -465,6 +465,28 @@ app.get("/api/billing/portal", async (req: any, res) => {
   }
 });
 
+// GET endpoint to securely expose public Paddle configurations to client dynamically at runtime
+app.get("/api/billing/config", (req, res) => {
+  const token = (
+    process.env.VITE_PADDLE_CLIENT_TOKEN || 
+    process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || 
+    ""
+  ).trim().replace(/['"]/g, "");
+  
+  const environment = (
+    process.env.VITE_PADDLE_ENV || 
+    process.env.NEXT_PUBLIC_PADDLE_ENV || 
+    "production"
+  ).trim().replace(/['"]/g, "");
+
+  res.status(200).json({
+    token,
+    environment,
+  });
+});
+
+
+
 
 // API Endpoint: Save processed image pair to history (bypasses RLS & storage policies via admin client)
 app.post("/api/vault", async (req, res) => {

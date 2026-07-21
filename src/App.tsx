@@ -92,22 +92,41 @@ export default function App() {
   const [logoSrc, setLogoSrc] = useState("/logo.png");
 
   useEffect(() => {
-    const environment = (
-      import.meta.env.VITE_PADDLE_ENV || 
-      import.meta.env.NEXT_PUBLIC_PADDLE_ENV || 
-      "production"
-    ).trim().replace(/['"]/g, "");
-    
-    const token = (
-      import.meta.env.VITE_PADDLE_CLIENT_TOKEN || 
-      import.meta.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || 
-      ""
-    ).trim().replace(/['"]/g, "");
-
-    initializePaddle({
-      environment: environment as any,
-      token: token,
-    });
+    async function initPaddle() {
+      try {
+        const response = await fetch("/api/billing/config");
+        if (!response.ok) throw new Error(`Server returned status ${response.status}`);
+        const config = await response.json();
+        
+        if (config.token) {
+          await initializePaddle({
+            environment: config.environment as any,
+            token: config.token,
+          });
+          console.log("[Paddle] Dynamically initialized SDK successfully using runtime backend variables.");
+        } else {
+          console.warn("[Paddle] No client token returned from backend. Retrying with static build-time fallbacks.");
+          // Build-time fallback as backup
+          const environment = (import.meta.env.VITE_PADDLE_ENV || import.meta.env.NEXT_PUBLIC_PADDLE_ENV || "production").trim().replace(/['"]/g, "");
+          const token = (import.meta.env.VITE_PADDLE_CLIENT_TOKEN || import.meta.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "").trim().replace(/['"]/g, "");
+          if (token) {
+            await initializePaddle({ environment: environment as any, token });
+          }
+        }
+      } catch (err) {
+        console.error("[Paddle] Dynamic SDK initialization failed. Using static build fallbacks:", err);
+        const environment = (import.meta.env.VITE_PADDLE_ENV || import.meta.env.NEXT_PUBLIC_PADDLE_ENV || "production").trim().replace(/['"]/g, "");
+        const token = (import.meta.env.VITE_PADDLE_CLIENT_TOKEN || import.meta.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "").trim().replace(/['"]/g, "");
+        if (token) {
+          try {
+            await initializePaddle({ environment: environment as any, token });
+          } catch (e) {
+            console.error("[Paddle] Fallback initialization failed:", e);
+          }
+        }
+      }
+    }
+    initPaddle();
   }, []);
 
   useEffect(() => {
