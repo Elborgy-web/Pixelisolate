@@ -94,7 +94,8 @@ export default function App() {
   useEffect(() => {
     async function initPaddle() {
       try {
-        const response = await fetch("/api/billing/config");
+        const apiBase = (import.meta.env.VITE_API_URL || "").trim();
+        const response = await fetch(`${apiBase}/api/billing/config`);
         if (!response.ok) throw new Error(`Server returned status ${response.status}`);
         const config = await response.json();
         
