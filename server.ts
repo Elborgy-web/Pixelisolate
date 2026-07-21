@@ -424,7 +424,7 @@ app.get("/api/billing/portal", async (req: any, res) => {
       console.warn(`[Portal] No active subscription or customer ID found for user ${userId}. Redirecting to default billing portal.`);
       const fallbackUrl = process.env.VITE_PADDLE_ENV === "production"
         ? "https://billing.paddle.com"
-        : "https://sandbox-customer-portal.paddle.com/login";
+        : "https://sandbox-customer-portal.paddle.com";
       res.redirect(fallbackUrl);
       return;
     }
@@ -460,7 +460,7 @@ app.get("/api/billing/portal", async (req: any, res) => {
     console.error("Failed to generate billing portal session:", err);
     res.redirect(process.env.VITE_PADDLE_ENV === "production"
       ? "https://billing.paddle.com"
-      : "https://sandbox-customer-portal.paddle.com/login"
+      : "https://sandbox-customer-portal.paddle.com"
     );
   }
 });
