@@ -413,6 +413,12 @@ app.get("/api/billing/portal", async (req: any, res) => {
       return;
     }
 
+    const isProduction = (
+      process.env.VITE_PADDLE_ENV || 
+      process.env.NEXT_PUBLIC_PADDLE_ENV || 
+      "production"
+    ).trim().replace(/['"]/g, "") === "production";
+
     // Fetch paddle subscription to get customer ID
     const { data: sub, error: subError } = await supabaseAdmin
       .from("paddle_subscriptions")
@@ -422,7 +428,7 @@ app.get("/api/billing/portal", async (req: any, res) => {
 
     if (subError || !sub?.customer_id) {
       console.warn(`[Portal] No active subscription or customer ID found for user ${userId}. Redirecting to default billing portal.`);
-      const fallbackUrl = process.env.VITE_PADDLE_ENV === "production"
+      const fallbackUrl = isProduction
         ? "https://billing.paddle.com"
         : "https://sandbox-customer-portal.paddle.com";
       res.redirect(fallbackUrl);
@@ -430,8 +436,7 @@ app.get("/api/billing/portal", async (req: any, res) => {
     }
 
     const customerId = sub.customer_id;
-    const isSandbox = process.env.VITE_PADDLE_ENV !== "production";
-    const paddleBaseUrl = isSandbox ? "https://sandbox-api.paddle.com" : "https://api.paddle.com";
+    const paddleBaseUrl = isProduction ? "https://api.paddle.com" : "https://sandbox-api.paddle.com";
 
     // Call Paddle API to create a customer portal session
     const response = await fetch(`${paddleBaseUrl}/customers/${customerId}/portal-sessions`, {
@@ -458,7 +463,13 @@ app.get("/api/billing/portal", async (req: any, res) => {
     }
   } catch (err: any) {
     console.error("Failed to generate billing portal session:", err);
-    res.redirect(process.env.VITE_PADDLE_ENV === "production"
+    const isProduction = (
+      process.env.VITE_PADDLE_ENV || 
+      process.env.NEXT_PUBLIC_PADDLE_ENV || 
+      "production"
+    ).trim().replace(/['"]/g, "") === "production";
+    
+    res.redirect(isProduction
       ? "https://billing.paddle.com"
       : "https://sandbox-customer-portal.paddle.com"
     );
