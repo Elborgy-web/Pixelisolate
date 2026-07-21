@@ -429,7 +429,7 @@ app.get("/api/billing/portal", async (req: any, res) => {
     if (subError || !sub?.customer_id) {
       console.warn(`[Portal] No active subscription or customer ID found for user ${userId}. Redirecting to default billing portal.`);
       const fallbackUrl = isProduction
-        ? "https://customer-portal.paddle.com"
+        ? "https://customer-portal.paddle.com/login"
         : "https://sandbox-customer-portal.paddle.com";
       res.redirect(fallbackUrl);
       return;
@@ -470,7 +470,7 @@ app.get("/api/billing/portal", async (req: any, res) => {
     ).trim().replace(/['"]/g, "") === "production";
     
     res.redirect(isProduction
-      ? "https://customer-portal.paddle.com"
+      ? "https://customer-portal.paddle.com/login"
       : "https://sandbox-customer-portal.paddle.com"
     );
   }
