@@ -136,6 +136,8 @@ export default function ChromaKeyer({
   // SaaS and Credit System State Variables
   const [showBatchUpsell, setShowBatchUpsell] = useState<boolean>(false);
   const [downloadingCloud, setDownloadingCloud] = useState<boolean>(false);
+  const [selectedBgColor, setSelectedBgColor] = useState<string>("transparent");
+  const [customBgColor, setCustomBgColor] = useState<string>("#ffffff");
 
   // Helper: Scale down canvas image and compress for lightweight history storage
   const scaleDownImage = (dataUri: string, maxDim = 500, format = "image/png", quality = 0.85): Promise<string> => {
@@ -1048,7 +1050,20 @@ export default function ChromaKeyer({
               dstIsolated[i + 2] = b;
             }
           }
-          ctxIsolated.putImageData(isolatedData, 0, 0);
+          if (selectedBgColor && selectedBgColor !== "transparent") {
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = w;
+            tempCanvas.height = h;
+            const tempCtx = tempCanvas.getContext("2d");
+            if (tempCtx) {
+              tempCtx.putImageData(isolatedData, 0, 0);
+              ctxIsolated.fillStyle = selectedBgColor;
+              ctxIsolated.fillRect(0, 0, w, h);
+              ctxIsolated.drawImage(tempCanvas, 0, 0);
+            }
+          } else {
+            ctxIsolated.putImageData(isolatedData, 0, 0);
+          }
 
           // Update states (only if not drawing to prevent input lag)
           if (!isDrawing) {
@@ -1086,7 +1101,20 @@ export default function ChromaKeyer({
             featherRadius,
             useBoundingBox ? analysisReport?.boundingBox : null
           );
-          ctxIsolated.putImageData(isolatedData, 0, 0);
+          if (selectedBgColor && selectedBgColor !== "transparent") {
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = w;
+            tempCanvas.height = h;
+            const tempCtx = tempCanvas.getContext("2d");
+            if (tempCtx) {
+              tempCtx.putImageData(isolatedData, 0, 0);
+              ctxIsolated.fillStyle = selectedBgColor;
+              ctxIsolated.fillRect(0, 0, w, h);
+              ctxIsolated.drawImage(tempCanvas, 0, 0);
+            }
+          } else {
+            ctxIsolated.putImageData(isolatedData, 0, 0);
+          }
           if (!isDrawing) {
             setIsolatedImageUri(canvasIsolated.toDataURL());
           }
@@ -1122,6 +1150,7 @@ export default function ChromaKeyer({
     isModelLoaded,
     renderTrigger,
     isDrawing,
+    selectedBgColor,
   ]);
 
   const preloadImglyModel = async () => {
@@ -1298,6 +1327,23 @@ export default function ChromaKeyer({
         const w = img.naturalWidth;
         const h = img.naturalHeight;
 
+        const resolveCanvas = (canvas: HTMLCanvasElement) => {
+          if (selectedBgColor && selectedBgColor !== "transparent") {
+            const compositeCanvas = document.createElement("canvas");
+            compositeCanvas.width = w;
+            compositeCanvas.height = h;
+            const compositeCtx = compositeCanvas.getContext("2d");
+            if (compositeCtx) {
+              compositeCtx.fillStyle = selectedBgColor;
+              compositeCtx.fillRect(0, 0, w, h);
+              compositeCtx.drawImage(canvas, 0, 0);
+              resolve(compositeCanvas.toDataURL("image/png"));
+              return;
+            }
+          }
+          resolve(canvas.toDataURL("image/png"));
+        };
+
         const canvasSrc = document.createElement("canvas");
         const canvasGreen = document.createElement("canvas");
         const canvasIsolated = document.createElement("canvas");
@@ -1452,7 +1498,7 @@ export default function ChromaKeyer({
                         }
                       }
                       ctxIsolated.putImageData(isolatedData, 0, 0);
-                      resolve(canvasIsolated.toDataURL("image/png"));
+                      resolveCanvas(canvasIsolated);
                     }
                   }
                 }
@@ -1544,7 +1590,7 @@ export default function ChromaKeyer({
                 }
               }
               ctxIsolated.putImageData(isolatedData, 0, 0);
-              resolve(canvasIsolated.toDataURL("image/png"));
+              resolveCanvas(canvasIsolated);
             }
           }
         } else {
@@ -1578,7 +1624,7 @@ export default function ChromaKeyer({
               useBoundingBox ? analysisReport?.boundingBox : null
             );
             ctxIsolated.putImageData(isolatedData, 0, 0);
-            resolve(canvasIsolated.toDataURL("image/png"));
+            resolveCanvas(canvasIsolated);
           }
         }
       };
@@ -1604,6 +1650,8 @@ export default function ChromaKeyer({
     const isPro = profile?.is_pro === true;
     const hasHdCredits = (profile?.hd_credits_remaining ?? 0) > 0;
     const isDownloadingHD = isPro || hasHdCredits;
+    const isSolidBgSelected = selectedBgColor && selectedBgColor !== "transparent";
+    const solidBgTrialsRemaining = profile?.solid_bg_trials_remaining ?? 3;
 
     if (!user) {
       // Guest mode
@@ -1616,6 +1664,13 @@ export default function ChromaKeyer({
     } else {
       // Logged in user
       if (!isPro) {
+        if (isSolidBgSelected && type === "isolated") {
+          if (solidBgTrialsRemaining <= 0) {
+            alert("You've used all 3 Free Solid Background exports. Upgrade to Pro for unlimited background colors & HD exports.");
+            onOpenPricing();
+            return;
+          }
+        }
         if ((profile?.credits ?? 0) <= 0) {
           alert("You have 0 credits remaining. Please upgrade or purchase credits to continue downloading.");
           onOpenPricing();
@@ -1650,20 +1705,30 @@ export default function ChromaKeyer({
       // Logged in user
       if (!isPro) {
         try {
+          let usedSolidBgText = "";
+          if (isSolidBgSelected && type === "isolated") {
+            const { error: rpcError } = await supabase.rpc("decrement_user_solid_bg_trials", {
+              user_id: user.id,
+              amount: 1,
+            });
+            if (rpcError) throw rpcError;
+            usedSolidBgText = `Used 1 Solid BG Trial (${solidBgTrialsRemaining - 1} remaining). `;
+          }
+
           if (hasHdCredits) {
             const { error: rpcError } = await supabase.rpc("decrement_user_hd_credits", {
               user_id: user.id,
               amount: 1,
             });
             if (rpcError) throw rpcError;
-            showToast(`Used 1 HD Credit (${profile.hd_credits_remaining - 1} remaining)`, "success");
+            showToast(`${usedSolidBgText}Used 1 HD Credit (${profile.hd_credits_remaining - 1} remaining)`, "success");
           } else {
             const { error: rpcError } = await supabase.rpc("decrement_user_credits", {
               user_id: user.id,
               amount: 1,
             });
             if (rpcError) throw rpcError;
-            showToast("Used Standard Credit. Upgrade to Pro for unlimited HD downloads.", "info");
+            showToast(`${usedSolidBgText}Used Standard Credit. Upgrade to Pro for unlimited HD downloads.`, "info");
           }
           onRefreshProfile();
         } catch (err) {
@@ -3530,13 +3595,107 @@ export default function ChromaKeyer({
                         </button>
                       )}
                       {activeTab === "isolated" && (
-                        <button
-                          onClick={() => downloadAsset("isolated")}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-xs font-medium shadow-lg shadow-blue-900/10"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          <span>Save Isolated Asset</span>
-                        </button>
+                        <div className="flex flex-wrap items-center gap-3">
+                          {/* Background Style Selector control group */}
+                          <div className="flex items-center gap-1.5 bg-gray-900 p-1 rounded-xl border border-gray-800">
+                            <span className="text-[10px] uppercase tracking-wider font-mono font-bold text-gray-400 px-1.5">BG:</span>
+                            
+                            <button
+                              type="button"
+                              onClick={() => setSelectedBgColor("transparent")}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                                selectedBgColor === "transparent"
+                                  ? "bg-blue-600 text-white shadow-md font-bold"
+                                  : "text-gray-400 hover:text-gray-200"
+                              }`}
+                            >
+                              Transparent
+                            </button>
+                            
+                            <button
+                              type="button"
+                              onClick={() => setSelectedBgColor("#ffffff")}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                                selectedBgColor === "#ffffff"
+                                  ? "bg-gray-100 text-gray-950 shadow-md font-bold"
+                                  : "text-gray-400 hover:text-gray-205"
+                              }`}
+                            >
+                              White
+                            </button>
+                            
+                            <button
+                              type="button"
+                              onClick={() => setSelectedBgColor("#000000")}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                                selectedBgColor === "#000000"
+                                  ? "bg-gray-950 text-gray-100 border border-gray-850 shadow-md font-bold"
+                                  : "text-gray-400 hover:text-gray-205"
+                              }`}
+                            >
+                              Black
+                            </button>
+
+                            {/* Hex Picker & input */}
+                            <div className="flex items-center gap-1 pl-1 border-l border-gray-800">
+                              <input
+                                type="color"
+                                value={customBgColor}
+                                onChange={(e) => {
+                                  setCustomBgColor(e.target.value);
+                                  setSelectedBgColor(e.target.value);
+                                }}
+                                className="w-5 h-5 rounded-md cursor-pointer border border-gray-700 bg-transparent shrink-0"
+                                title="Choose Custom Hex Color"
+                              />
+                              <input
+                                type="text"
+                                value={customBgColor}
+                                onChange={(e) => {
+                                  let val = e.target.value;
+                                  if (!val.startsWith("#")) val = "#" + val;
+                                  setCustomBgColor(val);
+                                  if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                                    setSelectedBgColor(val);
+                                  }
+                                }}
+                                className="w-14 bg-gray-950 border border-gray-800 rounded px-1 py-0.5 text-[9px] font-mono text-center focus:outline-none focus:border-blue-500"
+                                placeholder="#FFFFFF"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Gating Status Badge */}
+                          {profile?.is_pro ? (
+                            <span className="px-2 py-1 rounded-lg bg-emerald-950 border border-emerald-900 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                              PRO
+                            </span>
+                          ) : (
+                            (profile?.solid_bg_trials_remaining ?? 3) > 0 ? (
+                              <span className="px-2 py-1 rounded-lg bg-amber-950/60 border border-amber-900/60 text-amber-400 text-[10px] font-mono font-bold">
+                                {profile?.solid_bg_trials_remaining ?? 3}/3 Free BG Trials
+                              </span>
+                            ) : (
+                              <span 
+                                onClick={onOpenPricing}
+                                className="px-2 py-1 rounded-lg bg-red-950/60 border border-red-900/60 text-red-400 text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer hover:bg-red-900/80 transition animate-pulse"
+                                title="Solid backgrounds locked. Upgrade to Pro!"
+                              >
+                                <span>🔒</span>
+                                <span className="uppercase tracking-wider font-bold">PRO Required</span>
+                              </span>
+                            )
+                          )}
+
+                          {/* Save Isolated Asset Button */}
+                          <button
+                            onClick={() => downloadAsset("isolated")}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-xs font-medium shadow-lg shadow-blue-900/10 cursor-pointer"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            <span>Save Isolated Asset</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

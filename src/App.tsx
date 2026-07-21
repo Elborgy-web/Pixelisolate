@@ -204,7 +204,7 @@ export default function App() {
         console.info("[Auth] Profile not found in database. Auto-creating client-side...");
         const { data: newProfile, error: insertError } = await supabase
           .from("profiles")
-          .insert({ id: userId, email: email, credits: 10, hd_credits_remaining: 3, is_pro: false })
+          .insert({ id: userId, email: email, credits: 10, hd_credits_remaining: 3, solid_bg_trials_remaining: 3, is_pro: false })
           .select()
           .single();
         
@@ -223,10 +223,15 @@ export default function App() {
           email: email,
           credits: 10,
           hd_credits_remaining: 3,
+          solid_bg_trials_remaining: 3,
           is_pro: false
         });
       } else {
-        setProfile(data);
+        const profileData = {
+          ...data,
+          solid_bg_trials_remaining: data.solid_bg_trials_remaining ?? 3
+        };
+        setProfile(profileData);
       }
     } catch (err) {
       console.error("Error loading profile:", err);
