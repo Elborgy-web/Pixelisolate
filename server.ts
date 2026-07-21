@@ -427,11 +427,10 @@ app.get("/api/billing/portal", async (req: any, res) => {
       .maybeSingle();
 
     if (subError || !sub?.customer_id) {
-      console.warn(`[Portal] No active subscription or customer ID found for user ${userId}. Redirecting to default billing portal.`);
-      const fallbackUrl = isProduction
-        ? "https://customer-portal.paddle.com/login"
-        : "https://sandbox-customer-portal.paddle.com";
-      res.redirect(fallbackUrl);
+      console.warn(`[Portal] No active subscription or customer ID found for user ${userId}.`);
+      res.status(404).json({ 
+        error: "No active subscription found. If you subscribed during a test/sandbox period, that account cannot be accessed in live mode. Please contact support." 
+      });
       return;
     }
 
@@ -463,16 +462,11 @@ app.get("/api/billing/portal", async (req: any, res) => {
     }
   } catch (err: any) {
     console.error("Failed to generate billing portal session:", err);
-    const isProduction = (
-      process.env.VITE_PADDLE_ENV || 
-      process.env.NEXT_PUBLIC_PADDLE_ENV || 
-      "production"
-    ).trim().replace(/['"]/g, "") === "production";
-    
-    res.redirect(isProduction
-      ? "https://customer-portal.paddle.com/login"
-      : "https://sandbox-customer-portal.paddle.com"
-    );
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: "Unable to open billing portal. This may be because your subscription was created in test mode and is not available in live mode. Please contact support." 
+      });
+    }
   }
 });
 

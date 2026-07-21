@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
-import { CreditCard, Zap, Coins, ArrowUpRight, Loader2, Sparkles, AlertCircle } from "lucide-react";
+import { CreditCard, Zap, Coins, ArrowUpRight, Loader2, Sparkles, AlertCircle, ExternalLink } from "lucide-react";
 
 interface SubscriptionManagerProps {
   userId: string;
@@ -13,6 +13,8 @@ interface SubscriptionManagerProps {
 export default function SubscriptionManager({ userId, credits, hdCredits, isPro, onOpenPricing }: SubscriptionManagerProps) {
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadSubscription() {
@@ -34,6 +36,38 @@ export default function SubscriptionManager({ userId, credits, hdCredits, isPro,
     }
     loadSubscription();
   }, [userId]);
+
+  const openBillingPortal = async () => {
+    setPortalLoading(true);
+    setPortalError(null);
+    try {
+      const apiBase = (import.meta.env.VITE_API_URL || "").trim();
+      const res = await fetch(`${apiBase}/api/billing/portal?userId=${userId}`, {
+        method: "GET",
+        redirect: "manual",  // intercept the redirect
+      });
+
+      // A successful redirect (status 0 = opaque redirect, or 3xx) means we got a portal URL
+      if (res.type === "opaqueredirect" || res.status === 0 || (res.status >= 300 && res.status < 400)) {
+        // Can't get URL from opaque redirect — navigate directly
+        window.open(`${apiBase}/api/billing/portal?userId=${userId}`, "_blank");
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Server error ${res.status}`);
+      }
+
+      // Shouldn't reach here normally (redirect intercepted)
+      window.open(`${apiBase}/api/billing/portal?userId=${userId}`, "_blank");
+    } catch (err: any) {
+      console.error("Portal error:", err);
+      setPortalError("Could not open the billing portal. If you subscribed during a test period, please contact support to transfer your account.");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
@@ -134,15 +168,25 @@ export default function SubscriptionManager({ userId, credits, hdCredits, isPro,
 
               <div>
                 {isPro ? (
-                  <a
-                    href={`${(import.meta.env.VITE_API_URL || "").trim()}/api/billing/portal?userId=${userId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full bg-gray-950 hover:bg-gray-800 border border-gray-850 rounded-xl py-3 text-white font-medium text-xs flex items-center justify-center gap-2 transition duration-200 cursor-pointer"
-                  >
-                    <span>Manage Billing & Cancel/Renew</span>
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </a>
+                  <div className="space-y-2">
+                    <button
+                      onClick={openBillingPortal}
+                      disabled={portalLoading}
+                      className="w-full bg-gray-950 hover:bg-gray-800 border border-gray-850 rounded-xl py-3 text-white font-medium text-xs flex items-center justify-center gap-2 transition duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {portalLoading ? (
+                        <><Loader2 className="h-3.5 w-3.5 animate-spin" /><span>Opening Portal…</span></>
+                      ) : (
+                        <><span>Manage Billing & Cancel/Renew</span><ExternalLink className="h-3.5 w-3.5" /></>
+                      )}
+                    </button>
+                    {portalError && (
+                      <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                        <AlertCircle className="h-3.5 w-3.5 text-red-400 mt-0.5 shrink-0" />
+                        <p className="text-[11px] text-red-400 leading-relaxed">{portalError}</p>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <button
                     onClick={onOpenPricing}
