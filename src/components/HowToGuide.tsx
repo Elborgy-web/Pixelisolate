@@ -13,7 +13,8 @@ import {
   CheckCircle,
   HelpCircle,
   ArrowRight,
-  Maximize2
+  Maximize2,
+  Palette
 } from "lucide-react";
 
 interface HowToGuideProps {
@@ -36,6 +37,12 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
       title: "Chroma Key Workspace",
       icon: Droplet,
       color: "text-teal-400 bg-teal-500/10 border-teal-500/20",
+    },
+    {
+      id: "solid-bg",
+      title: "Solid Color Backdrops",
+      icon: Palette,
+      color: "text-purple-400 bg-purple-500/10 border-purple-500/20",
     },
     {
       id: "refinements",
@@ -341,6 +348,58 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
                   <span>**Batch Download**: Click **Process & Export**. The engine runs background threads and downloads your isolated files packaged inside a single **.ZIP** archive.</span>
                 </li>
               </ol>
+            </div>
+          </div>
+        )}
+
+        {activeSection === "solid-bg" && (
+          <div className="flex flex-col gap-6 animate-slide-up">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                <Palette className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white tracking-tight">Solid Color Background Selector</h1>
+                <p className="text-xs font-mono text-gray-500 uppercase tracking-wider mt-0.5">Instant Product Compliance & Previewing</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed max-w-3xl">
+              Instantly swap out transparent checkerboard backgrounds with solid color backdrops inside the workspace editor. This provides rapid Amazon/eBay listing compliance and checks logo readability against dark or light brand themes.
+            </p>
+
+            <hr className="border-gray-900" />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-950/60 p-4.5 rounded-2xl border border-gray-900 flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-purple-400 font-mono uppercase tracking-wide">
+                  <CheckCircle className="h-4 w-4 text-purple-400" />
+                  <span>Standard Fast Backdrops</span>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Switch instantly between transparent checkerboard, solid white (`#FFFFFF`) for product listings, or solid black (`#000000`) for high-contrast apparel mockups with a single click.
+                </p>
+              </div>
+
+              <div className="bg-gray-950/60 p-4.5 rounded-2xl border border-gray-900 flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-purple-400 font-mono uppercase tracking-wide">
+                  <CheckCircle className="h-4 w-4 text-purple-400" />
+                  <span>Hex Code Spectrum Input</span>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Enter any custom 6-digit hex code or open the native color picker menu to choose exactly the solid color backdrop that fits your marketing creative template.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 bg-purple-950/20 border border-purple-900/30 p-4 rounded-2xl">
+              <h3 className="text-xs font-bold text-purple-400 flex items-center gap-1.5 uppercase font-mono">
+                <HelpCircle className="h-4 w-4 shrink-0" />
+                <span>Trial Gating & Subscriptions</span>
+              </h3>
+              <p className="text-[11px] text-purple-300/80 leading-relaxed">
+                Free Tier and credit bundle accounts include **3 free trial exports** of solid color backgrounds. After trials are used up, exporting custom backdrops requires upgrading to the **Pro Tier**. Standard transparent PNG downloads are always free.
+              </p>
             </div>
           </div>
         )}

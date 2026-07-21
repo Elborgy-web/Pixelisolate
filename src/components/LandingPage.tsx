@@ -839,6 +839,10 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>3 Solid background trial exports</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                     <span>Full refinement settings access</span>
                   </li>
                 </ul>
@@ -871,6 +875,10 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                     <span>HD / Full-Resolution exports</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>3 Solid background trial exports</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
@@ -913,6 +921,10 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                     <span><strong>Full Original Resolution</strong> exports</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span><strong>Unlimited</strong> Solid BG colors (PRO)</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
@@ -964,6 +976,12 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                     <td className="p-4">Standard Resolution (500px)</td>
                     <td className="p-4">Full Original HD / Ultra-HD</td>
                     <td className="p-4 text-emerald-400 font-bold">Full Original HD / Ultra-HD</td>
+                  </tr>
+                  <tr className="hover:bg-gray-900/20 transition">
+                    <td className="p-4 font-bold text-gray-300">Solid BG Backdrops</td>
+                    <td className="p-4">3 Trial Exports</td>
+                    <td className="p-4">3 Trial Exports</td>
+                    <td className="p-4 text-emerald-400 font-bold">Unlimited Access (Custom Hex)</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
                     <td className="p-4 font-bold text-gray-300">Ingestion Capacity</td>
