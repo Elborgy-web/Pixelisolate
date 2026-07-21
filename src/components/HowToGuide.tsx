@@ -398,7 +398,7 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
                 <span>Trial Gating & Subscriptions</span>
               </h3>
               <p className="text-[11px] text-purple-300/80 leading-relaxed">
-                Free Tier and credit bundle accounts include **3 free trial exports** of solid color backgrounds. After trials are used up, exporting custom backdrops requires upgrading to the **Pro Tier**. Standard transparent PNG downloads are always free.
+                Free Tier accounts include **1 free trial export** of solid color backgrounds. Credit bundle accounts include **3 solid background trial exports**. After trials are used up, exporting custom backdrops requires upgrading to the **Pro Tier**. Standard transparent PNG downloads are always free.
               </p>
             </div>
           </div>

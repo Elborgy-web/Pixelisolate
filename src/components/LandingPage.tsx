@@ -839,7 +839,11 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>3 Solid background trial exports</span>
+                    <span>3 HD / Full-Resolution trial exports</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>1 Solid background trial export</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
@@ -972,6 +976,12 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                     <td className="p-4 text-emerald-400 font-bold">Unlimited Access</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
+                    <td className="p-4 font-bold text-gray-300">HD / Full-Res Exports</td>
+                    <td className="p-4">3 Trial Exports</td>
+                    <td className="p-4 text-amber-400 font-semibold">Unlimited (per credit)</td>
+                    <td className="p-4 text-emerald-400 font-bold">Unlimited Access</td>
+                  </tr>
+                  <tr className="hover:bg-gray-900/20 transition">
                     <td className="p-4 font-bold text-gray-300">Max Download Resolution</td>
                     <td className="p-4">Standard Resolution (500px)</td>
                     <td className="p-4">Full Original HD / Ultra-HD</td>
@@ -979,7 +989,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
                     <td className="p-4 font-bold text-gray-300">Solid BG Backdrops</td>
-                    <td className="p-4">3 Trial Exports</td>
+                    <td className="p-4">1 Trial Export</td>
                     <td className="p-4">3 Trial Exports</td>
                     <td className="p-4 text-emerald-400 font-bold">Unlimited Access (Custom Hex)</td>
                   </tr>

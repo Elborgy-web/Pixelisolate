@@ -1651,7 +1651,7 @@ export default function ChromaKeyer({
     const hasHdCredits = (profile?.hd_credits_remaining ?? 0) > 0;
     const isDownloadingHD = isPro || hasHdCredits;
     const isSolidBgSelected = selectedBgColor && selectedBgColor !== "transparent";
-    const solidBgTrialsRemaining = profile?.solid_bg_trials_remaining ?? 3;
+    const solidBgTrialsRemaining = profile?.solid_bg_trials_remaining ?? 1;
 
     if (!user) {
       // Guest mode
@@ -1666,7 +1666,7 @@ export default function ChromaKeyer({
       if (!isPro) {
         if (isSolidBgSelected && type === "isolated") {
           if (solidBgTrialsRemaining <= 0) {
-            alert("You've used all 3 Free Solid Background exports. Upgrade to Pro for unlimited background colors & HD exports.");
+            alert("You've used your Free Solid Background trial export. Upgrade to Pro for unlimited background colors & HD exports.");
             onOpenPricing();
             return;
           }
@@ -3675,9 +3675,9 @@ export default function ChromaKeyer({
                               PRO
                             </span>
                           ) : (
-                            (profile?.solid_bg_trials_remaining ?? 3) > 0 ? (
+                            (profile?.solid_bg_trials_remaining ?? 1) > 0 ? (
                               <span className="px-2 py-1 rounded-lg bg-amber-950/60 border border-amber-900/60 text-amber-400 text-[10px] font-mono font-bold">
-                                {profile?.solid_bg_trials_remaining ?? 3}/3 Free BG Trials
+                                {profile?.solid_bg_trials_remaining ?? 1}/1 Free BG Trial
                               </span>
                             ) : (
                               <span 

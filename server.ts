@@ -391,6 +391,13 @@ app.post("/api/webhooks/paddle", async (req: any, res) => {
 
         if (updateError) throw updateError;
 
+        // Grant 3 solid BG trials for 100 Credit Bundle purchasers
+        try {
+          await supabaseAdmin.rpc("grant_bundle_solid_bg_trials", { user_id: userId });
+        } catch (rpcErr) {
+          console.warn("[Webhook] grant_bundle_solid_bg_trials RPC failed (migration may not be applied):", rpcErr);
+        }
+
         // Trigger thank-you email for top-up
         triggerPurchaseEmail(userId, "credits");
       }
