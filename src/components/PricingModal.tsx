@@ -13,8 +13,17 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
   if (!isOpen) return null;
 
   // Paddle price IDs
-  const PRO_PRICE_ID = (import.meta.env.VITE_PADDLE_PRO_PRICE_ID || "pri_01kxzry4t63gx1gg8set3b8352").trim();
-  const TOPUP_PRICE_ID = (import.meta.env.VITE_PADDLE_TOPUP_100_PRICE_ID || "pri_01kxzs3cntjbews1fkk8w1fveb").trim();
+  const PRO_PRICE_ID = (
+    import.meta.env.VITE_PADDLE_PRO_PRICE_ID || 
+    import.meta.env.NEXT_PUBLIC_PADDLE_PRO_PRICE_ID || 
+    "pri_01kxzry4t63gx1gg8set3b8352"
+  ).trim().replace(/['"]/g, "");
+  
+  const TOPUP_PRICE_ID = (
+    import.meta.env.VITE_PADDLE_TOPUP_100_PRICE_ID || 
+    import.meta.env.NEXT_PUBLIC_PADDLE_TOPUP_100_PRICE_ID || 
+    "pri_01kxzs3cntjbews1fkk8w1fveb"
+  ).trim().replace(/['"]/g, "");
 
   const handleCheckout = (priceId: string, purchaseType: "subscription" | "credit_topup", creditsToGrant?: number) => {
     if (!userId) {

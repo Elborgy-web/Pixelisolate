@@ -92,9 +92,21 @@ export default function App() {
   const [logoSrc, setLogoSrc] = useState("/logo.png");
 
   useEffect(() => {
+    const environment = (
+      import.meta.env.VITE_PADDLE_ENV || 
+      import.meta.env.NEXT_PUBLIC_PADDLE_ENV || 
+      "production"
+    ).trim().replace(/['"]/g, "");
+    
+    const token = (
+      import.meta.env.VITE_PADDLE_CLIENT_TOKEN || 
+      import.meta.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || 
+      ""
+    ).trim().replace(/['"]/g, "");
+
     initializePaddle({
-      environment: (import.meta.env.VITE_PADDLE_ENV || "production").trim() as any,
-      token: (import.meta.env.VITE_PADDLE_CLIENT_TOKEN || "").trim(),
+      environment: environment as any,
+      token: token,
     });
   }, []);
 
