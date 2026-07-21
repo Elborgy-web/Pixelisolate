@@ -374,7 +374,7 @@ export default function App() {
 
       {/* Main Workspace Frame */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
-        {currentTab === "howto" && (
+        <div style={{ display: currentTab === "howto" ? "block" : "none" }}>
           <HowToGuide 
             onGoToEditor={() => {
               if (user) {
@@ -385,10 +385,10 @@ export default function App() {
             }}
             isLoggedIn={!!user}
           />
-        )}
+        </div>
         
-        {currentTab === "editor" && (
-          user ? (
+        <div style={{ display: currentTab === "editor" ? "block" : "none" }}>
+          {user ? (
             <ChromaKeyer 
               user={user} 
               profile={profile} 
@@ -398,21 +398,25 @@ export default function App() {
             />
           ) : (
             <LandingPage onOpenAuth={() => setAuthModalOpen(true)} />
-          )
-        )}
+          )}
+        </div>
 
-        {currentTab === "history" && user && (
-          <HistoryGallery userId={user?.id} isPro={profile?.is_pro ?? false} />
-        )}
+        {user && (
+          <>
+            <div style={{ display: currentTab === "history" ? "block" : "none" }}>
+              <HistoryGallery userId={user?.id} isPro={profile?.is_pro ?? false} />
+            </div>
 
-        {currentTab === "billing" && user && (
-          <SubscriptionManager 
-            userId={user.id} 
-            credits={profile?.credits ?? 0} 
-            hdCredits={profile?.hd_credits_remaining ?? 0}
-            isPro={profile?.is_pro ?? false} 
-            onOpenPricing={() => setPricingModalOpen(true)}
-          />
+            <div style={{ display: currentTab === "billing" ? "block" : "none" }}>
+              <SubscriptionManager 
+                userId={user.id} 
+                credits={profile?.credits ?? 0} 
+                hdCredits={profile?.hd_credits_remaining ?? 0}
+                isPro={profile?.is_pro ?? false} 
+                onOpenPricing={() => setPricingModalOpen(true)}
+              />
+            </div>
+          </>
         )}
       </main>
 
