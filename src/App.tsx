@@ -93,8 +93,8 @@ export default function App() {
 
   useEffect(() => {
     initializePaddle({
-      environment: (import.meta.env.VITE_PADDLE_ENV || "production") as any,
-      token: import.meta.env.VITE_PADDLE_CLIENT_TOKEN || "",
+      environment: (import.meta.env.VITE_PADDLE_ENV || "production").trim() as any,
+      token: (import.meta.env.VITE_PADDLE_CLIENT_TOKEN || "").trim(),
     });
   }, []);
 
