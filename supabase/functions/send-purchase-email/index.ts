@@ -31,6 +31,7 @@ serve(async (req) => {
           <h3 style="color: #E5E7EB; margin-top: 25px; border-bottom: 1px solid #1F2937; padding-bottom: 8px;">👑 Your Pro Features are Unlocked:</h3>
           <ul style="padding-left: 20px; color: #9CA3AF; line-height: 1.6;">
             <li style="margin-bottom: 8px;"><strong>Unlimited HD Cutouts:</strong> Process and download images at full raw resolution. No dimension caps.</li>
+            <li style="margin-bottom: 8px;"><strong>Unlimited Solid Backdrops:</strong> Export and preview cutouts with custom colors (White, Black, Hex codes).</li>
             <li style="margin-bottom: 8px;"><strong>Bulk Background Remover:</strong> Drag-and-drop up to 50 assets concurrently to process parallel pipelines.</li>
             <li style="margin-bottom: 8px;"><strong>Secure Cloud Archive:</strong> Access, review, and download your historical cutouts from any device.</li>
             <li style="margin-bottom: 8px;"><strong>Priority Processing Node:</strong> Fast lane queue processing with zero trials latency.</li>
