@@ -1707,12 +1707,16 @@ export default function ChromaKeyer({
         try {
           let usedSolidBgText = "";
           if (isSolidBgSelected && type === "isolated") {
-            const { error: rpcError } = await supabase.rpc("decrement_user_solid_bg_trials", {
-              user_id: user.id,
-              amount: 1,
-            });
-            if (rpcError) throw rpcError;
-            usedSolidBgText = `Used 1 Solid BG Trial (${solidBgTrialsRemaining - 1} remaining). `;
+            try {
+              const { error: rpcError } = await supabase.rpc("decrement_user_solid_bg_trials", {
+                user_id: user.id,
+                amount: 1,
+              });
+              if (rpcError) throw rpcError;
+              usedSolidBgText = `Used 1 Solid BG Trial (${solidBgTrialsRemaining - 1} remaining). `;
+            } catch (rpcErr) {
+              console.warn("decrement_user_solid_bg_trials RPC failed (database migration might not be executed):", rpcErr);
+            }
           }
 
           if (hasHdCredits) {
