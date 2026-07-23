@@ -523,8 +523,15 @@ app.post("/api/vault", async (req, res) => {
     const procBuffer = base64ToBuffer(processedBase64);
 
     const timestamp = Date.now();
-    const origPath = `${safeUserId}/${timestamp}-original.jpg`;
-    const procPath = `${safeUserId}/${timestamp}-isolated.jpg`;
+    const isProcPng = processedBase64.startsWith("data:image/png");
+    const procExt = isProcPng ? "png" : "jpg";
+    const procContentType = isProcPng ? "image/png" : "image/jpeg";
+    const procPath = `${safeUserId}/${timestamp}-isolated.${procExt}`;
+
+    const isOrigPng = originalBase64.startsWith("data:image/png");
+    const origExt = isOrigPng ? "png" : "jpg";
+    const origContentType = isOrigPng ? "image/png" : "image/jpeg";
+    const origPath = `${safeUserId}/${timestamp}-original.${origExt}`;
 
     console.log(`[History] Uploading for user ${safeUserId}, paths: ${origPath}, ${procPath}`);
 
@@ -532,7 +539,7 @@ app.post("/api/vault", async (req, res) => {
     const { error: origError } = await supabaseAdmin.storage
       .from("history_images")
       .upload(origPath, origBuffer, {
-        contentType: "image/jpeg",
+        contentType: origContentType,
         upsert: true,
       });
     if (origError) {
@@ -544,7 +551,7 @@ app.post("/api/vault", async (req, res) => {
     const { error: procError } = await supabaseAdmin.storage
       .from("history_images")
       .upload(procPath, procBuffer, {
-        contentType: "image/jpeg",
+        contentType: procContentType,
         upsert: true,
       });
     if (procError) {

@@ -139,8 +139,8 @@ export default function ChromaKeyer({
   const [selectedBgColor, setSelectedBgColor] = useState<string>("transparent");
   const [customBgColor, setCustomBgColor] = useState<string>("#ffffff");
 
-  // Helper: Scale down canvas image and compress for lightweight history storage
-  const scaleDownImage = (dataUri: string, maxDim = 500, format = "image/png", quality = 0.85): Promise<string> => {
+  // Helper: Scale down canvas image and compress for lightweight history storage (preserves HD PNG for Pro cutouts)
+  const scaleDownImage = (dataUri: string, maxDim = 4000, format = "image/png", quality = 0.95): Promise<string> => {
     return new Promise((resolve) => {
       if (!dataUri) {
         resolve("");
@@ -148,9 +148,14 @@ export default function ChromaKeyer({
       }
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement("canvas");
         let w = img.width;
         let h = img.height;
+        // If image is within maxDim bounds, return original dataUri directly to preserve 100% full HD quality!
+        if (w <= maxDim && h <= maxDim && (format === "image/png" ? dataUri.startsWith("data:image/png") : dataUri.startsWith("data:image/jpeg"))) {
+          resolve(dataUri);
+          return;
+        }
+        const canvas = document.createElement("canvas");
         if (w > maxDim || h > maxDim) {
           if (w > h) {
             h = Math.round((h * maxDim) / w);
@@ -202,9 +207,12 @@ export default function ChromaKeyer({
     }
     
     try {
-      // Scale down original and isolated images to max 450px and compress as JPEG for ultra-lightweight storage (under 50KB total!)
-      const scaledOrig = await scaleDownImage(originalBase64, 450, "image/jpeg", 0.75);
-      const scaledProc = await scaleDownImage(isolatedBase64, 450, "image/jpeg", 0.75);
+      // Save high-resolution PNG for isolated transparent cutout (preserving full HD quality & transparency)
+      const isPngIsolated = isolatedBase64.startsWith("data:image/png");
+      const scaledProc = await scaleDownImage(isolatedBase64, 4000, "image/png", 1.0);
+      
+      const isPngOrig = originalBase64.startsWith("data:image/png");
+      const scaledOrig = await scaleDownImage(originalBase64, 4000, isPngOrig ? "image/png" : "image/jpeg", 0.92);
 
       if (!scaledOrig || !scaledProc) {
         console.warn("Base64 image scaling failed, skipping history save.");
