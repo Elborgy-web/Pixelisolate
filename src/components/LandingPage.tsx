@@ -1134,7 +1134,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
             Deploy Your Free Workspace
           </button>
           
-          <div className="flex justify-center flex-wrap gap-4 text-xs font-mono text-gray-500 pt-6 border-t border-gray-900">
+          <div className="flex justify-center flex-wrap gap-4 text-xs font-mono text-gray-500 pt-6 border-t border-gray-900 mb-6">
             <a href="https://www.facebook.com/pixelisolate/" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition">Facebook</a>
             <span>•</span>
             <a href="https://www.instagram.com/pixelisolate/" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition">Instagram</a>
@@ -1144,6 +1144,12 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
             <a href="/terms.html" className="hover:text-gray-300 transition">Terms of Service</a>
             <span>•</span>
             <a href="/sitemap.xml" className="hover:text-gray-300 transition">Sitemap</a>
+          </div>
+
+          <div className="flex justify-center items-center">
+            <a href="https://startupbase.io/products/pixel-isolate?utm_source=startupbase&utm_medium=badge&utm_campaign=featured-badge-dark" target="_blank" rel="noopener noreferrer">
+              <img src="https://statics.startupbase.io/site/badges/featured-on-sb-dark.svg" alt="Featured on StartupBase" height="55" className="h-[55px] w-auto hover:opacity-90 transition duration-200" />
+            </a>
           </div>
         </div>
       </section>
