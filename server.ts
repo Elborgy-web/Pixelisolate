@@ -672,9 +672,13 @@ async function run() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath, {
-      setHeaders: (res) => {
+      setHeaders: (res, filePath) => {
         res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
         res.setHeader("Last-Modified", new Date("2026-07-25T12:00:00Z").toUTCString());
+        if (filePath.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|js|css)$/)) {
+          res.setHeader("Expires", new Date(Date.now() + 31536000000).toUTCString());
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
       }
     }));
     app.get("*", (req, res) => {
