@@ -13,14 +13,16 @@ import {
   Loader2, 
   HelpCircle,
   FileCheck,
-  FolderArchive
+  FolderArchive,
+  Code
 } from "lucide-react";
 
 interface LandingPageProps {
   onOpenAuth: () => void;
+  onOpenEmbedBadge?: () => void;
 }
 
-export default function LandingPage({ onOpenAuth }: LandingPageProps) {
+export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPageProps) {
   // Simulator State
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
   const [simulatedBgType, setSimulatedBgType] = useState<"solid" | "transparent">("solid");
@@ -1134,7 +1136,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
             Deploy Your Free Workspace
           </button>
           
-          <div className="flex justify-center flex-wrap gap-4 text-xs font-mono text-gray-500 pt-6 border-t border-gray-900 mb-6">
+          <div className="flex justify-center flex-wrap gap-4 text-xs font-mono text-gray-500 pt-6 border-t border-gray-900 mb-6 items-center">
             <a href="https://www.facebook.com/pixelisolate/" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition">Facebook</a>
             <span>•</span>
             <a href="https://www.instagram.com/pixelisolate/" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition">Instagram</a>
@@ -1144,6 +1146,18 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
             <a href="/terms.html" className="hover:text-gray-300 transition">Terms of Service</a>
             <span>•</span>
             <a href="/sitemap.xml" className="hover:text-gray-300 transition">Sitemap</a>
+            {onOpenEmbedBadge && (
+              <>
+                <span>•</span>
+                <button
+                  onClick={onOpenEmbedBadge}
+                  className="hover:text-emerald-400 text-emerald-500 font-semibold transition cursor-pointer flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20"
+                >
+                  <Code className="h-3.5 w-3.5" />
+                  <span>Embed Badge</span>
+                </button>
+              </>
+            )}
           </div>
 
           <div className="flex justify-center items-center">

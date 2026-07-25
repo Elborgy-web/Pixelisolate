@@ -8,6 +8,7 @@ import ChromaKeyer from "./components/ChromaKeyer";
 import HistoryGallery from "./components/HistoryGallery";
 import AuthModal from "./components/AuthModal";
 import PricingModal from "./components/PricingModal";
+import EmbedBadgeModal from "./components/EmbedBadgeModal";
 import SubscriptionManager from "./components/SubscriptionManager";
 import LandingPage from "./components/LandingPage";
 import HowToGuide from "./components/HowToGuide";
@@ -144,6 +145,7 @@ export default function App() {
   }, []);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
+  const [embedBadgeModalOpen, setEmbedBadgeModalOpen] = useState(false);
 
   // Global-like Alert UI state
   const [customAlert, setCustomAlert] = useState<{
@@ -397,7 +399,10 @@ export default function App() {
               onOpenAuth={() => setAuthModalOpen(true)}
             />
           ) : (
-            <LandingPage onOpenAuth={() => setAuthModalOpen(true)} />
+            <LandingPage
+              onOpenAuth={() => setAuthModalOpen(true)}
+              onOpenEmbedBadge={() => setEmbedBadgeModalOpen(true)}
+            />
           )}
         </div>
 
@@ -461,6 +466,11 @@ export default function App() {
         onClose={() => setPricingModalOpen(false)}
         userId={user?.id || null}
         userEmail={user?.email || null}
+      />
+
+      <EmbedBadgeModal
+        isOpen={embedBadgeModalOpen}
+        onClose={() => setEmbedBadgeModalOpen(false)}
       />
 
       {/* Custom Alert Modal */}
