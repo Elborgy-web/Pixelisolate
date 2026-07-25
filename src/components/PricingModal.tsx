@@ -25,6 +25,8 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
     "pri_01kxzs3cntjbews1fkk8w1fveb"
   ).trim().replace(/['"]/g, "");
 
+  const [promoCode, setPromoCode] = React.useState("");
+
   const handleCheckout = (priceId: string, purchaseType: "subscription" | "credit_topup", creditsToGrant?: number) => {
     if (!userId) {
       alert("Please log in or sign up first to purchase subscriptions or credits.");
@@ -33,7 +35,7 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
 
     const paddle = getPaddleInstance();
     if (paddle) {
-      paddle.Checkout.open({
+      const checkoutOptions: any = {
         items: [{ priceId: priceId.trim(), quantity: 1 }],
         customer: userEmail ? { email: userEmail } : undefined,
         customData: {
@@ -48,7 +50,13 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
             ? `${window.location.origin}/dashboard?payment=success`
             : `${window.location.origin}/dashboard?topup=success`,
         },
-      });
+      };
+
+      if (promoCode.trim()) {
+        checkoutOptions.discountCode = promoCode.trim();
+      }
+
+      paddle.Checkout.open(checkoutOptions);
     } else {
       alert("Payment engine loading... Please try again in a moment.");
     }
@@ -186,6 +194,28 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               <Package className="h-3.5 w-3.5 shrink-0" />
               <span>Purchase Credits</span>
             </button>
+          </div>
+        </div>
+
+        {/* Promo Code Input Bar */}
+        <div className="mb-6 p-4 rounded-2xl bg-gray-950/60 border border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-gray-300 font-mono">
+            <Sparkles className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
+            <span>Have a Promo Code or ProductHunt Coupon?</span>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              type="text"
+              placeholder="e.g. PRODUCTHUNT"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+              className="px-3 py-1.5 rounded-xl bg-gray-900 border border-gray-800 text-white font-mono text-xs focus:outline-none focus:border-emerald-500 w-full sm:w-44 uppercase tracking-wider"
+            />
+            {promoCode.trim() && (
+              <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 whitespace-nowrap">
+                Coupon Applied
+              </span>
+            )}
           </div>
         </div>
 
