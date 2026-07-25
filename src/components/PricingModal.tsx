@@ -29,11 +29,15 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
 
   // Valid promo code definitions
   const cleanCode = promoCode.trim().toUpperCase();
-  const PRO_PROMO_CODES = ["PRODUCTHUNT", "SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"];
-  const CREDIT_PROMO_CODES = ["SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"]; // Excludes Pro-only PRODUCTHUNT code to avoid Paddle checkout errors
+  const PRO_PROMO_CODES = ["PRODUCTHUNT", "STARTUP30", "SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"];
+  const CREDIT_PROMO_CODES = ["SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"]; // Excludes Pro-only codes
 
   const isProDiscountValid = PRO_PROMO_CODES.includes(cleanCode);
   const isCreditDiscountValid = CREDIT_PROMO_CODES.includes(cleanCode);
+
+  const is30PercentPro = cleanCode === "STARTUP30";
+  const proDiscountPrice = is30PercentPro ? "$5.59" : "$6.39";
+  const proDiscountBadgeLabel = is30PercentPro ? "30% OFF" : "20% OFF";
 
   const handleCheckout = (priceId: string, purchaseType: "subscription" | "credit_topup", creditsToGrant?: number) => {
     if (!userId) {
@@ -120,11 +124,11 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               <div className="flex items-baseline gap-2 mb-6">
                 {isProDiscountValid ? (
                   <>
-                    <span className="text-3xl font-extrabold text-white tracking-tight">$6.39</span>
+                    <span className="text-3xl font-extrabold text-white tracking-tight">{proDiscountPrice}</span>
                     <span className="text-sm text-gray-500 line-through">$7.99</span>
                     <span className="text-xs text-emerald-400 font-mono font-bold">/ month</span>
                     <span className="ml-auto text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-wider">
-                      20% OFF
+                      {proDiscountBadgeLabel}
                     </span>
                   </>
                 ) : (
@@ -170,7 +174,7 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-xs hover:shadow-lg hover:shadow-emerald-500/10 active:scale-[0.99] transition duration-200 cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Zap className="h-3.5 w-3.5 shrink-0" />
-              <span>{isProDiscountValid ? "Subscribe to Pro ($6.39/mo)" : "Subscribe to Pro"}</span>
+              <span>{isProDiscountValid ? `Subscribe to Pro (${proDiscountPrice}/mo)` : "Subscribe to Pro"}</span>
             </button>
           </div>
 
@@ -264,7 +268,11 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
             {promoCode.trim() && (
               isProDiscountValid || isCreditDiscountValid ? (
                 <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 whitespace-nowrap">
-                  {cleanCode === "PRODUCTHUNT" ? "20% OFF Pro Plan Applied" : "20% OFF Applied"}
+                  {cleanCode === "STARTUP30"
+                    ? "30% OFF Pro Plan Applied"
+                    : cleanCode === "PRODUCTHUNT"
+                    ? "20% OFF Pro Plan Applied"
+                    : "20% OFF Applied"}
                 </span>
               ) : (
                 <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/10 px-2.5 py-1.5 rounded-lg border border-rose-500/20 whitespace-nowrap">
