@@ -17,6 +17,23 @@ export default defineConfig(() => {
       minify: 'esbuild' as const,
       cssMinify: true,
       sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
+                return 'vendor-framework';
+              }
+              if (id.includes('@supabase')) {
+                return 'vendor-supabase';
+              }
+              if (id.includes('onnxruntime-web')) {
+                return 'vendor-onnx';
+              }
+            }
+          },
+        },
+      },
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',

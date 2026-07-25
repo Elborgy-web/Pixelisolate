@@ -615,6 +615,9 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                           ? (magicPreset === "model" ? "/model_isolated.png" : "/history_sneaker.png")
                           : (magicPreset === "model" ? "/model.jpg" : "/history_sneaker.png")
                       } 
+                      width="400"
+                      height="400"
+                      loading="lazy"
                       className={`max-w-full max-h-full object-contain p-2 z-10 transition-all duration-300 ${
                         magicMode === "chroma" && magicPreset === "sneaker" ? "bg-white" : ""
                       } ${magicInvert ? "invert" : ""}`}
@@ -770,7 +773,7 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px]">PRO</span>
               </div>
               <div className="aspect-video w-full rounded-lg bg-gray-950 border border-gray-850 flex items-center justify-center mb-3 relative overflow-hidden bg-[linear-gradient(45deg,#15171a_25%,transparent_25%),linear-gradient(-45deg,#15171a_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#15171a_75%),linear-gradient(-45deg,transparent_75%,#15171a_75%)] bg-[size:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0px] p-3 select-none">
-                <img src="/logo.png" className="max-w-full max-h-full object-contain z-10" alt="brand logo isolation preview" />
+                <img src="/logo.png" width="300" height="300" fetchPriority="high" className="max-w-full max-h-full object-contain z-10" alt="brand logo isolation preview" />
               </div>
               <div className="truncate font-bold text-white">brand_logo_isolated.png</div>
               <div className="text-[9px] text-gray-500 mt-1">1000 x 300px | Original & Isolated</div>
@@ -782,7 +785,7 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px]">PRO</span>
               </div>
               <div className="aspect-video w-full rounded-lg bg-gray-950 border border-gray-850 flex items-center justify-center mb-3 relative overflow-hidden bg-[linear-gradient(45deg,#15171a_25%,transparent_25%),linear-gradient(-45deg,#15171a_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#15171a_75%),linear-gradient(-45deg,transparent_75%,#15171a_75%)] bg-[size:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0px] p-3 select-none">
-                <img src="/history_model.png" className="max-w-full max-h-full object-contain z-10" alt="model isolation preview" />
+                <img src="/history_model.png" width="400" height="400" loading="lazy" className="max-w-full max-h-full object-contain z-10" alt="model isolation preview" />
               </div>
               <div className="truncate font-bold text-white">model_isolated.png</div>
               <div className="text-[9px] text-gray-500 mt-1">1024 x 680px | Original & Isolated</div>
@@ -794,7 +797,7 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px]">PRO</span>
               </div>
               <div className="aspect-video w-full rounded-lg bg-gray-950 border border-gray-850 flex items-center justify-center mb-3 relative overflow-hidden bg-[linear-gradient(45deg,#15171a_25%,transparent_25%),linear-gradient(-45deg,#15171a_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#15171a_75%),linear-gradient(-45deg,transparent_75%,#15171a_75%)] bg-[size:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0px] p-3 select-none">
-                <img src="/history_sneaker.png" className="max-w-full max-h-full object-contain z-10" alt="sneaker isolation preview" />
+                <img src="/history_sneaker.png" width="400" height="400" loading="lazy" className="max-w-full max-h-full object-contain z-10" alt="sneaker isolation preview" />
               </div>
               <div className="truncate font-bold text-white">sneaker_isolated.png</div>
               <div className="text-[9px] text-gray-500 mt-1">1024 x 1024px | Original & Isolated</div>
@@ -1162,7 +1165,7 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
 
           <div className="flex justify-center items-center">
             <a href="https://startupbase.io/products/pixel-isolate?utm_source=startupbase&utm_medium=badge&utm_campaign=featured-badge-dark" target="_blank" rel="noopener noreferrer">
-              <img src="https://statics.startupbase.io/site/badges/featured-on-sb-dark.svg" alt="Featured on StartupBase" height="55" className="h-[55px] w-auto hover:opacity-90 transition duration-200" />
+              <img src="https://statics.startupbase.io/site/badges/featured-on-sb-dark.svg" alt="Featured on StartupBase" width="215" height="55" loading="lazy" className="h-[55px] w-auto hover:opacity-90 transition duration-200" />
             </a>
           </div>
         </div>
