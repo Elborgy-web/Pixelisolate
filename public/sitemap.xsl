@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="2.0" 
+<xsl:stylesheet version="1.0" 
                 xmlns:html="http://www.w3.org/TR/REC-html40"
-                xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
                 xmlns:sitemap="http://www.sitemaps.org/schemas/sitemap/0.9"
                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
   <xsl:output method="html" version="1.0" encoding="UTF-8" indent="yes"/>
@@ -14,7 +13,7 @@
         <style>
           :root {
             --bg: #030712;
-            --card-bg: rgba(15, 23, 42, 0.6);
+            --card-bg: rgba(15, 23, 42, 0.8);
             --accent: #10b981;
             --text: #f3f4f6;
             --muted: #9ca3af;
@@ -25,7 +24,7 @@
             padding: 2rem 1rem;
             background-color: var(--bg);
             color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
           }
           .container {
             max-width: 900px;
@@ -45,6 +44,7 @@
             color: var(--muted);
             font-size: 0.875rem;
             margin: 0;
+            line-height: 1.5;
           }
           .badge {
             display: inline-block;
@@ -70,10 +70,10 @@
             font-size: 0.85rem;
           }
           th {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.04);
             color: var(--muted);
             text-align: left;
-            padding: 0.75rem 1rem;
+            padding: 0.875rem 1rem;
             font-weight: 600;
             text-transform: uppercase;
             font-size: 0.75rem;
@@ -91,14 +91,15 @@
             color: var(--accent);
             text-decoration: none;
             word-break: break-all;
+            font-weight: 500;
           }
           a:hover {
             text-decoration: underline;
           }
           .footer {
-            margin-top: 2rem;
+            margin-top: 2.5rem;
             text-align: center;
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             color: var(--muted);
           }
         </style>
@@ -108,7 +109,7 @@
           <div class="header">
             <div class="badge">XML Sitemap Directory</div>
             <h1>Pixel Isolate Indexing Structure</h1>
-            <p>This page is an XML sitemap generated for search engines and AI web crawlers. Below is the list of public indexable document URLs.</p>
+            <p>This is an interactive XML sitemap generated for search engine crawlers and web browsers. Below is the list of public indexable document URLs.</p>
           </div>
 
           <table>
@@ -124,7 +125,10 @@
               <xsl:for-each select="sitemap:urlset/sitemap:url">
                 <tr>
                   <td>
-                    <a href="{sitemap:loc}">
+                    <a>
+                      <xsl:attribute name="href">
+                        <xsl:value-of select="sitemap:loc"/>
+                      </xsl:attribute>
                       <xsl:value-of select="sitemap:loc"/>
                     </a>
                   </td>
