@@ -201,20 +201,39 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
         <div className="mb-6 p-4 rounded-2xl bg-gray-950/60 border border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-gray-300 font-mono">
             <Sparkles className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
-            <span>Have a Promo Code or ProductHunt Coupon?</span>
+            <span>Have a Promo Code?</span>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <input
-              type="text"
-              placeholder="e.g. PRODUCTHUNT"
-              value={promoCode}
-              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-              className="px-3 py-1.5 rounded-xl bg-gray-900 border border-gray-800 text-white font-mono text-xs focus:outline-none focus:border-emerald-500 w-full sm:w-44 uppercase tracking-wider"
-            />
+            <div className="relative flex items-center w-full sm:w-auto">
+              <input
+                type="text"
+                placeholder="e.g. SAVE20"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                className="px-3 py-1.5 pr-7 rounded-xl bg-gray-900 border border-gray-800 text-white font-mono text-xs focus:outline-none focus:border-emerald-500 w-full sm:w-44 uppercase tracking-wider"
+              />
+              {promoCode.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setPromoCode("")}
+                  className="absolute right-2 text-gray-400 hover:text-white transition duration-150 cursor-pointer p-0.5"
+                  title="Remove promo code"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
             {promoCode.trim() && (
-              <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 whitespace-nowrap">
-                Coupon Applied
-              </span>
+              ["PRODUCTHUNT", "SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"].includes(promoCode.trim()) ? (
+                <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 whitespace-nowrap">
+                  Coupon Applied
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/10 px-2.5 py-1.5 rounded-lg border border-rose-500/20 whitespace-nowrap">
+                  Not Applied
+                </span>
+              )
             )}
           </div>
         </div>
