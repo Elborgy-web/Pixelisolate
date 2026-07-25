@@ -1067,7 +1067,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
             <div className="p-5 rounded-2xl bg-gray-950/60 border border-gray-850">
               <span className="text-emerald-400 font-bold block mb-2">✉️ Publisher Support</span>
               <p className="text-gray-400 text-[10px] leading-relaxed">
-                Managed by Pixel Isolate Engine Team. Contact <a href="mailto:support@pixelisolate.online" className="text-emerald-400 underline">support@pixelisolate.online</a> for technical inquiries.
+                Managed by Pixel Isolate Engine Team. Contact <a href="mailto:contact@pixelisolate.online" className="text-emerald-400 underline">contact@pixelisolate.online</a> for technical inquiries.
               </p>
             </div>
             <div className="p-5 rounded-2xl bg-gray-950/60 border border-gray-850">
