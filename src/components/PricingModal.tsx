@@ -27,6 +27,14 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
 
   const [promoCode, setPromoCode] = React.useState("");
 
+  // Valid promo code definitions
+  const cleanCode = promoCode.trim().toUpperCase();
+  const PRO_PROMO_CODES = ["PRODUCTHUNT", "SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"];
+  const CREDIT_PROMO_CODES = ["SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"]; // Excludes Pro-only PRODUCTHUNT code to avoid Paddle checkout errors
+
+  const isProDiscountValid = PRO_PROMO_CODES.includes(cleanCode);
+  const isCreditDiscountValid = CREDIT_PROMO_CODES.includes(cleanCode);
+
   const handleCheckout = (priceId: string, purchaseType: "subscription" | "credit_topup", creditsToGrant?: number) => {
     if (!userId) {
       alert("Please log in or sign up first to purchase subscriptions or credits.");
@@ -52,8 +60,11 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
         },
       };
 
-      if (promoCode.trim()) {
-        checkoutOptions.discountCode = promoCode.trim();
+      // Only pass discountCode to Paddle if it's valid for the specific purchase type
+      if (purchaseType === "subscription" && isProDiscountValid) {
+        checkoutOptions.discountCode = cleanCode;
+      } else if (purchaseType === "credit_topup" && isCreditDiscountValid) {
+        checkoutOptions.discountCode = cleanCode;
       }
 
       paddle.Checkout.open(checkoutOptions);
@@ -106,9 +117,22 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               <h3 className="text-xl font-bold text-white">Pro Plan</h3>
               <p className="text-gray-400 text-xs mt-1.5 mb-6">Perfect for designers, creators, and daily power-users.</p>
               
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-3xl font-extrabold text-white">$7.99</span>
-                <span className="text-gray-500 text-xs font-mono">/ month</span>
+              <div className="flex items-baseline gap-2 mb-6">
+                {isProDiscountValid ? (
+                  <>
+                    <span className="text-3xl font-extrabold text-white tracking-tight">$6.39</span>
+                    <span className="text-sm text-gray-500 line-through">$7.99</span>
+                    <span className="text-xs text-emerald-400 font-mono font-bold">/ month</span>
+                    <span className="ml-auto text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-wider">
+                      20% OFF
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-3xl font-extrabold text-white">$7.99</span>
+                    <span className="text-gray-500 text-xs font-mono">/ month</span>
+                  </>
+                )}
               </div>
 
               <ul className="flex flex-col gap-3.5 text-xs text-gray-300 border-t border-gray-900 pt-5 mb-8">
@@ -146,7 +170,7 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-xs hover:shadow-lg hover:shadow-emerald-500/10 active:scale-[0.99] transition duration-200 cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Zap className="h-3.5 w-3.5 shrink-0" />
-              <span>Subscribe to Pro</span>
+              <span>{isProDiscountValid ? "Subscribe to Pro ($6.39/mo)" : "Subscribe to Pro"}</span>
             </button>
           </div>
 
@@ -160,9 +184,22 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               <h3 className="text-xl font-bold text-white">100 Credit Bundle</h3>
               <p className="text-gray-400 text-xs mt-1.5 mb-6">For casual users who only need high-res files occasionally.</p>
               
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-3xl font-extrabold text-white">$5</span>
-                <span className="text-gray-500 text-xs font-mono">one-time</span>
+              <div className="flex items-baseline gap-2 mb-6">
+                {isCreditDiscountValid ? (
+                  <>
+                    <span className="text-3xl font-extrabold text-white tracking-tight">$4.00</span>
+                    <span className="text-sm text-gray-500 line-through">$5.00</span>
+                    <span className="text-xs text-emerald-400 font-mono font-bold">one-time</span>
+                    <span className="ml-auto text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-wider">
+                      20% OFF
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-3xl font-extrabold text-white">$5</span>
+                    <span className="text-gray-500 text-xs font-mono">one-time</span>
+                  </>
+                )}
               </div>
 
               <ul className="flex flex-col gap-3.5 text-xs text-gray-300 border-t border-gray-900 pt-5 mb-8">
@@ -192,7 +229,7 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               className="w-full py-3 px-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-semibold text-xs active:scale-[0.99] transition duration-200 cursor-pointer flex items-center justify-center gap-1.5 border border-gray-700"
             >
               <Package className="h-3.5 w-3.5 shrink-0" />
-              <span>Purchase Credits</span>
+              <span>{isCreditDiscountValid ? "Purchase Credits ($4.00)" : "Purchase Credits"}</span>
             </button>
           </div>
         </div>
@@ -225,9 +262,9 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
             </div>
 
             {promoCode.trim() && (
-              ["PRODUCTHUNT", "SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"].includes(promoCode.trim()) ? (
+              isProDiscountValid || isCreditDiscountValid ? (
                 <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 whitespace-nowrap">
-                  Coupon Applied
+                  {cleanCode === "PRODUCTHUNT" ? "20% OFF Pro Plan Applied" : "20% OFF Applied"}
                 </span>
               ) : (
                 <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/10 px-2.5 py-1.5 rounded-lg border border-rose-500/20 whitespace-nowrap">
