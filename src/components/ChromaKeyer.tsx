@@ -23,6 +23,8 @@ import {
   X,
   Crop,
   Search,
+  User,
+  Package,
 } from "lucide-react";
 import { SubjectAnalysis, ProcessingSettings, BulkImageItem } from "../types";
 import { rgbToHsv, createChromaGreenTransform, isolateSubjectFromChroma, detectBackgroundColorFromCorners, detectDualBackgroundColorsFromCorners, detectSafestChromaColor, CHROMA_OPTIONS, erodeAlpha, dilateAlpha, blurAlpha } from "../utils/imageProc";
@@ -127,6 +129,8 @@ export default function ChromaKeyer({
 
   // AI Segmenter states (IMG.LY PhotoRoom-quality local WASM engine)
   const [segmentationMode, setSegmentationMode] = useState<"ai" | "chroma" | "frame">("chroma"); // Default to Chroma Keying!
+  const [smartMode, setSmartMode] = useState<"portrait" | "product" | "graphic">("portrait");
+  const [enableHairMatting, setEnableHairMatting] = useState<boolean>(true);
   const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
   const [modelProgress, setModelProgress] = useState<string>("");
   const [isModelLoaded, setIsModelLoaded] = useState<boolean>(false);
@@ -1107,7 +1111,9 @@ export default function ChromaKeyer({
             erosionSize,
             dilationSize,
             featherRadius,
-            useBoundingBox ? analysisReport?.boundingBox : null
+            useBoundingBox ? analysisReport?.boundingBox : null,
+            enableHairMatting,
+            sampledColor
           );
           if (selectedBgColor && selectedBgColor !== "transparent") {
             const tempCanvas = document.createElement("canvas");
@@ -1629,7 +1635,9 @@ export default function ChromaKeyer({
               erosionSize,
               dilationSize,
               featherRadius,
-              useBoundingBox ? analysisReport?.boundingBox : null
+              useBoundingBox ? analysisReport?.boundingBox : null,
+              enableHairMatting,
+              sampledColor
             );
             ctxIsolated.putImageData(isolatedData, 0, 0);
             resolveCanvas(canvasIsolated);
@@ -2098,7 +2106,9 @@ export default function ChromaKeyer({
             erSize,
             dilSize,
             fRadius,
-            boundingBox
+            boundingBox,
+            enableHairMatting,
+            color1
           );
           ctxIsolated.putImageData(isolatedData, 0, 0);
 
@@ -2522,7 +2532,9 @@ export default function ChromaKeyer({
           erSize,
           dilSize,
           fRadius,
-          mergedItem.boundingBox
+          mergedItem.boundingBox,
+          enableHairMatting,
+          color1
         );
         ctxIsolated.putImageData(isolatedData, 0, 0);
 
@@ -3039,6 +3051,78 @@ export default function ChromaKeyer({
                         >
                           <Sparkles className="h-3 w-3 text-emerald-300 shrink-0" />
                           <span>AI Magic</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Studio Category Presets & Fine Hair Matting Switch */}
+                    <div className="flex flex-col gap-1.5 bg-gray-955/65 p-3 rounded-xl border border-gray-850">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">Object Mode & Hair Matting</span>
+                        <button
+                          type="button"
+                          onClick={() => setEnableHairMatting(!enableHairMatting)}
+                          className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold border transition flex items-center gap-1 cursor-pointer ${
+                            enableHairMatting
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                              : "bg-gray-900 text-gray-500 border-gray-800"
+                          }`}
+                        >
+                          <Sparkles className="h-2.5 w-2.5" />
+                          <span>{enableHairMatting ? "Hair Matting ON" : "Hair Matting OFF"}</span>
+                        </button>
+                      </div>
+                      <div className="flex gap-1.5 mt-1 bg-gray-900 p-1 rounded-xl border border-gray-805">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSmartMode("portrait");
+                            setEnableHairMatting(true);
+                            setFeatherRadius(1);
+                            setErosionSize(0);
+                          }}
+                          className={`flex-1 py-1.5 px-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-1 cursor-pointer ${
+                            smartMode === "portrait"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow"
+                              : "text-gray-400 hover:text-gray-200"
+                          }`}
+                        >
+                          <User className="h-3 w-3 shrink-0" />
+                          <span>Portrait (Hair)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSmartMode("product");
+                            setEnableHairMatting(false);
+                            setErosionSize(1);
+                            setFeatherRadius(0);
+                          }}
+                          className={`flex-1 py-1.5 px-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-1 cursor-pointer ${
+                            smartMode === "product"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow"
+                              : "text-gray-400 hover:text-gray-200"
+                          }`}
+                        >
+                          <Package className="h-3 w-3 shrink-0" />
+                          <span>Product</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSmartMode("graphic");
+                            setEnableHairMatting(false);
+                            setErosionSize(0);
+                            setFeatherRadius(0);
+                          }}
+                          className={`flex-1 py-1.5 px-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-1 cursor-pointer ${
+                            smartMode === "graphic"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow"
+                              : "text-gray-400 hover:text-gray-200"
+                          }`}
+                        >
+                          <Layers className="h-3 w-3 shrink-0" />
+                          <span>Graphic</span>
                         </button>
                       </div>
                     </div>

@@ -476,7 +476,9 @@ export function isolateSubjectFromChroma(
   erosionSize: number,
   dilationSize: number,
   featherRadius: number,
-  boundingBox?: { x: number; y: number; w: number; h: number } | null
+  boundingBox?: { x: number; y: number; w: number; h: number } | null,
+  enableHairMatting: boolean = true,
+  bgRgb?: { r: number; g: number; b: number } | null
 ): ImageData {
   const width = chromaGreenData.width;
   const height = chromaGreenData.height;
@@ -563,12 +565,17 @@ export function isolateSubjectFromChroma(
     processedAlpha = dilateAlpha(processedAlpha, width, height, dilationSize);
   }
 
-  // Step D: Apply Gaussian Feathering to smooth hard aliasing jagged edges
+  // Step D: Apply Guided Alpha Matting for fine hair strands & complex edge preservation
+  if (enableHairMatting) {
+    processedAlpha = guidedAlphaMatting(chromaGreenData, processedAlpha, 3, 0.001);
+  }
+
+  // Step E: Apply Gaussian Feathering to smooth hard aliasing jagged edges
   if (featherRadius > 0) {
     processedAlpha = blurAlpha(processedAlpha, width, height, featherRadius);
   }
 
-  // Step E: Write final processed alpha channel and apply cinematic edge de-spilling
+  // Step F: Write final processed alpha channel and apply cinematic edge de-spilling
   const rangeCenter = hMin <= hMax ? (hMin + hMax) / 2 : hMin;
 
   for (let i = 0; i < dst.length; i += 4) {
@@ -620,6 +627,10 @@ export function isolateSubjectFromChroma(
       dst[i + 1] = g;
       dst[i + 2] = b;
     }
+  }
+
+  if (bgRgb) {
+    decontaminateFringeColor(output, bgRgb);
   }
 
   return output;
@@ -981,4 +992,152 @@ export function isPixelInCheckerboardGrid(
   // Checkerboard grid has substantial presence of both colors and very little other colors
   return pct1 > 0.15 && pct2 > 0.15 && pctOther < 0.25;
 }
+
+/**
+ * Guided Alpha Matting Filter
+ * Uses the original RGB image as a structural guide to refine semi-transparent hair strands,
+ * fur, and fine detail edges in the alpha channel mask.
+ */
+export function guidedAlphaMatting(
+  sourceData: ImageData,
+  alphaMask: Uint8Array,
+  radius: number = 3,
+  eps: number = 0.001
+): Uint8Array {
+  const width = sourceData.width;
+  const height = sourceData.height;
+  const numPixels = width * height;
+  const refinedAlpha = new Uint8Array(numPixels);
+  const src = sourceData.data;
+
+  // Compute 1D guidance gray image normalized to [0, 1]
+  const I = new Float32Array(numPixels);
+  const p = new Float32Array(numPixels);
+
+  for (let i = 0; i < numPixels; i++) {
+    const idx = i * 4;
+    // Luminance guide from RGB
+    I[i] = (0.299 * src[idx] + 0.587 * src[idx + 1] + 0.114 * src[idx + 2]) / 255;
+    p[i] = alphaMask[i] / 255;
+  }
+
+  // Box filter helper for 2D Float32Array
+  const boxFilter = (srcArr: Float32Array, r: number): Float32Array => {
+    const dstArr = new Float32Array(numPixels);
+    const temp = new Float32Array(numPixels);
+
+    // Horizontal pass
+    for (let y = 0; y < height; y++) {
+      let sum = 0;
+      const yOffset = y * width;
+      for (let x = -r; x <= r; x++) {
+        const clampedX = Math.max(0, Math.min(width - 1, x));
+        sum += srcArr[yOffset + clampedX];
+      }
+      dstArr[yOffset] = sum / (2 * r + 1);
+
+      for (let x = 1; x < width; x++) {
+        const leftX = Math.max(0, x - r - 1);
+        const rightX = Math.min(width - 1, x + r);
+        sum += srcArr[yOffset + rightX] - srcArr[yOffset + leftX];
+        dstArr[yOffset + x] = sum / (2 * r + 1);
+      }
+    }
+
+    // Vertical pass
+    for (let x = 0; x < width; x++) {
+      let sum = 0;
+      for (let y = -r; y <= r; y++) {
+        const clampedY = Math.max(0, Math.min(height - 1, y));
+        sum += dstArr[clampedY * width + x];
+      }
+      temp[x] = sum / (2 * r + 1);
+
+      for (let y = 1; y < height; y++) {
+        const topY = Math.max(0, y - r - 1);
+        const bottomY = Math.min(height - 1, y + r);
+        sum += dstArr[bottomY * width + x] - dstArr[topY * width + x];
+        temp[y * width + x] = sum / (2 * r + 1);
+      }
+    }
+
+    return temp;
+  };
+
+  const mean_I = boxFilter(I, radius);
+  const mean_p = boxFilter(p, radius);
+
+  const Ip = new Float32Array(numPixels);
+  const II = new Float32Array(numPixels);
+  for (let i = 0; i < numPixels; i++) {
+    Ip[i] = I[i] * p[i];
+    II[i] = I[i] * I[i];
+  }
+
+  const mean_Ip = boxFilter(Ip, radius);
+  const mean_II = boxFilter(II, radius);
+
+  const cov_Ip = new Float32Array(numPixels);
+  const var_I = new Float32Array(numPixels);
+  const a = new Float32Array(numPixels);
+  const b = new Float32Array(numPixels);
+
+  for (let i = 0; i < numPixels; i++) {
+    cov_Ip[i] = mean_Ip[i] - mean_I[i] * mean_p[i];
+    var_I[i] = mean_II[i] - mean_I[i] * mean_I[i];
+    a[i] = cov_Ip[i] / (var_I[i] + eps);
+    b[i] = mean_p[i] - a[i] * mean_I[i];
+  }
+
+  const mean_a = boxFilter(a, radius);
+  const mean_b = boxFilter(b, radius);
+
+  for (let i = 0; i < numPixels; i++) {
+    // Only refine transition boundaries to preserve solid foreground & solid background
+    const origVal = p[i];
+    if (origVal > 0.02 && origVal < 0.98) {
+      const q = mean_a[i] * I[i] + mean_b[i];
+      const clampedQ = Math.max(0, Math.min(1, q));
+      refinedAlpha[i] = Math.round(clampedQ * 255);
+    } else {
+      refinedAlpha[i] = alphaMask[i];
+    }
+  }
+
+  return refinedAlpha;
+}
+
+/**
+ * Hair Strand Color Decontamination & Despill
+ * Removes background color halos and spill along semi-transparent alpha borders.
+ */
+export function decontaminateFringeColor(
+  outputData: ImageData,
+  bgRgb: { r: number; g: number; b: number }
+): void {
+  const data = outputData.data;
+  const numPixels = data.length / 4;
+
+  for (let i = 0; i < numPixels; i++) {
+    const idx = i * 4;
+    const alpha = data[idx + 3];
+
+    // Only decontaminate semi-transparent edge pixels (e.g. hair strands)
+    if (alpha > 5 && alpha < 250) {
+      const alphaRatio = alpha / 255;
+      const invAlpha = 1 - alphaRatio;
+
+      // Estimate true foreground color by unmixing background spill
+      let fgR = (data[idx] - invAlpha * bgRgb.r) / alphaRatio;
+      let fgG = (data[idx + 1] - invAlpha * bgRgb.g) / alphaRatio;
+      let fgB = (data[idx + 2] - invAlpha * bgRgb.b) / alphaRatio;
+
+      // Clamp RGB values
+      data[idx] = Math.max(0, Math.min(255, Math.round(fgR)));
+      data[idx + 1] = Math.max(0, Math.min(255, Math.round(fgG)));
+      data[idx + 2] = Math.max(0, Math.min(255, Math.round(fgB)));
+    }
+  }
+}
+
 
