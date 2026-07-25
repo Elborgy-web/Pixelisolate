@@ -1025,7 +1025,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
       </section>
 
       {/* 5.5. Technical Methodology Section (GEO Optimized) */}
-      <section className="py-20 border-t border-b border-gray-900 bg-[#07080a]">
+      <section id="features" className="py-20 border-t border-b border-gray-900 bg-[#07080a]">
         <div className="max-w-4xl mx-auto px-6">
           <div className="border border-gray-850 rounded-2xl bg-gray-950/40 p-8 relative overflow-hidden">
             <div className="absolute -top-32 -right-32 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -1038,6 +1038,70 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
             <p className="text-xs text-gray-400 leading-relaxed font-mono">
               The Pixel Isolate Background Remover utilizes WebAssembly (WASM) to execute hardware-accelerated morphological edge operations directly in the browser's sandbox. By avoiding cloud latency, the engine performs high-frequency subpixel color-key thresholding to isolate subject outlines with zero quality degradation. In print-on-demand and e-commerce workflows, extraction accuracy is governed by three specific morphological steps. First, the source image is parsed into an 8-bit RGBA canvas, preserving raw dimensions. Next, an HSV color-space mask segments the targeted chrominance key, creating a binary connectivity map. Finally, boundary correction algorithms apply erosion (cv2.erode) to contract halos, dilation (cv2.dilate) to bridge voids, and Gaussian Blur feathering to blend pixel fringes. This combination solves green-screen spill and jagged transparency borders without high computing overhead. E-commerce operators and digital designers can automate these pipelines to export production-ready PNGs or package batch assets into structured archives, optimizing processing speed and output resolution.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 5.6. E-E-A-T Trust, Security & Publisher Information */}
+      <section id="trust-eeat" className="py-16 border-b border-gray-900 bg-[#0a0c14]">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">[ TRUST & COMPLIANCE VERIFICATION ]</span>
+            <h2 className="text-2xl font-bold text-white tracking-tight mt-1">Publisher & Security Transparency</h2>
+            <p className="text-xs text-gray-500 font-mono mt-1">Verified browser sandbox safety protocols and compliance standards</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-[11px]">
+            <div className="p-5 rounded-2xl bg-gray-950/60 border border-gray-850">
+              <span className="text-emerald-400 font-bold block mb-2">🔒 On-Device Privacy</span>
+              <p className="text-gray-400 text-[10px] leading-relaxed">
+                Images are processed entirely within client memory. No unencrypted photo uploads or AI training datasets are maintained.
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-gray-950/60 border border-gray-850">
+              <span className="text-emerald-400 font-bold block mb-2">🛡️ Merchant of Record</span>
+              <p className="text-gray-400 text-[10px] leading-relaxed">
+                All financial transactions are handled securely via Paddle.com under SSL 256-bit PCI-DSS Level 1 compliance.
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-gray-950/60 border border-gray-850">
+              <span className="text-emerald-400 font-bold block mb-2">✉️ Dedicated Publisher Support</span>
+              <p className="text-gray-400 text-[10px] leading-relaxed">
+                Managed by Pixel Isolate Engine Team. Contact <a href="mailto:support@pixelisolate.online" className="text-emerald-400 underline">support@pixelisolate.online</a> for technical inquiries.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5.7. Frequently Asked Questions (FAQ) */}
+      <section id="faq" className="py-20 border-b border-gray-900 bg-[#07080a]">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">[ KNOWLEDGE BASE ]</span>
+            <h2 className="text-2xl font-bold text-white tracking-tight mt-1">Frequently Asked Questions</h2>
+            <p className="text-xs text-gray-500 font-mono mt-1">Everything you need to know about keying workflows and export options</p>
+          </div>
+
+          <div className="space-y-4 font-mono text-xs">
+            <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
+              <h3 className="font-bold text-white mb-2">What makes Pixel Isolate different from cloud background removers?</h3>
+              <p className="text-gray-400 leading-relaxed text-[11px]">
+                Pixel Isolate computes background isolation locally inside your browser using WebAssembly. Your photos never leave your device, ensuring total data privacy, zero server queues, and instant processing speeds.
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
+              <h3 className="font-bold text-white mb-2">Can I export cutouts with solid color backdrops?</h3>
+              <p className="text-gray-400 leading-relaxed text-[11px]">
+                Yes. You can switch between transparent PNG cutouts, pure White backdrops, deep Black backdrops, or pick any custom Hex color swatch.
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
+              <h3 className="font-bold text-white mb-2">What image resolutions are supported for export?</h3>
+              <p className="text-gray-400 leading-relaxed text-[11px]">
+                Free Tier accounts support up to 500px standard preview exports and 3 Full-HD trial downloads. Pro Tier subscribers unlock 100% original full-resolution HD & 4K extractions.
+              </p>
+            </div>
           </div>
         </div>
       </section>

@@ -37,8 +37,19 @@ app.get("/api/diagnostics/logs", (req, res) => {
   res.send(serverLogs.join("\n"));
 });
 
-// Enable Cross-Origin Resource Sharing (CORS) for production API access
+// Enable Cross-Origin Resource Sharing (CORS), Security Headers & Canonical Redirects
 app.use((req, res, next) => {
+  // Enforce HSTS (Strict-Transport-Security) for HTTPS security
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  res.setHeader("Last-Modified", new Date("2026-07-25T12:00:00Z").toUTCString());
+
+  // Canonicalize WWW to non-WWW hostnames
+  const host = req.headers.host || "";
+  if (host.startsWith("www.pixelisolate.online")) {
+    res.redirect(301, `https://pixelisolate.online${req.url}`);
+    return;
+  }
+
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, PATCH, DELETE");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Signature");
@@ -660,8 +671,15 @@ async function run() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      setHeaders: (res) => {
+        res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+        res.setHeader("Last-Modified", new Date("2026-07-25T12:00:00Z").toUTCString());
+      }
+    }));
     app.get("*", (req, res) => {
+      res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+      res.setHeader("Last-Modified", new Date("2026-07-25T12:00:00Z").toUTCString());
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
