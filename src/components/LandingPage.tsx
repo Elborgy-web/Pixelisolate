@@ -1051,7 +1051,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
             <p className="text-xs text-gray-500 font-mono mt-1">Verified browser sandbox safety protocols and compliance standards</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-[11px]">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 font-mono text-[11px]">
             <div className="p-5 rounded-2xl bg-gray-950/60 border border-gray-850">
               <span className="text-emerald-400 font-bold block mb-2">🔒 On-Device Privacy</span>
               <p className="text-gray-400 text-[10px] leading-relaxed">
@@ -1065,10 +1065,24 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
               </p>
             </div>
             <div className="p-5 rounded-2xl bg-gray-950/60 border border-gray-850">
-              <span className="text-emerald-400 font-bold block mb-2">✉️ Dedicated Publisher Support</span>
+              <span className="text-emerald-400 font-bold block mb-2">✉️ Publisher Support</span>
               <p className="text-gray-400 text-[10px] leading-relaxed">
                 Managed by Pixel Isolate Engine Team. Contact <a href="mailto:support@pixelisolate.online" className="text-emerald-400 underline">support@pixelisolate.online</a> for technical inquiries.
               </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-gray-950/60 border border-gray-850">
+              <span className="text-emerald-400 font-bold block mb-2">🌐 Social Media Channels</span>
+              <p className="text-gray-400 text-[10px] leading-relaxed mb-2">
+                Connect with our official brand channels:
+              </p>
+              <div className="flex flex-col gap-1 text-[10px]">
+                <a href="https://www.facebook.com/pixelisolate/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-bold flex items-center gap-1">
+                  → Facebook Page
+                </a>
+                <a href="https://www.instagram.com/pixelisolate/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-bold flex items-center gap-1">
+                  → Instagram Profile
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -1115,10 +1129,22 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
           </p>
           <button
             onClick={onOpenAuth}
-            className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:shadow-lg hover:shadow-emerald-500/15 active:scale-[0.99] transition duration-200 cursor-pointer"
+            className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:shadow-lg hover:shadow-emerald-500/15 active:scale-[0.99] transition duration-200 cursor-pointer mb-8"
           >
             Deploy Your Free Workspace
           </button>
+          
+          <div className="flex justify-center flex-wrap gap-4 text-xs font-mono text-gray-500 pt-6 border-t border-gray-900">
+            <a href="https://www.facebook.com/pixelisolate/" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition">Facebook</a>
+            <span>•</span>
+            <a href="https://www.instagram.com/pixelisolate/" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition">Instagram</a>
+            <span>•</span>
+            <a href="/privacy.html" className="hover:text-gray-300 transition">Privacy Policy</a>
+            <span>•</span>
+            <a href="/terms.html" className="hover:text-gray-300 transition">Terms of Service</a>
+            <span>•</span>
+            <a href="/sitemap.xml" className="hover:text-gray-300 transition">Sitemap</a>
+          </div>
         </div>
       </section>
     </div>
