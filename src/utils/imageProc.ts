@@ -910,6 +910,71 @@ export function detectDualBackgroundColorsFromCorners(imageData: ImageData): {
   };
 }
 
+/**
+ * Automatically detects whether an uploaded image is a "graphic" (illustration, cartoon, vector logo)
+ * vs a photographic "portrait" or "product".
+ */
+export function detectImageSmartMode(imageData: ImageData): "portrait" | "product" | "graphic" {
+  const { width, height, data } = imageData;
+  const totalPixels = width * height;
+  if (totalPixels === 0) return "portrait";
+
+  // Sample pixels to measure 18-bit color histogram diversity (6 bits per R, G, B channel)
+  const step = Math.max(1, Math.floor(Math.sqrt(totalPixels / 20000)));
+  const colorBins = new Set<number>();
+
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const idx = (y * width + x) * 4;
+      if (data[idx + 3] < 30) continue; // skip transparent pixels
+
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+
+      // Quantize to 18-bit RGB (6 bits per channel: 64x64x64 = 262,144 bins)
+      const bin = ((r >> 2) << 12) | ((g >> 2) << 6) | (b >> 2);
+      colorBins.add(bin);
+    }
+  }
+
+  // Measure border color variance along 4 outer edges
+  const borderThickness = 10;
+  let borderVarSum = 0;
+  const borderRgb: { r: number; g: number; b: number }[] = [];
+
+  for (let y = 0; y < borderThickness; y++) {
+    for (let x = 0; x < width; x += 4) {
+      const idxT = (y * width + x) * 4;
+      const idxB = ((height - 1 - y) * width + x) * 4;
+      if (data[idxT + 3] > 50) borderRgb.push({ r: data[idxT], g: data[idxT + 1], b: data[idxT + 2] });
+      if (data[idxB + 3] > 50) borderRgb.push({ r: data[idxB], g: data[idxB + 1], b: data[idxB + 2] });
+    }
+  }
+
+  if (borderRgb.length > 0) {
+    const meanR = borderRgb.reduce((s, p) => s + p.r, 0) / borderRgb.length;
+    const meanG = borderRgb.reduce((s, p) => s + p.g, 0) / borderRgb.length;
+    const meanB = borderRgb.reduce((s, p) => s + p.b, 0) / borderRgb.length;
+    borderVarSum = borderRgb.reduce((s, p) => {
+      const dr = p.r - meanR, dg = p.g - meanG, db = p.b - meanB;
+      return s + (dr * dr + dg * dg + db * db);
+    }, 0) / borderRgb.length;
+  }
+
+  const uniqueColorCount = colorBins.size;
+  const borderStdDev = Math.sqrt(borderVarSum);
+
+  // Graphics, logos, cartoons, and vector illustrations have low color diversity (< 650 bins)
+  // or flat uniform background border variance (borderStdDev < 15 and colorBins < 1200)
+  if (uniqueColorCount < 650 || (uniqueColorCount < 1200 && borderStdDev < 15)) {
+    return "graphic";
+  }
+
+  return "portrait";
+}
+
+
 
 export interface ChromaColorOption {
   name: "Green" | "Magenta" | "Cyan";

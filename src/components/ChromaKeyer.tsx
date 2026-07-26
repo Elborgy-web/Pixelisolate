@@ -27,7 +27,8 @@ import {
   Package,
 } from "lucide-react";
 import { SubjectAnalysis, ProcessingSettings, BulkImageItem } from "../types";
-import { rgbToHsv, createChromaGreenTransform, isolateSubjectFromChroma, detectBackgroundColorFromCorners, detectDualBackgroundColorsFromCorners, detectSafestChromaColor, CHROMA_OPTIONS, erodeAlpha, dilateAlpha, blurAlpha, guidedAlphaMatting, decontaminateFringeColor, sharpAlphaThreshold, floodFillRemoveBackground } from "../utils/imageProc";
+import { rgbToHsv, createChromaGreenTransform, isolateSubjectFromChroma, detectBackgroundColorFromCorners, detectDualBackgroundColorsFromCorners, detectSafestChromaColor, CHROMA_OPTIONS, erodeAlpha, dilateAlpha, blurAlpha, guidedAlphaMatting, decontaminateFringeColor, sharpAlphaThreshold, floodFillRemoveBackground, detectImageSmartMode } from "../utils/imageProc";
+
 import { buildBackgroundField, decontaminateWithField } from "../utils/backgroundField";
 
 import PythonScript from "./PythonScript";
@@ -697,6 +698,11 @@ export default function ChromaKeyer({
           setChromaColorName(safestColor.name);
           setHueMin(safestColor.hueRange.min);
           setHueMax(safestColor.hueRange.max);
+
+          // Auto-detect whether image is a graphic vs portrait/product
+          const autoSmartMode = detectImageSmartMode(imageData);
+          setSmartMode(autoSmartMode);
+
         }
       } catch (err) {
         console.warn("Corner detection failed, using fallback:", err);
@@ -747,10 +753,14 @@ export default function ChromaKeyer({
 
       if (report.autoTunedSliders) {
         const sliders = report.autoTunedSliders;
-        if (typeof sliders.similarity === "number") setSimilarity(sliders.similarity);
+        if (typeof sliders.similarity === "number") {
+          // Cap auto-tuned similarity at conservative 0.08 (8%) to prevent eating foreground subject elements
+          setSimilarity(Math.min(0.08, sliders.similarity));
+        }
         if (typeof sliders.erosionSize === "number") setErosionSize(sliders.erosionSize);
         if (typeof sliders.dilationSize === "number") setDilationSize(sliders.dilationSize);
         if (typeof sliders.featherRadius === "number") setFeatherRadius(sliders.featherRadius);
+
 
         // Instantly transition to show the beautifully isolated asset
         setActiveTab("isolated");
@@ -1957,6 +1967,10 @@ export default function ChromaKeyer({
         const activeChromaName = item.chromaColorName || safestColor.name;
         const currentChroma = CHROMA_OPTIONS.find(c => c.name === activeChromaName) || CHROMA_OPTIONS[0];
 
+        // Auto-detect whether image is a graphic vs portrait/product
+        const autoSmartMode = detectImageSmartMode(srcData);
+        const itemSmartMode = item.smartMode !== undefined ? item.smartMode : autoSmartMode;
+
         // Detect if we should use detected settings or respect custom settings already on the item
         const isGrid = item.isCheckerboard !== undefined ? item.isCheckerboard : detectedColor.isCheckerboard;
         const color1 = (item.detectedColorHex && item.detectedColorHex !== "#ffffff") ? item.detectedColorRgb : { r: detectedColor.color1.r, g: detectedColor.color1.g, b: detectedColor.color1.b };
@@ -1985,6 +1999,7 @@ export default function ChromaKeyer({
                   useConnectivity: conn,
                   similarity: sim,
                   chromaColorName: activeChromaName,
+                  smartMode: itemSmartMode,
                 }
               : i
           )
@@ -2106,10 +2121,10 @@ export default function ChromaKeyer({
           // Match the single-image pipeline: smartMode refinement + hair matting so
           // bulk exports get the same hair quality (and honour the Hair Matting toggle).
           if (mode === "ai") {
-            if (smartMode === "graphic") {
+            if (itemSmartMode === "graphic") {
               processedAlpha = floodFillRemoveBackground(processedAlpha, srcData, 40);
-            } else if (smartMode === "portrait" || smartMode === "product") {
-              processedAlpha = sharpAlphaThreshold(processedAlpha, 100, 160, srcData);
+            } else if (itemSmartMode === "portrait" || itemSmartMode === "product") {
+              processedAlpha = sharpAlphaThreshold(processedAlpha, 30, 220, srcData);
               if (enableHairMatting) {
                 processedAlpha = guidedAlphaMatting(srcData, processedAlpha, 0, 0.001);
               }
@@ -2129,9 +2144,10 @@ export default function ChromaKeyer({
           }
 
           const bgFieldBulk =
-            mode === "ai" && smartMode !== "graphic" && enableHairMatting
+            mode === "ai" && itemSmartMode !== "graphic" && enableHairMatting
               ? buildBackgroundField(srcData, processedAlpha, 30)
               : null;
+
 
           // Apply Step 2: Safety Backdrop Transform
           const canvasGreen = document.createElement("canvas");
@@ -2561,14 +2577,17 @@ export default function ChromaKeyer({
           }
         }
 
+        const autoSmartMode = detectImageSmartMode(srcData);
+        const itemSmartMode = mergedItem.smartMode !== undefined ? mergedItem.smartMode : autoSmartMode;
+
         let processedAlpha = initialAlpha;
 
         // Match the single-image pipeline: smartMode refinement + hair matting.
         if (mode === "ai") {
-          if (smartMode === "graphic") {
+          if (itemSmartMode === "graphic") {
             processedAlpha = floodFillRemoveBackground(processedAlpha, srcData, 40);
-          } else if (smartMode === "portrait" || smartMode === "product") {
-            processedAlpha = sharpAlphaThreshold(processedAlpha, 100, 160, srcData);
+          } else if (itemSmartMode === "portrait" || itemSmartMode === "product") {
+            processedAlpha = sharpAlphaThreshold(processedAlpha, 30, 220, srcData);
             if (enableHairMatting) {
               processedAlpha = guidedAlphaMatting(srcData, processedAlpha, 0, 0.001);
             }
@@ -2588,9 +2607,10 @@ export default function ChromaKeyer({
         }
 
         const bgFieldRe =
-          mode === "ai" && smartMode !== "graphic" && enableHairMatting
+          mode === "ai" && itemSmartMode !== "graphic" && enableHairMatting
             ? buildBackgroundField(srcData, processedAlpha, 30)
             : null;
+
 
         // Apply Step 2: Safety Backdrop Transform
         const canvasGreen = document.createElement("canvas");

@@ -55,5 +55,7 @@ export interface BulkImageItem {
   errorMessage?: string;
   chromaColorName?: "Green" | "Magenta" | "Cyan";
   segmentationMode?: "ai" | "chroma" | "frame";
+  smartMode?: "portrait" | "product" | "graphic";
   isInvertedMask?: boolean;
 }
+

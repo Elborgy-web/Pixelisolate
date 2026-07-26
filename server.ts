@@ -122,7 +122,8 @@ app.post("/api/analyze", async (req, res) => {
         "detectedBgColorHex": "Dominant background hex color, e.g. #FFFFFF or #123456",
         "detectedBgColorRgb": [R, G, B],
         "autoTunedSliders": {
-          "similarity": chroma key tolerance float (0.01 to 0.40, default 0.07),
+          "similarity": chroma key tolerance float (0.01 to 0.07, default 0.05),
+
           "hueMin": chroma green lower Hue limit integer (0 to 180, default 35),
           "hueMax": chroma green upper Hue limit integer (0 to 180, default 85),
           "satMin": chroma green lower Saturation limit integer (0 to 255, default 50),
