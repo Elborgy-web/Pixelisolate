@@ -977,27 +977,28 @@ export default function ChromaKeyer({
 
           if (segmentationMode === "ai") {
             if (smartMode === "graphic") {
-              // GRAPHIC MODE: The ISNet semantic model leaves "holes" in solid-colour backgrounds
-              // (between text letters, through arm gaps etc.). We use BFS flood-fill from image edges
-              // to find all connected background-coloured pixels and zero them out completely.
+              // GRAPHIC MODE: BFS flood-fill removes solid-colour background holes
+              // (between text letters, arm gaps, etc.) that ISNet misses semantically.
               processedAlpha = floodFillRemoveBackground(processedAlpha, originalData, 40);
             } else if (smartMode === "portrait" || smartMode === "product") {
-              // PORTRAIT / PRODUCT MODE:
-              // Step 1: Sharpen the soft upscaled neural probability map.
-              //   - Any pixel with alpha < 30 is definitely background → 0
-              //   - Any pixel with alpha > 220 is definitely foreground → 255
-              //   - The narrow 30–220 band stays soft (real semi-transparent edges only)
-              processedAlpha = sharpAlphaThreshold(processedAlpha, 30, 220);
+              // PORTRAIT / PRODUCT MODE — 2-step edge-aware refinement:
+              //
+              // Step 1: Edge-aware threshold + Sobel-guided neighbour vote
+              //   Collapses the wide blurry upscale border zone:
+              //   alpha < 100 → 0 (background), alpha > 160 → 255 (foreground)
+              //   Ambiguous 100–160 band → Sobel edge check → vote with neighbours
+              processedAlpha = sharpAlphaThreshold(processedAlpha, 100, 160, originalData);
 
-              // Step 2: Guided alpha matting — uses full-resolution source RGB edge structure
-              // to snap the sharpened mask back onto precise hair strands.
+              // Step 2: Guided alpha matting (Kaiming He guided filter)
+              //   Uses full-resolution source RGB edge structure to snap the
+              //   sharpened mask back onto precise 1px hair strands.
               if (enableHairMatting) {
-                processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 3, 0.001);
+                processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 0, 0.001);
               }
             } else {
               // Default: guided matting only
               if (enableHairMatting) {
-                processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 3, 0.001);
+                processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 0, 0.001);
               }
             }
           }
@@ -1178,8 +1179,10 @@ export default function ChromaKeyer({
             featherRadius,
             useBoundingBox ? analysisReport?.boundingBox : null,
             enableHairMatting,
-            sampledColor
+            sampledColor,
+            originalData  // Pass original unmodified image for guided filter guidance
           );
+
           if (selectedBgColor && selectedBgColor !== "transparent") {
             const tempCanvas = document.createElement("canvas");
             tempCanvas.width = w;
@@ -1230,7 +1233,10 @@ export default function ChromaKeyer({
     renderTrigger,
     isDrawing,
     selectedBgColor,
+    enableHairMatting,
+    smartMode,
   ]);
+
 
   const preloadImglyModel = async () => {
     setIsModelLoading(true);
@@ -1680,7 +1686,8 @@ export default function ChromaKeyer({
               featherRadius,
               useBoundingBox ? analysisReport?.boundingBox : null,
               enableHairMatting,
-              sampledColor
+              sampledColor,
+              originalData  // Original image for guided filter guidance
             );
             ctxIsolated.putImageData(isolatedData, 0, 0);
             resolveCanvas(canvasIsolated);
@@ -2151,8 +2158,10 @@ export default function ChromaKeyer({
             fRadius,
             boundingBox,
             enableHairMatting,
-            color1
+            color1,
+            srcData  // Original image for guided filter guidance
           );
+
           ctxIsolated.putImageData(isolatedData, 0, 0);
 
           isolatedUri = canvasIsolated.toDataURL("image/png");
@@ -2577,8 +2586,10 @@ export default function ChromaKeyer({
           fRadius,
           mergedItem.boundingBox,
           enableHairMatting,
-          color1
+          color1,
+          srcData  // Original image for guided filter guidance
         );
+
         ctxIsolated.putImageData(isolatedData, 0, 0);
 
         isolatedUri = canvasIsolated.toDataURL("image/png");

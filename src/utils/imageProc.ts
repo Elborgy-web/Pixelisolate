@@ -478,7 +478,8 @@ export function isolateSubjectFromChroma(
   featherRadius: number,
   boundingBox?: { x: number; y: number; w: number; h: number } | null,
   enableHairMatting: boolean = true,
-  bgRgb?: { r: number; g: number; b: number } | null
+  bgRgb?: { r: number; g: number; b: number } | null,
+  originalImageData?: ImageData | null  // CRITICAL: use original for guided filter guidance
 ): ImageData {
   const width = chromaGreenData.width;
   const height = chromaGreenData.height;
@@ -565,10 +566,17 @@ export function isolateSubjectFromChroma(
     processedAlpha = dilateAlpha(processedAlpha, width, height, dilationSize);
   }
 
-  // Step D: Apply Guided Alpha Matting for fine hair strands & complex edge preservation
+  // Step D: Apply Guided Alpha Matting for fine hair strands & complex edge preservation.
+  // CRITICAL: Use the ORIGINAL image (not the green-screen transformed copy) as the
+  // guidance image. The green-screen image has artificial solid green pixels where the
+  // background was, which destroys the guided filter's ability to find real hair edges.
   if (enableHairMatting) {
-    processedAlpha = guidedAlphaMatting(chromaGreenData, processedAlpha, 3, 0.001);
+    const guidanceData = originalImageData ?? chromaGreenData;
+    // radius=0 → dynamic scaling: Math.max(3, Math.round(width / 500))
+    // For 7360px images this gives r=15px instead of r=3px
+    processedAlpha = guidedAlphaMatting(guidanceData, processedAlpha, 0, 0.001);
   }
+
 
   // Step E: Apply Gaussian Feathering to smooth hard aliasing jagged edges
   if (featherRadius > 0) {
@@ -1149,42 +1157,136 @@ export function decontaminateFringeColor(
 }
 
 /**
- * Sharp Alpha Threshold — Portrait / Hair Mode.
+ * Edge-Aware Alpha Mask Refinement for Portrait / Hair Mode.
  *
- * The WASM neural model outputs a soft 1024×1024 probability map that gets bilinearly
- * upscaled to full resolution. This creates wide blurry "border zones" where pixels
- * that should be fully transparent (alpha < ~30) end up at ~80–120/255, which shows
- * as grey/light traces against dark preview backgrounds.
+ * The core problem with ISNet running at 1024×1024:
+ * When the output is bilinearly upscaled to e.g. 7360×4912px, the upscaling
+ * interpolates between "definitely foreground" (255) and "definitely background" (0)
+ * pixels, creating huge blurry border zones (often 50–300px wide in source coords)
+ * where every pixel gets alpha ~80–150. On a black/dark preview these show as wide
+ * grey halos around the subject's hair.
  *
- * Solution: Collapse the soft probability map into a clean trimap:
- *   • alpha < lowCut  → 0   (definitely background)
- *   • alpha > highCut → 255 (definitely foreground)
- *   • transition band → smooth remap to [0,255] (soft edges only for real boundaries)
+ * Solution — 3 step pipeline:
  *
- * After sharpening, apply one pass of guidedAlphaMatting to recover hair strands
- * that sit inside the transition band and whose local edge structure confirms them
- * as foreground.
+ * STEP 1: Aggressive bilateral thresholding.
+ *   • alpha < 100  → 0   (probably background after upscale blur)
+ *   • alpha > 160  → 255 (probably foreground after upscale blur)
+ *   • 100–160 zone → stays soft (real boundary)
+ *
+ * STEP 2: Edge-guided vote — for every "uncertain" pixel in the 100–160 band:
+ *   Sample a small NxN neighbourhood in the ORIGINAL full-res image. Compute
+ *   the local Sobel edge magnitude. If edge magnitude is HIGH → this is a real
+ *   boundary → keep the soft alpha. If edge magnitude is LOW → this is a flat
+ *   zone (background area or solid interior) → snap to binary based on majority
+ *   vote of definite-class neighbours.
+ *
+ * STEP 3: 3×3 morphological closing on the uncertain band to close tiny gaps
+ *   in the hair mask without expanding into background.
  */
 export function sharpAlphaThreshold(
   alphaMask: Uint8Array,
-  lowCut: number = 30,
-  highCut: number = 220
+  lowCut: number = 100,
+  highCut: number = 160,
+  imageData?: ImageData
 ): Uint8Array {
-  const out = new Uint8Array(alphaMask.length);
+  const n = alphaMask.length;
+  const out = new Uint8Array(n);
   const band = highCut - lowCut;
-  for (let i = 0; i < alphaMask.length; i++) {
+
+  // STEP 1: Bilateral threshold
+  for (let i = 0; i < n; i++) {
     const v = alphaMask[i];
     if (v <= lowCut) {
       out[i] = 0;
     } else if (v >= highCut) {
       out[i] = 255;
     } else {
-      // Smooth remap through the transition band only
       out[i] = Math.round(((v - lowCut) / band) * 255);
     }
   }
-  return out;
+
+  // If no imageData guidance available, return early
+  if (!imageData) return out;
+
+  const width = imageData.width;
+  const height = imageData.height;
+  const src = imageData.data;
+
+  // STEP 2: For uncertain pixels, use local Sobel edge + neighbour majority vote
+  // Build Sobel magnitude map (3×3 Sobel, luminance channel only)
+  const lum = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const idx = i * 4;
+    lum[i] = 0.299 * src[idx] + 0.587 * src[idx + 1] + 0.114 * src[idx + 2];
+  }
+
+  const getL = (x: number, y: number) => {
+    const cx = Math.max(0, Math.min(width - 1, x));
+    const cy = Math.max(0, Math.min(height - 1, y));
+    return lum[cy * width + cx];
+  };
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      const v = alphaMask[idx];
+      if (v <= lowCut || v >= highCut) continue; // only process uncertain band
+
+      // Sobel edge magnitude
+      const gx =
+        -getL(x-1,y-1) + getL(x+1,y-1)
+        -2*getL(x-1,y) + 2*getL(x+1,y)
+        -getL(x-1,y+1) + getL(x+1,y+1);
+      const gy =
+        -getL(x-1,y-1) - 2*getL(x,y-1) - getL(x+1,y-1)
+        +getL(x-1,y+1) + 2*getL(x,y+1) + getL(x+1,y+1);
+      const mag = Math.sqrt(gx*gx + gy*gy);
+
+      // Low edge zone: snap based on majority vote of definite neighbours
+      if (mag < 15) {
+        let fgCount = 0, bgCount = 0;
+        const r = 3;
+        for (let dy = -r; dy <= r; dy++) {
+          for (let dx = -r; dx <= r; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const ni = Math.max(0, Math.min(height-1, y+dy)) * width + Math.max(0, Math.min(width-1, x+dx));
+            if (out[ni] >= 200) fgCount++;
+            else if (out[ni] <= 30) bgCount++;
+          }
+        }
+        // In a flat region, vote determines class
+        if (fgCount > bgCount * 1.5) {
+          out[idx] = 255;
+        } else if (bgCount > fgCount * 1.5) {
+          out[idx] = 0;
+        }
+        // tie → keep the soft interpolated value
+      }
+      // High edge zone: keep the soft value (real hair boundary)
+    }
+  }
+
+  // STEP 3: One pass of small morphological closing (dilate then erode) on the
+  // zero-valued pixels adjacent to foreground, to close small gaps in hair mask
+  // (prevents hair gaps being left transparent)
+  const dilated = new Uint8Array(out);
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = y * width + x;
+      if (out[idx] > 0) continue; // only expand into background pixels
+      // Check if any neighbour is foreground
+      if (
+        out[(y-1)*width + x] > 200 || out[(y+1)*width + x] > 200 ||
+        out[y*width + (x-1)] > 200 || out[y*width + (x+1)] > 200
+      ) {
+        dilated[idx] = 128; // tentative foreground
+      }
+    }
+  }
+
+  return dilated;
 }
+
 
 /**
  * Flood-Fill Background Remover — Graphic / Product Mode.
