@@ -856,10 +856,44 @@ export function detectDualBackgroundColorsFromCorners(imageData: ImageData): {
 
   // Calculate Euclidean distance between bright and dark cluster averages
   const dist = Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
-  
-  // If the Euclidean RGB distance between clusters is significant (> 15), it is a checkerboard!
-  // Normal solid backgrounds will have very small variance (< 10 Euclidean distance)
-  const isCheckerboard = dist > 15;
+
+  // Two clusters far apart in colour is NECESSARY but NOT SUFFICIENT to call it a
+  // checkerboard: a smooth gradient ALSO produces two far-apart luminance clusters
+  // (e.g. #d2d6d3 vs #7b7974, dist ~150) yet must be treated as a plain background.
+  //
+  // The distinguishing feature is SPATIAL FREQUENCY. A real checkerboard/grid
+  // alternates sharply between its two colours from one pixel to the next along the
+  // border, so the mean absolute luminance difference between horizontally-adjacent
+  // border pixels is high. A gradient varies smoothly, so that difference is tiny.
+  //
+  // Measured on real images: gradient meanAdj ~0.5, checkerboard meanAdj ~5.4 — a
+  // ~10x gap. We require BOTH a significant colour split AND high-frequency
+  // alternation before declaring a checkerboard.
+  let meanAdjLum = 0;
+  {
+    let sumAdj = 0;
+    let cntAdj = 0;
+    const freqBand = Math.min(20, Math.floor(height / 4), Math.floor(width / 4));
+    const lumAt = (x: number, y: number) => {
+      const i = (y * width + x) * 4;
+      return 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    };
+    for (let yb = 0; yb < freqBand; yb++) {
+      for (const y of [yb, height - 1 - yb]) {
+        if (y < 0 || y >= height) continue;
+        for (let x = 1; x < width; x++) {
+          if (data[(y * width + x) * 4 + 3] <= 50) continue;
+          sumAdj += Math.abs(lumAt(x, y) - lumAt(x - 1, y));
+          cntAdj++;
+        }
+      }
+    }
+    meanAdjLum = cntAdj > 0 ? sumAdj / cntAdj : 0;
+  }
+
+  // Colour split must be real (>15) AND the border must alternate at high frequency
+  // (mean adjacent-luminance delta >= 2.0). Gradients fail the second test.
+  const isCheckerboard = dist > 15 && meanAdjLum >= 2.0;
 
   return {
     isCheckerboard,

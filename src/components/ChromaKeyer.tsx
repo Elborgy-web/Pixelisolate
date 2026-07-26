@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { SubjectAnalysis, ProcessingSettings, BulkImageItem } from "../types";
 import { rgbToHsv, createChromaGreenTransform, isolateSubjectFromChroma, detectBackgroundColorFromCorners, detectDualBackgroundColorsFromCorners, detectSafestChromaColor, CHROMA_OPTIONS, erodeAlpha, dilateAlpha, blurAlpha, guidedAlphaMatting, decontaminateFringeColor, sharpAlphaThreshold, floodFillRemoveBackground } from "../utils/imageProc";
+import { buildBackgroundField, decontaminateWithField } from "../utils/backgroundField";
 
 import PythonScript from "./PythonScript";
 import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
@@ -989,14 +990,14 @@ export default function ChromaKeyer({
               //   Ambiguous 100–160 band → Sobel edge check → vote with neighbours
               processedAlpha = sharpAlphaThreshold(processedAlpha, 100, 160, originalData);
 
-              // Step 2: Guided alpha matting (Kaiming He guided filter)
-              //   Uses full-resolution source RGB edge structure to snap the
-              //   sharpened mask back onto precise 1px hair strands.
+              // Step 2: Guided alpha matting (Kaiming He guided filter).
+              //   Hair Matting ON  → refine soft 1px hair strands (quality).
+              //   Hair Matting OFF → skip, giving a faster, harder-edged cutout.
               if (enableHairMatting) {
                 processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 0, 0.001);
               }
             } else {
-              // Default: guided matting only
+              // Default: guided matting only when Hair Matting is ON
               if (enableHairMatting) {
                 processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 0, 0.001);
               }
@@ -1019,6 +1020,15 @@ export default function ChromaKeyer({
 
           // Detect true background color from original image corners for accurate decontamination
           const cornerBg = detectBackgroundColorFromCorners(originalData);
+
+          // Build a LOCAL per-pixel background colour field (handles gradients / uneven
+          // studio backdrops). Only needed for portrait/product hair edges when Hair
+          // Matting is ON — this is what removes grey webbing & colour cast from strands.
+          const useLocalDecontam =
+            segmentationMode === "ai" && smartMode !== "graphic" && enableHairMatting;
+          const bgField = useLocalDecontam
+            ? buildBackgroundField(originalData, hybridAlpha, 30)
+            : null;
 
           // Draw green mask canvas
           const greenData = ctxGreen.createImageData(w, h);
@@ -1083,21 +1093,11 @@ export default function ChromaKeyer({
                 // For non-background graphic pixels: no decontamination needed
                 // (flat-colour graphics don't have colour bleed, only solid pixel steps)
               } else {
-                // PORTRAIT / PRODUCT MODE: Remove background colour spill from semi-transparent
-                // hair/fur edge pixels using the stable non-dividing subtraction formula.
-                if (alphaVal < 255) {
-                  const alphaRatio = alphaVal / 255;
-                  if (alphaRatio > 0.04) { // skip near-transparent pixels (alpha < ~10/255)
-                    const invA = 1 - alphaRatio;
-                    const pxLum = 0.299 * r + 0.587 * g + 0.114 * b;
-                    // Enhanced: use a larger correction factor for strong grey/neutral backgrounds
-                    // (the default 0.4 lum factor was leaving visible grey traces on dark previews)
-                    const lumFactor = 0.5;
-                    r = Math.max(0, Math.min(255, Math.round(r - invA * (cornerBg.r - pxLum * lumFactor))));
-                    g = Math.max(0, Math.min(255, Math.round(g - invA * (cornerBg.g - pxLum * lumFactor))));
-                    b = Math.max(0, Math.min(255, Math.round(b - invA * (cornerBg.b - pxLum * lumFactor))));
-                  }
-                }
+                // PORTRAIT / PRODUCT MODE: leave the raw source colour here; if Hair
+                // Matting is ON we run LOCAL background-field decontamination after this
+                // loop (removes grey webbing & colour cast even on gradient backdrops
+                // via true-foreground recovery F = (I-(1-a)B)/a). When OFF, we keep the
+                // raw colour for a fast, hard-edged cutout.
               }
             } else {
               // CHROMA KEY MODE: colour-channel-specific decontamination
@@ -1128,6 +1128,12 @@ export default function ChromaKeyer({
             dstIsolated[i + 3] = alphaVal;
           }
 
+          // LOCAL background-field decontamination for portrait/product hair edges.
+          // Recovers true foreground colour so gradient/uneven backgrounds no longer
+          // leave grey webbing or colour cast trapped between hair strands.
+          if (bgField) {
+            decontaminateWithField(isolatedData, hybridAlpha, bgField, 1);
+          }
           if (selectedBgColor && selectedBgColor !== "transparent") {
             const tempCanvas = document.createElement("canvas");
             tempCanvas.width = w;
@@ -1179,9 +1185,18 @@ export default function ChromaKeyer({
             featherRadius,
             useBoundingBox ? analysisReport?.boundingBox : null,
             enableHairMatting,
-            sampledColor,
+            enableHairMatting ? null : sampledColor,
             originalData  // Pass original unmodified image for guided filter guidance
           );
+
+          if (enableHairMatting) {
+            const alphaMask = new Uint8Array(w * h);
+            for (let i = 0; i < w * h; i++) {
+              alphaMask[i] = isolatedData.data[i * 4 + 3];
+            }
+            const bgFieldChroma = buildBackgroundField(originalData, alphaMask, 30);
+            decontaminateWithField(isolatedData, alphaMask, bgFieldChroma, 1);
+          }
 
           if (selectedBgColor && selectedBgColor !== "transparent") {
             const tempCanvas = document.createElement("canvas");
@@ -1473,6 +1488,24 @@ export default function ChromaKeyer({
                     }
 
                     let processedAlpha = initialAlpha;
+
+                    // Apply the SAME smartMode refinement + hair matting as the live
+                    // preview so the exported full-resolution PNG matches what the user
+                    // sees (previously this path skipped matting entirely, which is why
+                    // the Hair Matting toggle had no effect on downloads).
+                    if (segmentationMode === "ai") {
+                      if (smartMode === "graphic") {
+                        processedAlpha = floodFillRemoveBackground(processedAlpha, originalData, 40);
+                      } else if (smartMode === "portrait" || smartMode === "product") {
+                        processedAlpha = sharpAlphaThreshold(processedAlpha, 100, 160, originalData);
+                        if (enableHairMatting) {
+                          processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 0, 0.001);
+                        }
+                      } else if (enableHairMatting) {
+                        processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 0, 0.001);
+                      }
+                    }
+
                     if (erosionSize > 0) {
                       processedAlpha = erodeAlpha(processedAlpha, w, h, erosionSize);
                     }
@@ -1484,9 +1517,15 @@ export default function ChromaKeyer({
                     }
 
                     const src = originalData.data;
-                    // In AI and Frame modes, we use the processed alpha mask directly.
-                    // This avoids color-bleed contamination and provides clean, pixel-perfect cutouts.
                     const hybridAlpha = processedAlpha;
+
+                    // Local per-pixel background field for portrait/product hair-edge
+                    // decontamination (matches preview; handles gradient backdrops).
+                    const useLocalDecontamDL =
+                      segmentationMode === "ai" && smartMode !== "graphic" && enableHairMatting;
+                    const bgFieldDL = useLocalDecontamDL
+                      ? buildBackgroundField(originalData, hybridAlpha, 30)
+                      : null;
 
                     if (type === "greenscreen") {
                       const greenData = ctxGreen.createImageData(w, h);
@@ -1527,14 +1566,9 @@ export default function ChromaKeyer({
                           if (alphaVal < 255) {
                             const alphaRatio = alphaVal / 255;
                             if (segmentationMode === "ai") {
-                              if (alphaRatio > 0.05) {
-                                const bgR = sampledColor.r;
-                                const bgG = sampledColor.g;
-                                const bgB = sampledColor.b;
-                                r = Math.max(0, Math.min(255, Math.round((r - bgR * (1 - alphaRatio)) / alphaRatio)));
-                                g = Math.max(0, Math.min(255, Math.round((g - bgG * (1 - alphaRatio)) / alphaRatio)));
-                                b = Math.max(0, Math.min(255, Math.round((b - bgB * (1 - alphaRatio)) / alphaRatio)));
-                              }
+                              // Portrait/product hair edges are decontaminated by the
+                              // local background field AFTER this loop. Leave raw colour
+                              // here so true-foreground recovery has the original pixel.
                             } else {
                               if (chromaColorName === "Green") {
                                 const maxOther = Math.max(r, b);
@@ -1559,6 +1593,9 @@ export default function ChromaKeyer({
                           dstIsolated[i + 1] = g;
                           dstIsolated[i + 2] = b;
                         }
+                      }
+                      if (bgFieldDL) {
+                        decontaminateWithField(isolatedData, hybridAlpha, bgFieldDL, 1);
                       }
                       ctxIsolated.putImageData(isolatedData, 0, 0);
                       resolveCanvas(canvasIsolated);
@@ -1686,9 +1723,17 @@ export default function ChromaKeyer({
               featherRadius,
               useBoundingBox ? analysisReport?.boundingBox : null,
               enableHairMatting,
-              sampledColor,
+              enableHairMatting ? null : sampledColor,
               originalData  // Original image for guided filter guidance
             );
+            if (enableHairMatting) {
+              const alphaMask = new Uint8Array(w * h);
+              for (let i = 0; i < w * h; i++) {
+                alphaMask[i] = isolatedData.data[i * 4 + 3];
+              }
+              const bgFieldChroma = buildBackgroundField(originalData, alphaMask, 30);
+              decontaminateWithField(isolatedData, alphaMask, bgFieldChroma, 1);
+            }
             ctxIsolated.putImageData(isolatedData, 0, 0);
             resolveCanvas(canvasIsolated);
           }
@@ -2057,6 +2102,22 @@ export default function ChromaKeyer({
           }
 
           let processedAlpha = initialAlpha;
+
+          // Match the single-image pipeline: smartMode refinement + hair matting so
+          // bulk exports get the same hair quality (and honour the Hair Matting toggle).
+          if (mode === "ai") {
+            if (smartMode === "graphic") {
+              processedAlpha = floodFillRemoveBackground(processedAlpha, srcData, 40);
+            } else if (smartMode === "portrait" || smartMode === "product") {
+              processedAlpha = sharpAlphaThreshold(processedAlpha, 100, 160, srcData);
+              if (enableHairMatting) {
+                processedAlpha = guidedAlphaMatting(srcData, processedAlpha, 0, 0.001);
+              }
+            } else if (enableHairMatting) {
+              processedAlpha = guidedAlphaMatting(srcData, processedAlpha, 0, 0.001);
+            }
+          }
+
           if (erSize > 0) {
             processedAlpha = erodeAlpha(processedAlpha, w, h, erSize);
           }
@@ -2066,6 +2127,11 @@ export default function ChromaKeyer({
           if (fRadius > 0) {
             processedAlpha = blurAlpha(processedAlpha, w, h, fRadius);
           }
+
+          const bgFieldBulk =
+            mode === "ai" && smartMode !== "graphic" && enableHairMatting
+              ? buildBackgroundField(srcData, processedAlpha, 30)
+              : null;
 
           // Apply Step 2: Safety Backdrop Transform
           const canvasGreen = document.createElement("canvas");
@@ -2080,7 +2146,7 @@ export default function ChromaKeyer({
 
           for (let i = 0; i < w * h * 4; i += 4) {
             const pixelIdx = i / 4;
-            if (initialAlpha[pixelIdx] === 0) {
+            if (processedAlpha[pixelIdx] === 0) {
               dstGreen[i] = currentChroma.rgb.r;
               dstGreen[i + 1] = currentChroma.rgb.g;
               dstGreen[i + 2] = currentChroma.rgb.b;
@@ -2117,6 +2183,9 @@ export default function ChromaKeyer({
               dstIsolated[i + 1] = 0;
               dstIsolated[i + 2] = 0;
             }
+          }
+          if (bgFieldBulk) {
+            decontaminateWithField(isolatedData, processedAlpha, bgFieldBulk, 1);
           }
           ctxIsolated.putImageData(isolatedData, 0, 0);
           isolatedUri = canvasIsolated.toDataURL("image/png");
@@ -2158,9 +2227,18 @@ export default function ChromaKeyer({
             fRadius,
             boundingBox,
             enableHairMatting,
-            color1,
+            enableHairMatting ? null : color1,
             srcData  // Original image for guided filter guidance
           );
+
+          if (enableHairMatting) {
+            const alphaMask = new Uint8Array(w * h);
+            for (let i = 0; i < w * h; i++) {
+              alphaMask[i] = isolatedData.data[i * 4 + 3];
+            }
+            const bgFieldChroma = buildBackgroundField(srcData, alphaMask, 30);
+            decontaminateWithField(isolatedData, alphaMask, bgFieldChroma, 1);
+          }
 
           ctxIsolated.putImageData(isolatedData, 0, 0);
 
@@ -2484,6 +2562,21 @@ export default function ChromaKeyer({
         }
 
         let processedAlpha = initialAlpha;
+
+        // Match the single-image pipeline: smartMode refinement + hair matting.
+        if (mode === "ai") {
+          if (smartMode === "graphic") {
+            processedAlpha = floodFillRemoveBackground(processedAlpha, srcData, 40);
+          } else if (smartMode === "portrait" || smartMode === "product") {
+            processedAlpha = sharpAlphaThreshold(processedAlpha, 100, 160, srcData);
+            if (enableHairMatting) {
+              processedAlpha = guidedAlphaMatting(srcData, processedAlpha, 0, 0.001);
+            }
+          } else if (enableHairMatting) {
+            processedAlpha = guidedAlphaMatting(srcData, processedAlpha, 0, 0.001);
+          }
+        }
+
         if (erSize > 0) {
           processedAlpha = erodeAlpha(processedAlpha, w, h, erSize);
         }
@@ -2493,6 +2586,11 @@ export default function ChromaKeyer({
         if (fRadius > 0) {
           processedAlpha = blurAlpha(processedAlpha, w, h, fRadius);
         }
+
+        const bgFieldRe =
+          mode === "ai" && smartMode !== "graphic" && enableHairMatting
+            ? buildBackgroundField(srcData, processedAlpha, 30)
+            : null;
 
         // Apply Step 2: Safety Backdrop Transform
         const canvasGreen = document.createElement("canvas");
@@ -2507,7 +2605,7 @@ export default function ChromaKeyer({
 
         for (let i = 0; i < w * h * 4; i += 4) {
           const pixelIdx = i / 4;
-          if (initialAlpha[pixelIdx] === 0) {
+          if (processedAlpha[pixelIdx] === 0) {
             dstGreen[i] = currentChroma.rgb.r;
             dstGreen[i + 1] = currentChroma.rgb.g;
             dstGreen[i + 2] = currentChroma.rgb.b;
@@ -2544,6 +2642,9 @@ export default function ChromaKeyer({
             dstIsolated[i + 1] = 0;
             dstIsolated[i + 2] = 0;
           }
+        }
+        if (bgFieldRe) {
+          decontaminateWithField(isolatedData, processedAlpha, bgFieldRe, 1);
         }
         ctxIsolated.putImageData(isolatedData, 0, 0);
         isolatedUri = canvasIsolated.toDataURL("image/png");
@@ -2586,9 +2687,18 @@ export default function ChromaKeyer({
           fRadius,
           mergedItem.boundingBox,
           enableHairMatting,
-          color1,
+          enableHairMatting ? null : color1,
           srcData  // Original image for guided filter guidance
         );
+
+        if (enableHairMatting) {
+          const alphaMask = new Uint8Array(w * h);
+          for (let i = 0; i < w * h; i++) {
+            alphaMask[i] = isolatedData.data[i * 4 + 3];
+          }
+          const bgFieldChroma = buildBackgroundField(srcData, alphaMask, 30);
+          decontaminateWithField(isolatedData, alphaMask, bgFieldChroma, 1);
+        }
 
         ctxIsolated.putImageData(isolatedData, 0, 0);
 
