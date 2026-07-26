@@ -27,7 +27,7 @@ import {
   Package,
 } from "lucide-react";
 import { SubjectAnalysis, ProcessingSettings, BulkImageItem } from "../types";
-import { rgbToHsv, createChromaGreenTransform, isolateSubjectFromChroma, detectBackgroundColorFromCorners, detectDualBackgroundColorsFromCorners, detectSafestChromaColor, CHROMA_OPTIONS, erodeAlpha, dilateAlpha, blurAlpha } from "../utils/imageProc";
+import { rgbToHsv, createChromaGreenTransform, isolateSubjectFromChroma, detectBackgroundColorFromCorners, detectDualBackgroundColorsFromCorners, detectSafestChromaColor, CHROMA_OPTIONS, erodeAlpha, dilateAlpha, blurAlpha, guidedAlphaMatting, decontaminateFringeColor } from "../utils/imageProc";
 import PythonScript from "./PythonScript";
 import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import { supabase } from "../utils/supabaseClient";
@@ -970,8 +970,13 @@ export default function ChromaKeyer({
             }
           }
 
-          // Apply morphological filters on top of the mask
+          // Apply Guided Alpha Matting for hair strand refinement in AI mode
           let processedAlpha = initialAlpha;
+          if (segmentationMode === "ai" && enableHairMatting) {
+            processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 3, 0.001);
+          }
+
+          // Apply morphological filters on top of the mask
           if (erosionSize > 0) {
             processedAlpha = erodeAlpha(processedAlpha, w, h, erosionSize);
           }
@@ -983,9 +988,10 @@ export default function ChromaKeyer({
           }
 
           const src = originalData.data;
-          // In AI and Frame modes, we use the processed alpha mask directly.
-          // This avoids color-bleed contamination and provides clean, pixel-perfect cutouts.
           const hybridAlpha = processedAlpha;
+
+          // Detect true background color from original image corners for accurate decontamination
+          const cornerBg = detectBackgroundColorFromCorners(originalData);
 
           // Draw green mask canvas
           const greenData = ctxGreen.createImageData(w, h);
@@ -1030,9 +1036,9 @@ export default function ChromaKeyer({
                 const alphaRatio = alphaVal / 255;
                 if (segmentationMode === "ai") {
                   if (alphaRatio > 0.05) {
-                    const bgR = sampledColor.r;
-                    const bgG = sampledColor.g;
-                    const bgB = sampledColor.b;
+                    const bgR = cornerBg.r;
+                    const bgG = cornerBg.g;
+                    const bgB = cornerBg.b;
                     r = Math.max(0, Math.min(255, Math.round((r - bgR * (1 - alphaRatio)) / alphaRatio)));
                     g = Math.max(0, Math.min(255, Math.round((g - bgG * (1 - alphaRatio)) / alphaRatio)));
                     b = Math.max(0, Math.min(255, Math.round((b - bgB * (1 - alphaRatio)) / alphaRatio)));
@@ -1240,30 +1246,8 @@ export default function ChromaKeyer({
           initialAlpha[i] = aiData.data[i * 4 + 3];
         }
 
-        // Automatic Foreground Recovery for light objects (like books) against dark backgrounds
-        const imgObj = originalImageRef.current;
-        if (imgObj) {
-          const canvasSrc = document.createElement("canvas");
-          canvasSrc.width = w;
-          canvasSrc.height = h;
-          const ctxSrc = canvasSrc.getContext("2d");
-          if (ctxSrc) {
-            ctxSrc.drawImage(imgObj, 0, 0, w, h);
-            const srcData = ctxSrc.getImageData(0, 0, w, h).data;
-            const avgBgBrightness = (sampledColor.r + sampledColor.g + sampledColor.b) / 3;
-            
-            if (avgBgBrightness < 165) {
-              const recovered = autoRecoverForeground(initialAlpha, srcData, w, h);
-              aiAlphaMaskRef.current = recovered;
-            } else {
-              aiAlphaMaskRef.current = initialAlpha;
-            }
-          } else {
-            aiAlphaMaskRef.current = initialAlpha;
-          }
-        } else {
-          aiAlphaMaskRef.current = initialAlpha;
-        }
+        // Store raw soft alpha mask directly from neural model
+        aiAlphaMaskRef.current = initialAlpha;
 
         setIsModelLoaded(true);
       } catch (err: any) {
