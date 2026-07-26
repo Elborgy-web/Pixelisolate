@@ -27,7 +27,8 @@ import {
   Package,
 } from "lucide-react";
 import { SubjectAnalysis, ProcessingSettings, BulkImageItem } from "../types";
-import { rgbToHsv, createChromaGreenTransform, isolateSubjectFromChroma, detectBackgroundColorFromCorners, detectDualBackgroundColorsFromCorners, detectSafestChromaColor, CHROMA_OPTIONS, erodeAlpha, dilateAlpha, blurAlpha, guidedAlphaMatting, decontaminateFringeColor } from "../utils/imageProc";
+import { rgbToHsv, createChromaGreenTransform, isolateSubjectFromChroma, detectBackgroundColorFromCorners, detectDualBackgroundColorsFromCorners, detectSafestChromaColor, CHROMA_OPTIONS, erodeAlpha, dilateAlpha, blurAlpha, guidedAlphaMatting, decontaminateFringeColor, sharpAlphaThreshold, floodFillRemoveBackground } from "../utils/imageProc";
+
 import PythonScript from "./PythonScript";
 import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import { supabase } from "../utils/supabaseClient";
@@ -970,10 +971,35 @@ export default function ChromaKeyer({
             }
           }
 
-          // Apply Guided Alpha Matting for hair strand refinement in AI mode
+          // === AI MODE POST-PROCESSING PIPELINE ===
+          // Apply mode-specific mask refinement after neural segmentation
           let processedAlpha = initialAlpha;
-          if (segmentationMode === "ai" && enableHairMatting) {
-            processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 3, 0.001);
+
+          if (segmentationMode === "ai") {
+            if (smartMode === "graphic") {
+              // GRAPHIC MODE: The ISNet semantic model leaves "holes" in solid-colour backgrounds
+              // (between text letters, through arm gaps etc.). We use BFS flood-fill from image edges
+              // to find all connected background-coloured pixels and zero them out completely.
+              processedAlpha = floodFillRemoveBackground(processedAlpha, originalData, 40);
+            } else if (smartMode === "portrait" || smartMode === "product") {
+              // PORTRAIT / PRODUCT MODE:
+              // Step 1: Sharpen the soft upscaled neural probability map.
+              //   - Any pixel with alpha < 30 is definitely background → 0
+              //   - Any pixel with alpha > 220 is definitely foreground → 255
+              //   - The narrow 30–220 band stays soft (real semi-transparent edges only)
+              processedAlpha = sharpAlphaThreshold(processedAlpha, 30, 220);
+
+              // Step 2: Guided alpha matting — uses full-resolution source RGB edge structure
+              // to snap the sharpened mask back onto precise hair strands.
+              if (enableHairMatting) {
+                processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 3, 0.001);
+              }
+            } else {
+              // Default: guided matting only
+              if (enableHairMatting) {
+                processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 3, 0.001);
+              }
+            }
           }
 
           // Apply morphological filters on top of the mask
@@ -1019,54 +1045,88 @@ export default function ChromaKeyer({
 
           for (let i = 0; i < w * h * 4; i += 4) {
             const pixelIdx = i / 4;
-            const alphaVal = hybridAlpha[pixelIdx];
-            dstIsolated[i + 3] = alphaVal;
+            let alphaVal = hybridAlpha[pixelIdx];
 
             if (alphaVal === 0) {
               dstIsolated[i] = 0;
               dstIsolated[i + 1] = 0;
               dstIsolated[i + 2] = 0;
-            } else {
-              let r = src[i];
-              let g = src[i + 1];
-              let b = src[i + 2];
+              dstIsolated[i + 3] = 0;
+              continue;
+            }
 
-              // If edge boundary, apply decontamination to remove color spill
-              if (alphaVal < 255) {
-                const alphaRatio = alphaVal / 255;
-                if (segmentationMode === "ai") {
-                  if (alphaRatio > 0.05) {
+            let r = src[i];
+            let g = src[i + 1];
+            let b = src[i + 2];
+
+            if (segmentationMode === "ai") {
+              if (smartMode === "graphic") {
+                // GRAPHIC MODE: Hard-clamp any fringe pixel whose colour is within
+                // tolerance of the background. This catches sub-pixel anti-aliased border
+                // pixels that the flood-fill can't reach (they're 1px wide and partially
+                // inside the foreground bounding polygon).
+                const dr = r - cornerBg.r;
+                const dg = g - cornerBg.g;
+                const db = b - cornerBg.b;
+                const dist2 = dr * dr + dg * dg + db * db;
+                const bgTol = 45; // slightly wider than floodFill to catch AA fringe
+                if (dist2 <= bgTol * bgTol * 3) {
+                  // pixel colour matches background → hard transparent
+                  alphaVal = 0;
+                  dstIsolated[i] = 0;
+                  dstIsolated[i + 1] = 0;
+                  dstIsolated[i + 2] = 0;
+                  dstIsolated[i + 3] = 0;
+                  continue;
+                }
+                // For non-background graphic pixels: no decontamination needed
+                // (flat-colour graphics don't have colour bleed, only solid pixel steps)
+              } else {
+                // PORTRAIT / PRODUCT MODE: Remove background colour spill from semi-transparent
+                // hair/fur edge pixels using the stable non-dividing subtraction formula.
+                if (alphaVal < 255) {
+                  const alphaRatio = alphaVal / 255;
+                  if (alphaRatio > 0.04) { // skip near-transparent pixels (alpha < ~10/255)
                     const invA = 1 - alphaRatio;
                     const pxLum = 0.299 * r + 0.587 * g + 0.114 * b;
-                    r = Math.max(0, Math.min(255, Math.round(r - invA * (cornerBg.r - pxLum * 0.4))));
-                    g = Math.max(0, Math.min(255, Math.round(g - invA * (cornerBg.g - pxLum * 0.4))));
-                    b = Math.max(0, Math.min(255, Math.round(b - invA * (cornerBg.b - pxLum * 0.4))));
-                  }
-                } else {
-                  if (chromaColorName === "Green") {
-                    const maxOther = Math.max(r, b);
-                    if (g > maxOther) g = Math.round(maxOther * (1 - alphaRatio) + g * alphaRatio);
-                  } else if (chromaColorName === "Magenta") {
-                    const magentaComponent = Math.min(r, b) - g;
-                    if (magentaComponent > 0) {
-                      r = Math.round(r - magentaComponent * (1 - alphaRatio));
-                      b = Math.round(b - magentaComponent * (1 - alphaRatio));
-                    }
-                  } else if (chromaColorName === "Cyan") {
-                    const cyanComponent = Math.min(g, b) - r;
-                    if (cyanComponent > 0) {
-                      g = Math.round(g - cyanComponent * (1 - alphaRatio));
-                      b = Math.round(b - cyanComponent * (1 - alphaRatio));
-                    }
+                    // Enhanced: use a larger correction factor for strong grey/neutral backgrounds
+                    // (the default 0.4 lum factor was leaving visible grey traces on dark previews)
+                    const lumFactor = 0.5;
+                    r = Math.max(0, Math.min(255, Math.round(r - invA * (cornerBg.r - pxLum * lumFactor))));
+                    g = Math.max(0, Math.min(255, Math.round(g - invA * (cornerBg.g - pxLum * lumFactor))));
+                    b = Math.max(0, Math.min(255, Math.round(b - invA * (cornerBg.b - pxLum * lumFactor))));
                   }
                 }
               }
-
-              dstIsolated[i] = r;
-              dstIsolated[i + 1] = g;
-              dstIsolated[i + 2] = b;
+            } else {
+              // CHROMA KEY MODE: colour-channel-specific decontamination
+              if (alphaVal < 255) {
+                const alphaRatio = alphaVal / 255;
+                if (chromaColorName === "Green") {
+                  const maxOther = Math.max(r, b);
+                  if (g > maxOther) g = Math.round(maxOther * (1 - alphaRatio) + g * alphaRatio);
+                } else if (chromaColorName === "Magenta") {
+                  const magentaComponent = Math.min(r, b) - g;
+                  if (magentaComponent > 0) {
+                    r = Math.round(r - magentaComponent * (1 - alphaRatio));
+                    b = Math.round(b - magentaComponent * (1 - alphaRatio));
+                  }
+                } else if (chromaColorName === "Cyan") {
+                  const cyanComponent = Math.min(g, b) - r;
+                  if (cyanComponent > 0) {
+                    g = Math.round(g - cyanComponent * (1 - alphaRatio));
+                    b = Math.round(b - cyanComponent * (1 - alphaRatio));
+                  }
+                }
+              }
             }
+
+            dstIsolated[i] = r;
+            dstIsolated[i + 1] = g;
+            dstIsolated[i + 2] = b;
+            dstIsolated[i + 3] = alphaVal;
           }
+
           if (selectedBgColor && selectedBgColor !== "transparent") {
             const tempCanvas = document.createElement("canvas");
             tempCanvas.width = w;

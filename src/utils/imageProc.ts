@@ -1148,4 +1148,148 @@ export function decontaminateFringeColor(
   }
 }
 
+/**
+ * Sharp Alpha Threshold — Portrait / Hair Mode.
+ *
+ * The WASM neural model outputs a soft 1024×1024 probability map that gets bilinearly
+ * upscaled to full resolution. This creates wide blurry "border zones" where pixels
+ * that should be fully transparent (alpha < ~30) end up at ~80–120/255, which shows
+ * as grey/light traces against dark preview backgrounds.
+ *
+ * Solution: Collapse the soft probability map into a clean trimap:
+ *   • alpha < lowCut  → 0   (definitely background)
+ *   • alpha > highCut → 255 (definitely foreground)
+ *   • transition band → smooth remap to [0,255] (soft edges only for real boundaries)
+ *
+ * After sharpening, apply one pass of guidedAlphaMatting to recover hair strands
+ * that sit inside the transition band and whose local edge structure confirms them
+ * as foreground.
+ */
+export function sharpAlphaThreshold(
+  alphaMask: Uint8Array,
+  lowCut: number = 30,
+  highCut: number = 220
+): Uint8Array {
+  const out = new Uint8Array(alphaMask.length);
+  const band = highCut - lowCut;
+  for (let i = 0; i < alphaMask.length; i++) {
+    const v = alphaMask[i];
+    if (v <= lowCut) {
+      out[i] = 0;
+    } else if (v >= highCut) {
+      out[i] = 255;
+    } else {
+      // Smooth remap through the transition band only
+      out[i] = Math.round(((v - lowCut) / band) * 255);
+    }
+  }
+  return out;
+}
+
+/**
+ * Flood-Fill Background Remover — Graphic / Product Mode.
+ *
+ * For flat-colour backgrounds (pink, white, grey, solid studio backdrops) the
+ * semantic ISNet model often keeps "holes" inside the foreground (between text
+ * letters, through arm gaps, etc.) because ISNet classifies by semantic shape,
+ * not pixel colour.
+ *
+ * This BFS flood-fill starts from all 4 corners of the alpha mask and expands
+ * into any pixel whose original image colour is within `tolerance` of the sampled
+ * background colour. Found pixels are zeroed out in the mask (fully transparent).
+ *
+ * Additionally any interior pixel that is BOTH alpha>0 AND within colour tolerance
+ * of the background is also cleared (catches internal "holes" like between letters).
+ */
+export function floodFillRemoveBackground(
+  alphaMask: Uint8Array,
+  imageData: ImageData,
+  tolerance: number = 35
+): Uint8Array {
+  const width = imageData.width;
+  const height = imageData.height;
+  const src = imageData.data;
+  const out = new Uint8Array(alphaMask);
+
+  // 1. Sample background from all 4 corners (9×9 patches each)
+  const patchSize = Math.min(9, Math.floor(Math.min(width, height) / 20));
+  const sampleCorners = [
+    { x: 0, y: 0 },
+    { x: width - patchSize, y: 0 },
+    { x: 0, y: height - patchSize },
+    { x: width - patchSize, y: height - patchSize },
+  ];
+
+  let rSum = 0, gSum = 0, bSum = 0, count = 0;
+  for (const corner of sampleCorners) {
+    for (let dy = 0; dy < patchSize; dy++) {
+      for (let dx = 0; dx < patchSize; dx++) {
+        const px = Math.min(corner.x + dx, width - 1);
+        const py = Math.min(corner.y + dy, height - 1);
+        const idx = (py * width + px) * 4;
+        rSum += src[idx]; gSum += src[idx + 1]; bSum += src[idx + 2];
+        count++;
+      }
+    }
+  }
+  const bgR = Math.round(rSum / count);
+  const bgG = Math.round(gSum / count);
+  const bgB = Math.round(bSum / count);
+
+  // Helper: is pixel colour within tolerance of sampled background?
+  const isBg = (idx: number): boolean => {
+    const dr = src[idx] - bgR;
+    const dg = src[idx + 1] - bgG;
+    const db = src[idx + 2] - bgB;
+    return (dr * dr + dg * dg + db * db) <= tolerance * tolerance * 3;
+  };
+
+  // 2. BFS flood-fill from all 4 edges
+  const visited = new Uint8Array(width * height);
+  const queue: number[] = [];
+
+  // Seed from all border pixels that match background colour
+  for (let x = 0; x < width; x++) {
+    for (const y of [0, height - 1]) {
+      const pi = y * width + x;
+      if (!visited[pi] && isBg(pi * 4)) { visited[pi] = 1; queue.push(pi); }
+    }
+  }
+  for (let y = 1; y < height - 1; y++) {
+    for (const x of [0, width - 1]) {
+      const pi = y * width + x;
+      if (!visited[pi] && isBg(pi * 4)) { visited[pi] = 1; queue.push(pi); }
+    }
+  }
+
+  let head = 0;
+  const dx4 = [1, -1, 0, 0];
+  const dy4 = [0, 0, 1, -1];
+  while (head < queue.length) {
+    const pi = queue[head++];
+    out[pi] = 0;  // definitely background → fully transparent
+    const py = Math.floor(pi / width);
+    const px = pi % width;
+    for (let d = 0; d < 4; d++) {
+      const nx = px + dx4[d];
+      const ny = py + dy4[d];
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+      const npi = ny * width + nx;
+      if (visited[npi]) continue;
+      if (isBg(npi * 4)) { visited[npi] = 1; queue.push(npi); }
+    }
+  }
+
+  // 3. Interior hole pass: zero out remaining background-coloured pixels
+  //    that are fully enclosed (missed by BFS because foreground surrounded them)
+  for (let pi = 0; pi < width * height; pi++) {
+    if (out[pi] > 0 && isBg(pi * 4)) {
+      out[pi] = 0;
+    }
+  }
+
+  return out;
+}
+
+
 
