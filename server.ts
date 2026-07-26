@@ -93,13 +93,17 @@ app.post("/api/analyze", async (req, res) => {
 
     const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
 
+    const agentRouterKey = process.env.AGENTROUTER_API_KEY;
+    const agentRouterBaseUrl = (process.env.AGENTROUTER_BASE_URL || "https://agentrouter.org/v1").replace(/\/$/, "");
+    const agentRouterModel = process.env.AGENTROUTER_MODEL || "claude-3-7-sonnet";
     const groqApiKey = process.env.GROQ_API_KEY;
-    if (!groqApiKey) {
-      throw new Error("GROQ_API_KEY environment variable is not configured. Please define it in your .env file.");
+
+    if (!agentRouterKey && !groqApiKey) {
+      throw new Error("Neither AGENTROUTER_API_KEY nor GROQ_API_KEY is configured.");
     }
 
-    const groqPrompt = `
-      You are a highly precise pixel-level image isolation assistant powered by Groq. 
+    const sysPrompt = `
+      You are a highly precise pixel-level image isolation assistant. 
       Analyze the uploaded image for background removal and subject isolation.
       
       Respond ONLY with a valid JSON object matching this schema:
@@ -138,53 +142,100 @@ app.post("/api/analyze", async (req, res) => {
       - featherRadius: 2-3 for soft hair, fur or detailed edges; 0-1 for clean, hard objects.
     `;
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${groqApiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "meta-llama/llama-4-scout-17b-16e-instruct",
-        messages: [
-          {
-            role: "user",
-            content: [
+    let responseJsonText = "";
+
+    // Try AgentRouter API first if key is present
+    if (agentRouterKey) {
+      try {
+        logInfo(`Attempting image analysis using AgentRouter (${agentRouterModel})...`);
+        const arResponse = await fetch(`${agentRouterBaseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${agentRouterKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: agentRouterModel,
+            messages: [
               {
-                type: "text",
-                text: groqPrompt
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType || "image/png"};base64,${cleanBase64}`
-                }
+                role: "user",
+                content: [
+                  { type: "text", text: sysPrompt },
+                  {
+                    type: "image_url",
+                    image_url: { url: `data:${mimeType || "image/png"};base64,${cleanBase64}` }
+                  }
+                ]
               }
-            ]
-          }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.1
-      })
-    });
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.1
+          })
+        });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || `Groq API returned error status ${response.status}`);
+        if (arResponse.ok) {
+          const arData = await arResponse.json();
+          responseJsonText = arData.choices?.[0]?.message?.content || "";
+          logInfo("Successfully analyzed image using AgentRouter.");
+        } else {
+          const errTxt = await arResponse.text();
+          logError(`AgentRouter API returned status ${arResponse.status}: ${errTxt}. Falling back to Groq.`);
+        }
+      } catch (arErr: any) {
+        logError("AgentRouter API request failed. Falling back to Groq:", arErr);
+      }
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new Error("Empty response returned from Groq Vision model.");
+    // Fallback to Groq API if AgentRouter didn't return text
+    if (!responseJsonText && groqApiKey) {
+      logInfo("Calling Groq Llama 4 Scout for image analysis...");
+      const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${groqApiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-4-scout-17b-16e-instruct",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: sysPrompt },
+                {
+                  type: "image_url",
+                  image_url: { url: `data:${mimeType || "image/png"};base64,${cleanBase64}` }
+                }
+              ]
+            }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.1
+        })
+      });
+
+      if (!groqResponse.ok) {
+        const errorData = await groqResponse.json();
+        throw new Error(errorData.error?.message || `Groq API returned error status ${groqResponse.status}`);
+      }
+
+      const groqData = await groqResponse.json();
+      responseJsonText = groqData.choices?.[0]?.message?.content || "";
     }
 
-    res.json(JSON.parse(content.trim()));
+    if (!responseJsonText) {
+      throw new Error("Empty response returned from AI analysis provider.");
+    }
+
+    // Sanitize JSON response text if needed
+    const cleanJson = responseJsonText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    res.json(JSON.parse(cleanJson));
   } catch (err: any) {
     console.error("Analysis endpoint error:", err);
-    res.status(500).json({ error: err.message || "Failed to process image analysis using Groq GenAI API." });
+    res.status(500).json({ error: err.message || "Failed to process image analysis." });
   }
 });
+
 
 
 // Helper to send transactional thank you email via Supabase Edge Function using native node https module to guarantee execution across all node runtime versions
