@@ -163,17 +163,23 @@ export function decontaminateWithField(
     const B_g = field.g[i];
     const B_b = field.b[i];
 
-    // True foreground recovery from the compositing equation.
-    let F_r = (I_r - (1 - a) * B_r) / a;
-    let F_g = (I_g - (1 - a) * B_g) / a;
-    let F_b = (I_b - (1 - a) * B_b) / a;
+    // Stabilized denominator: capping at Math.max(a, 0.4) prevents small 8-bit quantization
+    // errors from blowing up into extreme black blotches or white splotches at low alpha values.
+    const safeA = Math.max(a, 0.4);
 
-    F_r = Math.max(0, Math.min(255, F_r));
-    F_g = Math.max(0, Math.min(255, F_g));
-    F_b = Math.max(0, Math.min(255, F_b));
+    let F_r = (I_r - (1 - a) * B_r) / safeA;
+    let F_g = (I_g - (1 - a) * B_g) / safeA;
+    let F_b = (I_b - (1 - a) * B_b) / safeA;
+
+    // Smoothly blend recovered foreground with original pixel based on alpha confidence
+    const alphaWeight = Math.min(1, a * 2.5);
+    F_r = Math.max(0, Math.min(255, I_r * (1 - alphaWeight) + F_r * alphaWeight));
+    F_g = Math.max(0, Math.min(255, I_g * (1 - alphaWeight) + F_g * alphaWeight));
+    F_b = Math.max(0, Math.min(255, I_b * (1 - alphaWeight) + F_b * alphaWeight));
 
     data[i * 4] = Math.round(I_r * (1 - strength) + F_r * strength);
     data[i * 4 + 1] = Math.round(I_g * (1 - strength) + F_g * strength);
     data[i * 4 + 2] = Math.round(I_b * (1 - strength) + F_b * strength);
   }
 }
+

@@ -93,7 +93,7 @@ export function createChromaGreenTransform(
     const dist1 = Math.sqrt(dR1 * dR1 + dG1 * dG1 + dB1 * dB1);
 
     let maxDist = dist1;
-    if (isCheckerboard) {
+    if (color2 || isCheckerboard) {
       const activeColor2 = (color2 && (Math.abs(color2.r - color1.r) + Math.abs(color2.g - color1.g) + Math.abs(color2.b - color1.b) > 10))
         ? color2
         : { r: 204, g: 204, b: 204 }; // Fallback standard checkerboard grey (#cccccc)
@@ -104,6 +104,7 @@ export function createChromaGreenTransform(
       const dist2 = Math.sqrt(dR2 * dR2 + dG2 * dG2 + dB2 * dB2);
       maxDist = Math.min(dist1, dist2);
     }
+
 
     // Dynamic transition band: narrow and sharp at low tolerances, capped at 25px for soft natural feathering
     const transitionBand = Math.min(25, 0.25 * threshold);
@@ -898,9 +899,10 @@ export function detectDualBackgroundColorsFromCorners(imageData: ImageData): {
   return {
     isCheckerboard,
     color1,
-    color2: isCheckerboard ? color2 : color1
+    color2: dist > 15 ? color2 : color1
   };
 }
+
 
 export interface ChromaColorOption {
   name: "Green" | "Magenta" | "Cyan";
@@ -1219,8 +1221,8 @@ export function decontaminateFringeColor(
  */
 export function sharpAlphaThreshold(
   alphaMask: Uint8Array,
-  lowCut: number = 100,
-  highCut: number = 160,
+  lowCut: number = 30,
+  highCut: number = 220,
   imageData?: ImageData
 ): Uint8Array {
   const n = alphaMask.length;
@@ -1300,26 +1302,9 @@ export function sharpAlphaThreshold(
     }
   }
 
-  // STEP 3: One pass of small morphological closing (dilate then erode) on the
-  // zero-valued pixels adjacent to foreground, to close small gaps in hair mask
-  // (prevents hair gaps being left transparent)
-  const dilated = new Uint8Array(out);
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const idx = y * width + x;
-      if (out[idx] > 0) continue; // only expand into background pixels
-      // Check if any neighbour is foreground
-      if (
-        out[(y-1)*width + x] > 200 || out[(y+1)*width + x] > 200 ||
-        out[y*width + (x-1)] > 200 || out[y*width + (x+1)] > 200
-      ) {
-        dilated[idx] = 128; // tentative foreground
-      }
-    }
-  }
-
-  return dilated;
+  return out;
 }
+
 
 
 /**
