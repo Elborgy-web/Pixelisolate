@@ -152,7 +152,7 @@ export function decontaminateWithField(
 
   for (let i = 0; i < n; i++) {
     const av = alpha[i];
-    if (av <= 2 || av >= 250) continue; // only edge/transition pixels
+    if (av <= 2 || av >= 252) continue; // only edge/transition pixels
     const a = av / 255;
 
     const I_r = data[i * 4];
@@ -163,23 +163,23 @@ export function decontaminateWithField(
     const B_g = field.g[i];
     const B_b = field.b[i];
 
-    // Stabilized denominator: capping at Math.max(a, 0.4) prevents small 8-bit quantization
-    // errors from blowing up into extreme black blotches or white splotches at low alpha values.
-    const safeA = Math.max(a, 0.4);
+    // True foreground color unmixing: I = a*F + (1-a)*B => F = (I - (1-a)*B) / a
+    // eps = Math.max(a, 0.08) allows full removal of background light tint without division blowup
+    const eps = Math.max(a, 0.08);
 
-    let F_r = (I_r - (1 - a) * B_r) / safeA;
-    let F_g = (I_g - (1 - a) * B_g) / safeA;
-    let F_b = (I_b - (1 - a) * B_b) / safeA;
+    let F_r = (I_r - (1 - a) * B_r) / eps;
+    let F_g = (I_g - (1 - a) * B_g) / eps;
+    let F_b = (I_b - (1 - a) * B_b) / eps;
 
-    // Smoothly blend recovered foreground with original pixel based on alpha confidence
-    const alphaWeight = Math.min(1, a * 2.5);
-    F_r = Math.max(0, Math.min(255, I_r * (1 - alphaWeight) + F_r * alphaWeight));
-    F_g = Math.max(0, Math.min(255, I_g * (1 - alphaWeight) + F_g * alphaWeight));
-    F_b = Math.max(0, Math.min(255, I_b * (1 - alphaWeight) + F_b * alphaWeight));
+    // Clamp recovered true foreground to valid 0..255 range
+    F_r = Math.max(0, Math.min(255, F_r));
+    F_g = Math.max(0, Math.min(255, F_g));
+    F_b = Math.max(0, Math.min(255, F_b));
 
     data[i * 4] = Math.round(I_r * (1 - strength) + F_r * strength);
     data[i * 4 + 1] = Math.round(I_g * (1 - strength) + F_g * strength);
     data[i * 4 + 2] = Math.round(I_b * (1 - strength) + F_b * strength);
   }
 }
+
 

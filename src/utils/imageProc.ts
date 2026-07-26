@@ -177,35 +177,42 @@ export function createChromaGreenTransform(
     const queue: number[] = [];
     const visited = new Uint8Array(width * height);
 
-    // Seed strictly from a 3x3 patch at the 4 canvas corners
-    // This blocks the flood-fill from ever starting inside cropped subjects at borders (leakage prevention)
-    const corners = [
-      { x: 0, y: 0 },
-      { x: width - 1, y: 0 },
-      { x: 0, y: height - 1 },
-      { x: width - 1, y: height - 1 }
-    ];
-
-    for (const pt of corners) {
-      for (let dy = 0; dy < 3; dy++) {
-        for (let dx = 0; dx < 3; dx++) {
-          const px = pt.x === 0 ? dx : pt.x - dx;
-          const py = pt.y === 0 ? dy : pt.y - dy;
-          if (px >= 0 && px < width && py >= 0 && py < height) {
-            const idx = py * width + px;
-            if (!visited[idx]) {
-              const sIdx = idx * 4;
-              const w = getBgWeight(src[sIdx], src[sIdx + 1], src[sIdx + 2]);
-              if (w > 0) {
-                queue.push(idx);
-                visited[idx] = 1;
-                bgMask[idx] = w;
-              }
+    // Seed along all 4 outer borders (Top, Bottom, Left, Right)
+    // This guarantees background flood-fill seeds on all canvas edges even if the subject blocks the middle
+    for (let x = 0; x < width; x++) {
+      for (const y of [0, 1, 2, height - 3, height - 2, height - 1]) {
+        if (y >= 0 && y < height) {
+          const idx = y * width + x;
+          if (!visited[idx]) {
+            const sIdx = idx * 4;
+            const w = getBgWeight(src[sIdx], src[sIdx + 1], src[sIdx + 2]);
+            if (w > 0) {
+              queue.push(idx);
+              visited[idx] = 1;
+              bgMask[idx] = w;
             }
           }
         }
       }
     }
+
+    for (let y = 0; y < height; y++) {
+      for (const x of [0, 1, 2, width - 3, width - 2, width - 1]) {
+        if (x >= 0 && x < width) {
+          const idx = y * width + x;
+          if (!visited[idx]) {
+            const sIdx = idx * 4;
+            const w = getBgWeight(src[sIdx], src[sIdx + 1], src[sIdx + 2]);
+            if (w > 0) {
+              queue.push(idx);
+              visited[idx] = 1;
+              bgMask[idx] = w;
+            }
+          }
+        }
+      }
+    }
+
 
     // BFS Queue loop
     let head = 0;
