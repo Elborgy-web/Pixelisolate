@@ -1001,7 +1001,7 @@ export function isPixelInCheckerboardGrid(
 export function guidedAlphaMatting(
   sourceData: ImageData,
   alphaMask: Uint8Array,
-  radius: number = 3,
+  radius: number = 0,
   eps: number = 0.001
 ): Uint8Array {
   const width = sourceData.width;
@@ -1009,6 +1009,9 @@ export function guidedAlphaMatting(
   const numPixels = width * height;
   const refinedAlpha = new Uint8Array(numPixels);
   const src = sourceData.data;
+
+  // Scale radius dynamically to match high-resolution image dimensions
+  const rWindow = radius > 0 ? radius : Math.max(3, Math.round(width / 500));
 
   // Compute 1D guidance gray image normalized to [0, 1]
   const I = new Float32Array(numPixels);
@@ -1064,8 +1067,8 @@ export function guidedAlphaMatting(
     return temp;
   };
 
-  const mean_I = boxFilter(I, radius);
-  const mean_p = boxFilter(p, radius);
+  const mean_I = boxFilter(I, rWindow);
+  const mean_p = boxFilter(p, rWindow);
 
   const Ip = new Float32Array(numPixels);
   const II = new Float32Array(numPixels);
@@ -1074,8 +1077,8 @@ export function guidedAlphaMatting(
     II[i] = I[i] * I[i];
   }
 
-  const mean_Ip = boxFilter(Ip, radius);
-  const mean_II = boxFilter(II, radius);
+  const mean_Ip = boxFilter(Ip, rWindow);
+  const mean_II = boxFilter(II, rWindow);
 
   const cov_Ip = new Float32Array(numPixels);
   const var_I = new Float32Array(numPixels);
@@ -1089,8 +1092,8 @@ export function guidedAlphaMatting(
     b[i] = mean_p[i] - a[i] * mean_I[i];
   }
 
-  const mean_a = boxFilter(a, radius);
-  const mean_b = boxFilter(b, radius);
+  const mean_a = boxFilter(a, rWindow);
+  const mean_b = boxFilter(b, rWindow);
 
   for (let i = 0; i < numPixels; i++) {
     // Only refine transition boundaries to preserve solid foreground & solid background
@@ -1124,18 +1127,23 @@ export function decontaminateFringeColor(
 
     // Only decontaminate semi-transparent edge pixels (e.g. hair strands)
     if (alpha > 5 && alpha < 250) {
-      const alphaRatio = alpha / 255;
-      const invAlpha = 1 - alphaRatio;
+      const a = alpha / 255;
+      const invA = 1 - a;
 
-      // Estimate true foreground color by unmixing background spill
-      let fgR = (data[idx] - invAlpha * bgRgb.r) / alphaRatio;
-      let fgG = (data[idx + 1] - invAlpha * bgRgb.g) / alphaRatio;
-      let fgB = (data[idx + 2] - invAlpha * bgRgb.b) / alphaRatio;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
 
-      // Clamp RGB values
-      data[idx] = Math.max(0, Math.min(255, Math.round(fgR)));
-      data[idx + 1] = Math.max(0, Math.min(255, Math.round(fgG)));
-      data[idx + 2] = Math.max(0, Math.min(255, Math.round(fgB)));
+      const pxLum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+      // Softly subtract background color spill based on inverse alpha weight
+      const cleanR = Math.max(0, Math.min(255, r - invA * (bgRgb.r - pxLum * 0.4)));
+      const cleanG = Math.max(0, Math.min(255, g - invA * (bgRgb.g - pxLum * 0.4)));
+      const cleanB = Math.max(0, Math.min(255, b - invA * (bgRgb.b - pxLum * 0.4)));
+
+      data[idx] = Math.round(cleanR);
+      data[idx + 1] = Math.round(cleanG);
+      data[idx + 2] = Math.round(cleanB);
     }
   }
 }

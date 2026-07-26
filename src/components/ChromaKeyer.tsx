@@ -1036,12 +1036,11 @@ export default function ChromaKeyer({
                 const alphaRatio = alphaVal / 255;
                 if (segmentationMode === "ai") {
                   if (alphaRatio > 0.05) {
-                    const bgR = cornerBg.r;
-                    const bgG = cornerBg.g;
-                    const bgB = cornerBg.b;
-                    r = Math.max(0, Math.min(255, Math.round((r - bgR * (1 - alphaRatio)) / alphaRatio)));
-                    g = Math.max(0, Math.min(255, Math.round((g - bgG * (1 - alphaRatio)) / alphaRatio)));
-                    b = Math.max(0, Math.min(255, Math.round((b - bgB * (1 - alphaRatio)) / alphaRatio)));
+                    const invA = 1 - alphaRatio;
+                    const pxLum = 0.299 * r + 0.587 * g + 0.114 * b;
+                    r = Math.max(0, Math.min(255, Math.round(r - invA * (cornerBg.r - pxLum * 0.4))));
+                    g = Math.max(0, Math.min(255, Math.round(g - invA * (cornerBg.g - pxLum * 0.4))));
+                    b = Math.max(0, Math.min(255, Math.round(b - invA * (cornerBg.b - pxLum * 0.4))));
                   }
                 } else {
                   if (chromaColorName === "Green") {
