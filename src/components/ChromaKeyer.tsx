@@ -222,19 +222,11 @@ export default function ChromaKeyer({
     }
     
     try {
-      // Scale down vault storage copies to max 1024px for lightweight, fast, reliable cloud saving
-      // (Full resolution HD cutouts are still downloaded directly by the user from canvas memory)
-      const isPngIsolated = isolatedBase64.startsWith("data:image/png");
-      const scaledProc = (await scaleDownImage(isolatedBase64, 1024, "image/png", 0.85)) || isolatedBase64;
-      
-      const isPngOrig = originalBase64.startsWith("data:image/png");
-      const scaledOrig = (await scaleDownImage(originalBase64, 1024, isPngOrig ? "image/png" : "image/jpeg", 0.80)) || originalBase64;
-
       // Zero-Knowledge Client-Side AES-256-GCM Encryption:
-      // Encrypt images locally in browser before transmitting to server/database.
+      // Encrypt images locally in browser at 100% FULL ORIGINAL RESOLUTION (e.g. 1792x2400) before transmitting.
       // Developer, server, and storage bucket ONLY see encrypted binary noise.
-      const encOrig = await encryptDataUri(scaledOrig, activeUserId);
-      const encProc = await encryptDataUri(scaledProc, activeUserId);
+      const encOrig = await encryptDataUri(originalBase64, activeUserId);
+      const encProc = await encryptDataUri(isolatedBase64, activeUserId);
 
       const apiBase = (import.meta.env.VITE_API_URL || "").trim();
       let response: Response;
