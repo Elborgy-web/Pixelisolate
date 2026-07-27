@@ -250,37 +250,37 @@ export default function App() {
   return (
     <div id="app-container" className="min-h-screen bg-[#0a0b0d] text-gray-100 flex flex-col antialiased selection:bg-emerald-500/30 selection:text-white">
       {/* Upper Navigation / Editorial Header */}
-      <header className="border-b border-gray-900 bg-gray-950/40 backdrop-blur-md sticky top-0 z-40 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-          <div className="flex items-center">
-            <img src={logoSrc} alt="Pixel-Level Image Isolation Workspace" className="h-11 md:h-13 w-auto object-contain" />
+      <header className="border-b border-gray-900 bg-gray-950/40 backdrop-blur-md sticky top-0 z-40 px-3 sm:px-6 py-2.5 md:py-4">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-2.5 md:gap-4 justify-between items-start md:items-center">
+          <div className="flex items-center justify-between w-full md:w-auto">
+            <img src={logoSrc} alt="Pixel-Level Image Isolation Workspace" className="h-8 sm:h-10 md:h-13 w-auto object-contain" />
           </div>
 
           {/* Navigation Controls and User Account Block */}
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full md:w-auto justify-between sm:justify-start">
             {/* View Tabs */}
-            <div className="flex bg-gray-950 p-1 rounded-xl border border-gray-850">
+            <div className="flex bg-gray-950 p-0.5 sm:p-1 rounded-xl border border-gray-850 overflow-x-auto max-w-full">
               <button
                 onClick={() => setCurrentTab("editor")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
                   currentTab === "editor"
                     ? "bg-gray-850 text-white"
                     : "text-gray-400 hover:text-gray-200"
                 }`}
               >
-                <Sliders className="h-3.5 w-3.5" />
+                <Sliders className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                 <span>Editor Workspace</span>
               </button>
 
               <button
                 onClick={() => setCurrentTab("howto")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
                   currentTab === "howto"
                     ? "bg-gray-850 text-white"
                     : "text-gray-400 hover:text-gray-200"
                 }`}
               >
-                <HelpCircle className="h-3.5 w-3.5" />
+                <HelpCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                 <span>How It Works</span>
               </button>
 
@@ -295,24 +295,24 @@ export default function App() {
                         setCurrentTab("history");
                       }
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                    className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
                       currentTab === "history"
                         ? "bg-gray-850 text-white"
                         : "text-gray-400 hover:text-gray-200"
                     }`}
                   >
-                    <History className="h-3.5 w-3.5" />
+                    <History className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                     <span>My History</span>
                   </button>
                   <button
                     onClick={() => setCurrentTab("billing")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition ${
+                    className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
                       currentTab === "billing"
                         ? "bg-gray-850 text-white"
                         : "text-gray-400 hover:text-gray-200"
                     }`}
                   >
-                    <CreditCard className="h-3.5 w-3.5" />
+                    <CreditCard className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                     <span>Billing & Subscription</span>
                   </button>
                 </>
@@ -321,17 +321,17 @@ export default function App() {
 
             {/* Profile Info / Auth Actions */}
             {user ? (
-              <div className="flex items-center gap-3 bg-gray-950/80 border border-gray-850 px-4.5 py-1.5 rounded-xl text-xs font-mono">
+              <div className="flex items-center gap-2 sm:gap-3 bg-gray-950/80 border border-gray-850 px-3 sm:px-4.5 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-mono">
                 <div className="flex flex-col text-left">
-                  <span className="text-[9px] text-gray-500 truncate max-w-[120px]">{user.email}</span>
+                  <span className="text-[9px] text-gray-500 truncate max-w-[100px] sm:max-w-[120px]">{user.email}</span>
                   {profile?.is_pro ? (
-                    <span className="text-emerald-400 font-bold flex items-center gap-1 text-[10px] uppercase tracking-wider">
-                      <Sparkles className="h-3 w-3 animate-pulse" />
+                    <span className="text-emerald-400 font-bold flex items-center gap-1 text-[9px] sm:text-[10px] uppercase tracking-wider">
+                      <Sparkles className="h-3 w-3 animate-pulse shrink-0" />
                       Pro Tier
                     </span>
                   ) : (
-                    <span className="text-teal-400 text-[10px] font-semibold">
-                      Credits: {profile?.credits ?? 0} ({profile?.hd_credits_remaining ?? 0} HD) remaining
+                    <span className="text-teal-400 text-[9px] sm:text-[10px] font-semibold truncate">
+                      Credits: {profile?.credits ?? 0} ({profile?.hd_credits_remaining ?? 0} HD)
                     </span>
                   )}
                 </div>
@@ -339,7 +339,7 @@ export default function App() {
                 {!profile?.is_pro && (
                   <button
                     onClick={() => setPricingModalOpen(true)}
-                    className="px-2.5 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-[10px] rounded-lg hover:shadow-lg transition cursor-pointer"
+                    className="px-2 sm:px-2.5 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-[9px] sm:text-[10px] rounded-lg hover:shadow-lg transition cursor-pointer shrink-0"
                   >
                     Upgrade
                   </button>
@@ -347,24 +347,24 @@ export default function App() {
 
                 <button
                   onClick={handleLogout}
-                  className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-red-400 transition cursor-pointer"
+                  className="p-1 sm:p-1.5 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-red-400 transition cursor-pointer shrink-0"
                   title="Logout"
                 >
-                  <LogOut className="h-3.5 w-3.5" />
+                  <LogOut className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setAuthModalOpen(true)}
-                  className="px-3.5 py-1.5 rounded-xl bg-gray-950 hover:bg-gray-800 border border-gray-850 text-xs font-semibold text-gray-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"
+                  className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-gray-950 hover:bg-gray-800 border border-gray-850 text-[11px] sm:text-xs font-semibold text-gray-300 hover:text-white transition flex items-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap"
                 >
-                  <LogIn className="h-3.5 w-3.5" />
+                  <LogIn className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                   <span>Sign In</span>
                 </button>
                 <button
                   onClick={() => setAuthModalOpen(true)}
-                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold hover:shadow-lg transition cursor-pointer"
+                  className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-[11px] sm:text-xs font-bold hover:shadow-lg transition cursor-pointer whitespace-nowrap"
                 >
                   Get 10 Free Credits
                 </button>
@@ -375,7 +375,7 @@ export default function App() {
       </header>
 
       {/* Main Workspace Frame */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 md:px-8 py-4 md:py-8">
         <div style={{ display: currentTab === "howto" ? "block" : "none" }}>
           <HowToGuide 
             onGoToEditor={() => {

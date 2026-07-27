@@ -182,20 +182,20 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                     
                     <div>
                       <span className="block text-[10px] font-mono text-gray-500 uppercase mb-3">Ingest Sample Asset</span>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <button
                           onClick={() => { setSelectedPreset("badge"); setSimulatedBgType("solid"); }}
-                          className={`p-3 rounded-xl border text-left transition ${selectedPreset === "badge" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-400 hover:text-gray-200"}`}
+                          className={`p-3 rounded-xl border text-left transition overflow-hidden ${selectedPreset === "badge" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-400 hover:text-gray-200"}`}
                         >
-                          <span className="block text-[10px] font-mono font-bold">brand_logo_workspace</span>
-                          <span className="block text-[8px] font-mono text-gray-500 mt-1">1000 x 300px | PNG</span>
+                          <span className="block text-[10px] font-mono font-bold truncate">brand_logo_workspace</span>
+                          <span className="block text-[8px] font-mono text-gray-500 mt-1 truncate">1000 x 300px | PNG</span>
                         </button>
                         <button
                           onClick={() => { setSelectedPreset("sneaker"); setSimulatedBgType("solid"); }}
-                          className={`p-3 rounded-xl border text-left transition ${selectedPreset === "sneaker" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-400 hover:text-gray-200"}`}
+                          className={`p-3 rounded-xl border text-left transition overflow-hidden ${selectedPreset === "sneaker" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-400 hover:text-gray-200"}`}
                         >
-                          <span className="block text-[10px] font-mono font-bold">model_hair_refinement</span>
-                          <span className="block text-[8px] font-mono text-gray-500 mt-1">1024 x 680px | JPG</span>
+                          <span className="block text-[10px] font-mono font-bold truncate">model_hair_refinement</span>
+                          <span className="block text-[8px] font-mono text-gray-500 mt-1 truncate">1024 x 680px | JPG</span>
                         </button>
                       </div>
                     </div>
@@ -485,16 +485,16 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                   {/* Preset Selector */}
                   <div>
                     <span className="block text-[8px] text-gray-500 uppercase mb-2">Ingest Demo Subject</span>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <button 
                         onClick={() => setMagicPreset("model")}
-                        className={`py-2 text-center rounded-lg border transition text-[9px] font-bold ${magicPreset === "model" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-500 hover:text-gray-300"}`}
+                        className={`py-2 px-2 text-center rounded-lg border transition text-[9px] font-bold truncate ${magicPreset === "model" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-500 hover:text-gray-300"}`}
                       >
                         model_hair_portrait
                       </button>
                       <button 
                         onClick={() => setMagicPreset("sneaker")}
-                        className={`py-2 text-center rounded-lg border transition text-[9px] font-bold ${magicPreset === "sneaker" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-500 hover:text-gray-300"}`}
+                        className={`py-2 px-2 text-center rounded-lg border transition text-[9px] font-bold truncate ${magicPreset === "sneaker" ? "bg-emerald-500/5 border-emerald-500/30 text-white" : "bg-gray-950/40 border-gray-850 text-gray-500 hover:text-gray-300"}`}
                       >
                         sneaker_mockup
                       </button>
