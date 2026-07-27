@@ -93,17 +93,32 @@ export function createChromaGreenTransform(
     const dist1 = Math.sqrt(dR1 * dR1 + dG1 * dG1 + dB1 * dB1);
 
     let maxDist = dist1;
-    if (color2 || isCheckerboard) {
-      const activeColor2 = (color2 && (Math.abs(color2.r - color1.r) + Math.abs(color2.g - color1.g) + Math.abs(color2.b - color1.b) > 10))
-        ? color2
-        : { r: 204, g: 204, b: 204 }; // Fallback standard checkerboard grey (#cccccc)
+    if (color2) {
+      const vR = color2.r - color1.r;
+      const vG = color2.g - color1.g;
+      const vB = color2.b - color1.b;
+      const vLen2 = vR * vR + vG * vG + vB * vB;
 
-      const dR2 = r - activeColor2.r;
-      const dG2 = g - activeColor2.g;
-      const dB2 = b - activeColor2.b;
-      const dist2 = Math.sqrt(dR2 * dR2 + dG2 * dG2 + dB2 * dB2);
-      maxDist = Math.min(dist1, dist2);
+      if (vLen2 > 50) {
+        // 3D Point-to-Line-Segment distance in RGB color space:
+        // Matches the entire continuous gradient vector between color1 and color2
+        const pR = r - color1.r;
+        const pG = g - color1.g;
+        const pB = b - color1.b;
+        const t = Math.max(0, Math.min(1, (pR * vR + pG * vG + pB * vB) / vLen2));
+        const projR = color1.r + t * vR;
+        const projG = color1.g + t * vG;
+        const projB = color1.b + t * vB;
+        maxDist = Math.sqrt((r - projR) ** 2 + (g - projG) ** 2 + (b - projB) ** 2);
+      } else {
+        const dR2 = r - color2.r;
+        const dG2 = g - color2.g;
+        const dB2 = b - color2.b;
+        const dist2 = Math.sqrt(dR2 * dR2 + dG2 * dG2 + dB2 * dB2);
+        maxDist = Math.min(dist1, dist2);
+      }
     }
+
 
 
     // Dynamic transition band: narrow and sharp at low tolerances, capped at 25px for soft natural feathering

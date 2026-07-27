@@ -192,6 +192,16 @@ export function decontaminateWithField(
     let F_g = (I_g - (1 - a) * B_g) / eps;
     let F_b = (I_b - (1 - a) * B_b) / eps;
 
+    // Luminance Constraint for Hair/Dark Subjects:
+    // If background is bright (lumB > 150), hair RGB cannot be brighter than observed pixel I,
+    // enforcing pure dark hair color and preventing any light-grey background tint from surviving!
+    const lumB = 0.299 * B_r + 0.587 * B_g + 0.114 * B_b;
+    if (lumB > 150) {
+      F_r = Math.min(I_r, F_r);
+      F_g = Math.min(I_g, F_g);
+      F_b = Math.min(I_b, F_b);
+    }
+
     // Clamp recovered true foreground to valid 0..255 range
     F_r = Math.max(0, Math.min(255, F_r));
     F_g = Math.max(0, Math.min(255, F_g));
@@ -202,6 +212,7 @@ export function decontaminateWithField(
     data[i * 4 + 2] = Math.round(I_b * (1 - strength) + F_b * strength);
   }
 }
+
 
 
 
