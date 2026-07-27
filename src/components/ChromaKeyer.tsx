@@ -721,6 +721,18 @@ export default function ChromaKeyer({
           // Auto-detect whether image is a graphic vs portrait/product
           const autoSmartMode = detectImageSmartMode(imageData);
           setSmartMode(autoSmartMode);
+          if (autoSmartMode === "graphic") {
+            setSimilarity(0.02);
+            setEnableHairMatting(false);
+            setErosionSize(0);
+            setFeatherRadius(0);
+          } else if (autoSmartMode === "product") {
+            setEnableHairMatting(false);
+            setErosionSize(1);
+            setFeatherRadius(0);
+          } else if (autoSmartMode === "portrait") {
+            setEnableHairMatting(true);
+          }
 
         }
       } catch (err) {
@@ -1187,6 +1199,8 @@ export default function ChromaKeyer({
             setGreenScreenImageUri(canvasGreen.toDataURL());
           }
 
+          const activeHairMatting = smartMode === "portrait" && enableHairMatting;
+
           const isolatedData = isolateSubjectFromChroma(
             greenScreenData,
             hueMin,
@@ -1199,12 +1213,12 @@ export default function ChromaKeyer({
             dilationSize,
             featherRadius,
             useBoundingBox ? analysisReport?.boundingBox : null,
-            enableHairMatting,
-            enableHairMatting ? null : sampledColor,
+            activeHairMatting,
+            activeHairMatting ? null : sampledColor,
             originalData  // Pass original unmodified image for guided filter guidance
           );
 
-          if (enableHairMatting) {
+          if (activeHairMatting) {
             const alphaMask = new Uint8Array(w * h);
             for (let i = 0; i < w * h; i++) {
               alphaMask[i] = isolatedData.data[i * 4 + 3];
@@ -1683,6 +1697,7 @@ export default function ChromaKeyer({
           if (type === "greenscreen") {
             resolve(canvasGreen.toDataURL("image/png"));
           } else {
+            const activeHairMatting = smartMode === "portrait" && enableHairMatting;
             const isolatedData = isolateSubjectFromChroma(
               greenScreenData,
               hueMin,
@@ -1695,11 +1710,11 @@ export default function ChromaKeyer({
               dilationSize,
               featherRadius,
               useBoundingBox ? analysisReport?.boundingBox : null,
-              enableHairMatting,
-              enableHairMatting ? null : sampledColor,
+              activeHairMatting,
+              activeHairMatting ? null : sampledColor,
               originalData  // Original image for guided filter guidance
             );
-            if (enableHairMatting) {
+            if (activeHairMatting) {
               const alphaMask = new Uint8Array(w * h);
               for (let i = 0; i < w * h; i++) {
                 alphaMask[i] = isolatedData.data[i * 4 + 3];
@@ -2166,6 +2181,8 @@ export default function ChromaKeyer({
           const ctxIsolated = canvasIsolated.getContext("2d");
           if (!ctxIsolated) throw new Error("Could not create isolated context");
           
+          const activeHairMattingBulk = itemSmartMode === "portrait" && enableHairMatting;
+
           const isolatedData = isolateSubjectFromChroma(
             greenData,
             currentChroma.hueRange.min,
@@ -2178,12 +2195,12 @@ export default function ChromaKeyer({
             dilSize,
             fRadius,
             boundingBox,
-            enableHairMatting,
-            enableHairMatting ? null : color1,
+            activeHairMattingBulk,
+            activeHairMattingBulk ? null : color1,
             srcData  // Original image for guided filter guidance
           );
 
-          if (enableHairMatting) {
+          if (activeHairMattingBulk) {
             const alphaMask = new Uint8Array(w * h);
             for (let i = 0; i < w * h; i++) {
               alphaMask[i] = isolatedData.data[i * 4 + 3];
@@ -2621,6 +2638,8 @@ export default function ChromaKeyer({
         const ctxIsolated = canvasIsolated.getContext("2d");
         if (!ctxIsolated) throw new Error("Could not create isolated context");
 
+        const activeHairMattingRe = itemSmartModeRe === "portrait" && enableHairMatting;
+
         const isolatedData = isolateSubjectFromChroma(
           greenData,
           currentChroma.hueRange.min,
@@ -2633,12 +2652,12 @@ export default function ChromaKeyer({
           dilSize,
           fRadius,
           mergedItem.boundingBox,
-          enableHairMatting,
-          enableHairMatting ? null : color1,
+          activeHairMattingRe,
+          activeHairMattingRe ? null : color1,
           srcData  // Original image for guided filter guidance
         );
 
-        if (enableHairMatting) {
+        if (activeHairMattingRe) {
           const alphaMask = new Uint8Array(w * h);
           for (let i = 0; i < w * h; i++) {
             alphaMask[i] = isolatedData.data[i * 4 + 3];
@@ -3170,18 +3189,24 @@ export default function ChromaKeyer({
                     <div className="flex flex-col gap-1.5 bg-gray-955/65 p-3 rounded-xl border border-gray-850">
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">Object Mode & Hair Matting</span>
-                        <button
-                          type="button"
-                          onClick={() => setEnableHairMatting(!enableHairMatting)}
-                          className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold border transition flex items-center gap-1 cursor-pointer ${
-                            enableHairMatting
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                              : "bg-gray-900 text-gray-500 border-gray-800"
-                          }`}
-                        >
-                          <Sparkles className="h-2.5 w-2.5" />
-                          <span>{enableHairMatting ? "Hair Matting ON" : "Hair Matting OFF"}</span>
-                        </button>
+                        {smartMode === "portrait" ? (
+                          <button
+                            type="button"
+                            onClick={() => setEnableHairMatting(!enableHairMatting)}
+                            className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold border transition flex items-center gap-1 cursor-pointer ${
+                              enableHairMatting
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                : "bg-gray-900 text-gray-500 border-gray-800"
+                            }`}
+                          >
+                            <Sparkles className="h-2.5 w-2.5" />
+                            <span>{enableHairMatting ? "Hair Matting ON" : "Hair Matting OFF"}</span>
+                          </button>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[9px] font-mono text-gray-500 bg-gray-900/60 border border-gray-800/80">
+                            Hair Matting Off (N/A)
+                          </span>
+                        )}
                       </div>
                       <div className="flex gap-1.5 mt-1 bg-gray-900 p-1 rounded-xl border border-gray-805">
                         <button
@@ -3223,6 +3248,7 @@ export default function ChromaKeyer({
                           onClick={() => {
                             setSmartMode("graphic");
                             setEnableHairMatting(false);
+                            setSimilarity(0.02);
                             setErosionSize(0);
                             setFeatherRadius(0);
                           }}
