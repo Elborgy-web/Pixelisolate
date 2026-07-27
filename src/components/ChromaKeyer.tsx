@@ -1871,6 +1871,7 @@ export default function ChromaKeyer({
             isolatedUri: null,
             status: "queued",
             progress: 0,
+            segmentationMode: "ai",
             detectedColorHex: "#ffffff",
             detectedColorRgb: { r: 255, g: 255, b: 255 },
           });
@@ -1944,8 +1945,8 @@ export default function ChromaKeyer({
         const color2Hex = item.detectedColor2Hex ? item.detectedColor2Hex : detectedColor.color2.hex;
         
         const conn = item.useConnectivity !== undefined ? item.useConnectivity : isGrid; // Default: ON for checkerboard, OFF for solid!
-        const sim = item.similarity !== undefined ? item.similarity : similarity;
-        const mode = item.segmentationMode !== undefined ? item.segmentationMode : segmentationMode;
+        const sim = item.similarity !== undefined ? item.similarity : (itemSmartMode === "graphic" ? 0.04 : similarity);
+        const mode = item.segmentationMode !== undefined ? item.segmentationMode : "ai";
         const inv = item.isInvertedMask !== undefined ? item.isInvertedMask : false;
 
         setBulkItems((prev) =>
@@ -2435,11 +2436,14 @@ export default function ChromaKeyer({
       const isGrid = mergedItem.isCheckerboard || false;
       const color1 = mergedItem.detectedColorRgb;
       const color2 = mergedItem.detectedColor2Rgb || color1;
+      const autoSmartModeRe = detectImageSmartMode(srcData);
+      const itemSmartModeRe = mergedItem.smartMode !== undefined ? mergedItem.smartMode : autoSmartModeRe;
+
       const conn = mergedItem.useConnectivity !== false;
-      const sim = mergedItem.similarity !== undefined ? mergedItem.similarity : similarity;
+      const sim = mergedItem.similarity !== undefined ? mergedItem.similarity : (itemSmartModeRe === "graphic" ? 0.04 : similarity);
       const activeChromaName = mergedItem.chromaColorName || "Green";
       const currentChroma = CHROMA_OPTIONS.find(c => c.name === activeChromaName) || CHROMA_OPTIONS[0];
-      const mode = mergedItem.segmentationMode !== undefined ? mergedItem.segmentationMode : segmentationMode;
+      const mode = mergedItem.segmentationMode !== undefined ? mergedItem.segmentationMode : "ai";
       const inv = mergedItem.isInvertedMask !== undefined ? mergedItem.isInvertedMask : false;
 
       const erSize = mergedItem.erosionSize !== undefined ? mergedItem.erosionSize : 1;

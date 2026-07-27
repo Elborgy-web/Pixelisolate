@@ -974,15 +974,15 @@ export function detectImageSmartMode(imageData: ImageData): "portrait" | "produc
   const uniqueColorRatio = totalSampled > 0 ? colorBins.size / totalSampled : 1;
 
   // 3. Classification Criteria:
-  // Graphics / T-shirt prints / Vector logos:
-  // - High border uniformity (borderMatchRatio > 0.70) AND low-to-medium color diversity (colorBins.size < 2400)
-  // - OR very low total color bins (< 850)
-  if (colorBins.size < 850 || (borderMatchRatio > 0.70 && (colorBins.size < 2400 || uniqueColorRatio < 0.25))) {
+  // Graphics / T-shirt prints / Vector logos / Digital Artwork:
+  // - High border uniformity (borderMatchRatio > 0.60) AND low-to-medium color diversity (colorBins.size < 3000)
+  // - OR low total color bins (< 1200)
+  if (colorBins.size < 1200 || (borderMatchRatio > 0.60 && (colorBins.size < 3200 || uniqueColorRatio < 0.32))) {
     return "graphic";
   }
 
-  // Product mode: High border match (>0.85) on solid white/grey backdrop, but higher color detail
-  if (borderMatchRatio > 0.85 && (bgR > 210 && bgG > 210 && bgB > 210)) {
+  // Product mode: High border match (>0.80) on solid white/grey studio backdrop, but higher photo detail
+  if (borderMatchRatio > 0.80 && (bgR > 200 && bgG > 200 && bgB > 200)) {
     return "product";
   }
 
