@@ -2364,31 +2364,32 @@ export default function ChromaKeyer({
           zip.file(filename, base64Data, { base64: true });
         });
 
-        // Upload batch items to cloud history in small sequential chunks (3 at a time)
-        const chunkSize = 3;
-        for (let i = 0; i < completedItems.length; i += chunkSize) {
-          const chunk = completedItems.slice(i, i + chunkSize);
-          await Promise.all(
-            chunk.map((item) =>
-              item.sourceUri && item.isolatedUri
-                ? uploadImagePairToHistory(item.sourceUri, item.isolatedUri).catch((err) =>
-                    console.error("Failed to upload batch item to history:", err)
-                  )
-                : Promise.resolve()
-            )
-          );
-        }
-
+        // 1. Generate ZIP & trigger browser file download INSTANTLY (0ms delay for user!)
         const zipBlob = await zip.generateAsync({ type: "blob" });
         const url = URL.createObjectURL(zipBlob);
 
         const a = document.createElement("a");
         a.href = url;
-        a.download = `isolated_batch_${Date.now()}.zip`;
+        a.download = `pixel_isolated_batch_${Date.now()}.zip`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+        // 2. Non-blocking background cloud history sync (fire-and-forget)
+        (async () => {
+          const chunkSize = 3;
+          for (let i = 0; i < completedItems.length; i += chunkSize) {
+            const chunk = completedItems.slice(i, i + chunkSize);
+            await Promise.all(
+              chunk.map((item) =>
+                item.sourceUri && item.isolatedUri
+                  ? uploadImagePairToHistory(item.sourceUri, item.isolatedUri).catch(() => null)
+                  : Promise.resolve()
+              )
+            );
+          }
+        })();
       } catch (err: any) {
         console.error("Failed to generate batch zip archive:", err);
         alert(`Failed to package batch files: ${err.message || String(err)}`);

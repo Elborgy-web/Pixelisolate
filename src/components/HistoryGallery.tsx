@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../utils/supabaseClient";
 import { Download, Trash2, Loader2, Sparkles, Image as ImageIcon, Lock, ShieldCheck } from "lucide-react";
-import { decryptDataUri } from "../utils/cryptoVault";
+import { decryptDataUri, decryptStorageBuffer } from "../utils/cryptoVault";
 
 interface HistoryItem {
   id: string;
@@ -39,7 +39,7 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
 
       if (error) throw error;
 
-      // Decrypt encrypted zero-knowledge vault items locally in browser
+      // Decrypt encrypted zero-knowledge vault items locally in browser from raw storage buffers
       const decryptedItems = await Promise.all(
         (data || []).map(async (item) => {
           let origUrl = item.original_url;
@@ -52,19 +52,15 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
             ]);
 
             if (resOrig && resOrig.ok) {
-              const textOrig = await resOrig.text();
-              if (textOrig.includes("data:application/") || textOrig.startsWith("data:")) {
-                const dec = await decryptDataUri(textOrig, userId!);
-                if (dec) origUrl = dec;
-              }
+              const bufferOrig = await resOrig.arrayBuffer();
+              const dec = await decryptStorageBuffer(bufferOrig, userId!);
+              if (dec) origUrl = dec;
             }
 
             if (resProc && resProc.ok) {
-              const textProc = await resProc.text();
-              if (textProc.includes("data:application/") || textProc.startsWith("data:")) {
-                const dec = await decryptDataUri(textProc, userId!);
-                if (dec) procUrl = dec;
-              }
+              const bufferProc = await resProc.arrayBuffer();
+              const dec = await decryptStorageBuffer(bufferProc, userId!);
+              if (dec) procUrl = dec;
             }
           } catch (decErr) {
             console.warn("Could not decrypt history item locally:", decErr);

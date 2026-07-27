@@ -140,3 +140,37 @@ export async function decryptDataUri(encryptedStr: string, userId: string): Prom
     return ""; // Decryption failed (unauthorized / wrong key)
   }
 }
+
+/**
+ * Decrypts a raw Storage ArrayBuffer (or DataURI text) fetched from Supabase Storage.
+ * Returns the original decrypted DataURI string (e.g. data:image/png;base64,...).
+ */
+export async function decryptStorageBuffer(buffer: ArrayBuffer, userId: string): Promise<string> {
+  if (!buffer || buffer.byteLength === 0 || !userId) return "";
+
+  try {
+    const key = await getOrCreateUserCryptoKey(userId);
+    const combined = new Uint8Array(buffer);
+
+    // Check if raw buffer is an unencrypted legacy DataURI string
+    const sample = new TextDecoder().decode(combined.subarray(0, 30));
+    if (sample.startsWith("data:image/") || sample.startsWith("data:application/")) {
+      const fullText = new TextDecoder().decode(combined);
+      return decryptDataUri(fullText, userId);
+    }
+
+    const iv = combined.subarray(0, 12);
+    const cipherBytes = combined.subarray(12);
+
+    const decryptedBuffer = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      key,
+      cipherBytes
+    );
+
+    return new TextDecoder().decode(decryptedBuffer);
+  } catch (err) {
+    console.error("Zero-Knowledge AES-256-GCM storage buffer decryption failed:", err);
+    return "";
+  }
+}
