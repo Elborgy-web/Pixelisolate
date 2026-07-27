@@ -148,12 +148,13 @@ export function createChromaGreenTransform(
         const isBgRight = getBgWeight(rR, gR, bR) > 0;
         const isBgDown = getBgWeight(rD, gD, bD) > 0;
 
-        const isEdgeRight = !(isBgCurr && isBgRight) && Math.abs(lum - lumRight) > 25;
-        const isEdgeDown = !(isBgCurr && isBgDown) && Math.abs(lum - lumDown) > 25;
+        const isEdgeRight = !(isBgCurr || isBgRight) && Math.abs(lum - lumRight) > 55;
+        const isEdgeDown = !(isBgCurr || isBgDown) && Math.abs(lum - lumDown) > 55;
 
         if (isEdgeRight || isEdgeDown) {
           edgeMap[y * width + x] = 1;
         }
+
       }
     }
 
@@ -247,41 +248,22 @@ export function createChromaGreenTransform(
       }
     }
 
-    // Scan all unvisited internal pixels to key out any isolated checkerboard grid backgrounds in the interior!
-    if (isCheckerboard) {
-      const activeColor2 = (color2 && (Math.abs(color2.r - color1.r) + Math.abs(color2.g - color1.g) + Math.abs(color2.b - color1.b) > 10))
-        ? color2
-        : { r: 204, g: 204, b: 204, hex: "#cccccc" }; // Standard checkerboard grey fallback!
-
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const idx = y * width + x;
-          if (bgMask[idx] === 0) {
-            const sIdx = idx * 4;
-            const r = src[sIdx];
-            const g = src[sIdx + 1];
-            const b = src[sIdx + 2];
-            
-            const dR1 = r - color1.r;
-            const dG1 = g - color1.g;
-            const dB1 = b - color1.b;
-            const dist1 = Math.sqrt(dR1 * dR1 + dG1 * dG1 + dB1 * dB1);
-
-            const dR2 = r - activeColor2.r;
-            const dG2 = g - activeColor2.g;
-            const dB2 = b - activeColor2.b;
-            const dist2 = Math.sqrt(dR2 * dR2 + dG2 * dG2 + dB2 * dB2);
-
-            const isBgColor = dist1 < threshold || dist2 < threshold;
-            if (isBgColor && isPixelInCheckerboardGrid(src, width, height, x, y, color1, activeColor2)) {
-              bgMask[idx] = 255;
-            }
+    // Safety sweep: key out any unvisited background pixels matching color1 or color2
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        if (bgMask[idx] === 0) {
+          const sIdx = idx * 4;
+          const wVal = getBgWeight(src[sIdx], src[sIdx + 1], src[sIdx + 2]);
+          if (wVal > 150) {
+            bgMask[idx] = wVal;
           }
         }
       }
     }
   } else {
     // Global Mode: Key out matching pixels globally
+
     for (let i = 0; i < width * height; i++) {
       const sIdx = i * 4;
       if (src[sIdx + 3] === 0) {

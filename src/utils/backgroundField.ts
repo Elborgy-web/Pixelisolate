@@ -151,9 +151,8 @@ export function decontaminateWithField(
   const n = width * height;
 
   for (let i = 0; i < n; i++) {
-    const av = alpha[i];
+    const av = data[i * 4 + 3];
     if (av <= 2 || av >= 252) continue; // only edge/transition pixels
-    const a = av / 255;
 
     const I_r = data[i * 4];
     const I_g = data[i * 4 + 1];
@@ -162,6 +161,28 @@ export function decontaminateWithField(
     const B_r = field.r[i];
     const B_g = field.g[i];
     const B_b = field.b[i];
+
+    // Local Background Color Distance Alpha Suppression:
+    // If a pixel's RGB color matches the local background color field B(x,y),
+    // it is a background halo pixel that the neural model falsely left opaque.
+    // Suppress its alpha smoothly to 0 so grey halos vanish completely.
+    const dr = I_r - B_r, dg = I_g - B_g, db = I_b - B_b;
+    const distToBg = Math.sqrt(dr * dr + dg * dg + db * db);
+
+    if (distToBg < 35) {
+      const factor = distToBg <= 15 ? 0 : (distToBg - 15) / 20;
+      const cleanAv = Math.round(av * factor);
+      data[i * 4 + 3] = cleanAv;
+      if (cleanAv <= 2) {
+        data[i * 4] = 0;
+        data[i * 4 + 1] = 0;
+        data[i * 4 + 2] = 0;
+        continue;
+      }
+    }
+
+    const a = data[i * 4 + 3] / 255;
+    if (a <= 0.01) continue;
 
     // True foreground color unmixing: I = a*F + (1-a)*B => F = (I - (1-a)*B) / a
     // eps = Math.max(a, 0.08) allows full removal of background light tint without division blowup
@@ -181,5 +202,6 @@ export function decontaminateWithField(
     data[i * 4 + 2] = Math.round(I_b * (1 - strength) + F_b * strength);
   }
 }
+
 
 
