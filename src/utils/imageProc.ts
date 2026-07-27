@@ -908,17 +908,18 @@ export function detectDualBackgroundColorsFromCorners(imageData: ImageData): {
 }
 
 /**
- * Automatically detects whether an uploaded image is a "graphic" (illustration, cartoon, vector logo)
- * vs a photographic "portrait" or "product".
+ * Automatically detects whether an uploaded image is a "graphic" (illustration, t-shirt artwork, vector logo)
+ * vs a photographic "product" or "portrait".
  */
 export function detectImageSmartMode(imageData: ImageData): "portrait" | "product" | "graphic" {
   const { width, height, data } = imageData;
   const totalPixels = width * height;
   if (totalPixels === 0) return "portrait";
 
-  // Sample pixels to measure 18-bit color histogram diversity (6 bits per R, G, B channel)
-  const step = Math.max(1, Math.floor(Math.sqrt(totalPixels / 20000)));
+  // 1. Color Histogram Diversity (12-bit RGB: 16x16x16 = 4096 bins)
+  const step = Math.max(1, Math.floor(Math.sqrt(totalPixels / 25000)));
   const colorBins = new Set<number>();
+  let totalSampled = 0;
 
   for (let y = 0; y < height; y += step) {
     for (let x = 0; x < width; x += step) {
@@ -929,43 +930,60 @@ export function detectImageSmartMode(imageData: ImageData): "portrait" | "produc
       const g = data[idx + 1];
       const b = data[idx + 2];
 
-      // Quantize to 18-bit RGB (6 bits per channel: 64x64x64 = 262,144 bins)
-      const bin = ((r >> 2) << 12) | ((g >> 2) << 6) | (b >> 2);
+      const bin = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
       colorBins.add(bin);
+      totalSampled++;
     }
   }
 
-  // Measure border color variance along 4 outer edges
-  const borderThickness = 10;
-  let borderVarSum = 0;
-  const borderRgb: { r: number; g: number; b: number }[] = [];
+  // 2. Corner & Border Color Uniformity Check
+  const borderThickness = Math.max(4, Math.floor(Math.min(width, height) * 0.02));
+  let borderPixelCount = 0;
+  let matchingBorderCount = 0;
+
+  const corners = [
+    { x: 5, y: 5 },
+    { x: width - 6, y: 5 },
+    { x: 5, y: height - 6 },
+    { x: width - 6, y: height - 6 }
+  ];
+
+  const firstCornerIdx = (Math.min(corners[0].y, height - 1) * width + Math.min(corners[0].x, width - 1)) * 4;
+  const bgR = data[firstCornerIdx];
+  const bgG = data[firstCornerIdx + 1];
+  const bgB = data[firstCornerIdx + 2];
 
   for (let y = 0; y < borderThickness; y++) {
-    for (let x = 0; x < width; x += 4) {
+    for (let x = 0; x < width; x += 3) {
       const idxT = (y * width + x) * 4;
       const idxB = ((height - 1 - y) * width + x) * 4;
-      if (data[idxT + 3] > 50) borderRgb.push({ r: data[idxT], g: data[idxT + 1], b: data[idxT + 2] });
-      if (data[idxB + 3] > 50) borderRgb.push({ r: data[idxB], g: data[idxB + 1], b: data[idxB + 2] });
+      if (data[idxT + 3] > 50) {
+        borderPixelCount++;
+        const diff = Math.abs(data[idxT] - bgR) + Math.abs(data[idxT + 1] - bgG) + Math.abs(data[idxT + 2] - bgB);
+        if (diff < 30) matchingBorderCount++;
+      }
+      if (data[idxB + 3] > 50) {
+        borderPixelCount++;
+        const diff = Math.abs(data[idxB] - bgR) + Math.abs(data[idxB + 1] - bgG) + Math.abs(data[idxB + 2] - bgB);
+        if (diff < 30) matchingBorderCount++;
+      }
     }
   }
 
-  if (borderRgb.length > 0) {
-    const meanR = borderRgb.reduce((s, p) => s + p.r, 0) / borderRgb.length;
-    const meanG = borderRgb.reduce((s, p) => s + p.g, 0) / borderRgb.length;
-    const meanB = borderRgb.reduce((s, p) => s + p.b, 0) / borderRgb.length;
-    borderVarSum = borderRgb.reduce((s, p) => {
-      const dr = p.r - meanR, dg = p.g - meanG, db = p.b - meanB;
-      return s + (dr * dr + dg * dg + db * db);
-    }, 0) / borderRgb.length;
+  const borderMatchRatio = borderPixelCount > 0 ? matchingBorderCount / borderPixelCount : 0;
+  const uniqueColorRatio = totalSampled > 0 ? colorBins.size / totalSampled : 1;
+
+  // 3. Classification Criteria:
+  // Graphics / T-shirt prints / Vector logos:
+  // - High border uniformity (borderMatchRatio > 0.70) AND low-to-medium color diversity (colorBins.size < 2400)
+  // - OR very low total color bins (< 850)
+  if (colorBins.size < 850 || (borderMatchRatio > 0.70 && (colorBins.size < 2400 || uniqueColorRatio < 0.25))) {
+    return "graphic";
   }
 
-  const uniqueColorCount = colorBins.size;
-  const borderStdDev = Math.sqrt(borderVarSum);
-
-  // Graphics, logos, cartoons, and vector illustrations have low color diversity (< 650 bins)
-  // or flat uniform background border variance (borderStdDev < 15 and colorBins < 1200)
-  if (uniqueColorCount < 650 || (uniqueColorCount < 1200 && borderStdDev < 15)) {
-    return "graphic";
+  // Product mode: High border match (>0.85) on solid white/grey backdrop, but higher color detail
+  if (borderMatchRatio > 0.85 && (bgR > 210 && bgG > 210 && bgB > 210)) {
+    return "product";
   }
 
   return "portrait";
@@ -1394,7 +1412,7 @@ export function sharpAlphaThreshold(
 export function floodFillRemoveBackground(
   alphaMask: Uint8Array,
   imageData: ImageData,
-  tolerance: number = 35
+  tolerance: number = 15
 ): Uint8Array {
   const width = imageData.width;
   const height = imageData.height;

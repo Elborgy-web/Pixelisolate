@@ -1017,7 +1017,7 @@ export default function ChromaKeyer({
             if (smartMode === "graphic") {
               // GRAPHIC MODE: BFS flood-fill removes solid-colour background holes
               // (between text letters, arm gaps, etc.)
-              processedAlpha = floodFillRemoveBackground(processedAlpha, originalData, 40);
+              processedAlpha = floodFillRemoveBackground(processedAlpha, originalData, 15);
             }
             // PORTRAIT / PRODUCT MODE: RMBG-1.4 already outputs clean sub-pixel soft alpha.
             // Do NOT apply sharpAlphaThreshold or guidedAlphaMatting — they destroy hair strands
@@ -1479,7 +1479,7 @@ export default function ChromaKeyer({
                     // for consistent exported PNG results.
                     if (segmentationMode === "ai") {
                       if (smartMode === "graphic") {
-                        processedAlpha = floodFillRemoveBackground(processedAlpha, originalData, 40);
+                        processedAlpha = floodFillRemoveBackground(processedAlpha, originalData, 15);
                       }
                       // PORTRAIT / PRODUCT: RMBG-1.4 already outputs clean sub-pixel soft alpha.
                       // Do NOT apply sharpAlphaThreshold or guidedAlphaMatting.
@@ -1771,15 +1771,8 @@ export default function ChromaKeyer({
       }
     }
 
-    // 2. Perform scale down if not downloading in HD (longest edge max 500px)
+    // 2. Download at 100% full original image resolution
     let finalUri = uri;
-    if (!isDownloadingHD) {
-      try {
-        finalUri = await scaleDownImage(uri, 500);
-      } catch (e) {
-        console.error("Failed to scale down image resolution:", e);
-      }
-    }
 
     // 3. Trigger download
     const a = document.createElement("a");
@@ -2075,7 +2068,7 @@ export default function ChromaKeyer({
           // Match the single-image pipeline: smartMode refinement for bulk
           if (mode === "ai") {
             if (itemSmartMode === "graphic") {
-              processedAlpha = floodFillRemoveBackground(processedAlpha, srcData, 40);
+              processedAlpha = floodFillRemoveBackground(processedAlpha, srcData, 15);
             }
             // PORTRAIT / PRODUCT: RMBG-1.4 outputs clean sub-pixel soft alpha.
             // No sharpAlphaThreshold or guidedAlphaMatting needed.
@@ -2289,15 +2282,8 @@ export default function ChromaKeyer({
       }
     }
 
-    // 2. Perform scale down if not downloading in HD (longest edge max 500px)
+    // 2. Download at 100% full original image resolution
     let finalUri = item.isolatedUri;
-    if (!isDownloadingHD) {
-      try {
-        finalUri = await scaleDownImage(item.isolatedUri, 500);
-      } catch (e) {
-        console.error("Failed to scale down image resolution:", e);
-      }
-    }
 
     // 3. Trigger download
     const a = document.createElement("a");
@@ -2533,7 +2519,7 @@ export default function ChromaKeyer({
         // Match the single-image pipeline: smartMode refinement for bulk reprocess
         if (mode === "ai") {
           if (itemSmartMode === "graphic") {
-            processedAlpha = floodFillRemoveBackground(processedAlpha, srcData, 40);
+            processedAlpha = floodFillRemoveBackground(processedAlpha, srcData, 15);
           }
           // PORTRAIT / PRODUCT: RMBG-1.4 outputs clean sub-pixel soft alpha.
           // No sharpAlphaThreshold or guidedAlphaMatting needed.
