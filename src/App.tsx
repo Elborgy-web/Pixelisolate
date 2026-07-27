@@ -427,22 +427,7 @@ export default function App() {
 
       {/* Footer Details */}
       <footer className="border-t border-gray-900 bg-gray-950/30 py-6 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col gap-6">
-          <div className="flex flex-wrap justify-center items-center gap-6 py-2 border-b border-gray-900/60 pb-6">
-            <a href="https://startupbase.io/products/pixel-isolate?utm_source=startupbase&utm_medium=badge&utm_campaign=featured-badge-dark" target="_blank" rel="noopener noreferrer" className="inline-block transition-transform duration-200 hover:scale-[1.03]">
-              <img src="https://statics.startupbase.io/site/badges/featured-on-sb-dark.svg" alt="Featured on StartupBase" width="215" height="55" loading="lazy" referrerPolicy="no-referrer" className="h-[48px] w-auto object-contain block" />
-            </a>
-
-            <a href="https://techbasedirectory.com/product/pixel-isolate?utm_source=featured_embed" target="_blank" rel="noopener noreferrer" className="inline-block transition-transform duration-200 hover:scale-[1.03]">
-              <img src="https://techbasedirectory.com/api/featured-embed" alt="Pixel Isolate | Techbasedirectory.com" width="200" height="60" loading="lazy" referrerPolicy="no-referrer" className="h-[48px] w-auto object-contain block" />
-            </a>
-
-            <a href="https://www.producthunt.com/products/pixel-isolate?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-pixel-isolate" target="_blank" rel="noopener noreferrer" className="inline-block transition-transform duration-200 hover:scale-[1.03]">
-              <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1206327&theme=dark" alt="Pixel Isolate | Product Hunt" width="250" height="54" loading="lazy" referrerPolicy="no-referrer" className="h-[48px] w-auto object-contain block" />
-            </a>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-center text-[11px] font-mono text-gray-500">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row gap-4 justify-between items-center text-[11px] font-mono text-gray-500">
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-6">
               <span>© 2026 Chroma Isolate Engine. Powered by Supabase & Paddle.</span>
               <div className="flex gap-4">
@@ -465,7 +450,6 @@ export default function App() {
               </span>
             </div>
           </div>
-        </div>
       </footer>
 
       {/* Modals */}
