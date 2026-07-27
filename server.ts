@@ -77,6 +77,117 @@ app.use(
   })
 );
 
+// Automated XML Sitemap Route
+app.get("/sitemap.xml", async (req, res) => {
+  res.setHeader("Content-Type", "application/xml");
+  const baseUrl = "https://pixelisolate.online";
+
+  let slugs: string[] = [
+    "how-to-eliminate-white-halos-on-dark-tshirts",
+    "e-commerce-product-photography-background-removal-guide",
+    "ai-background-removal-vs-chroma-keying-which-is-better"
+  ];
+
+  try {
+    const { data } = await supabaseAdmin
+      .from("posts")
+      .select("slug")
+      .eq("is_published", true);
+    if (data && data.length > 0) {
+      slugs = data.map((item: any) => item.slug);
+    }
+  } catch (err) {
+    console.warn("[Sitemap] Failed to query posts from DB, using fallbacks:", err);
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+
+  const blogUrls = slugs
+    .map(
+      (slug) => `  <url>
+    <loc>${baseUrl}/blog/${slug}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`
+    )
+    .join("\n");
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/blog</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+${blogUrls}
+</urlset>`;
+
+  res.status(200).send(xml);
+});
+
+// Blog API Endpoints
+app.get("/api/blog/posts", async (req, res) => {
+  try {
+    const { category, search } = req.query;
+    let query = supabaseAdmin
+      .from("posts")
+      .select("*")
+      .eq("is_published", true)
+      .order("published_at", { ascending: false });
+
+    if (category && category !== "All") {
+      query = query.eq("category", String(category));
+    }
+
+    const { data, error } = await query;
+    if (!error && data && data.length > 0) {
+      let result = data;
+      if (search && String(search).trim()) {
+        const q = String(search).toLowerCase().trim();
+        result = result.filter(
+          (p: any) =>
+            p.title.toLowerCase().includes(q) ||
+            p.excerpt.toLowerCase().includes(q) ||
+            p.category.toLowerCase().includes(q)
+        );
+      }
+      res.status(200).json(result);
+      return;
+    }
+  } catch (err) {
+    console.warn("API blog posts error:", err);
+  }
+  res.status(200).json([]);
+});
+
+app.get("/api/blog/posts/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { data, error } = await supabaseAdmin
+      .from("posts")
+      .select("*")
+      .eq("slug", slug)
+      .eq("is_published", true)
+      .single();
+
+    if (!error && data) {
+      res.status(200).json(data);
+      return;
+    }
+  } catch (err) {
+    console.warn("API blog post by slug error:", err);
+  }
+  res.status(404).json({ error: "Post not found" });
+});
+
 // REST API for Subject Identity & Analysis (Step 1)
 // Health check: Verify server is running and env vars are configured
 app.get("/api/health", (req, res) => {

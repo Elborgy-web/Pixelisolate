@@ -12,6 +12,8 @@ import EmbedBadgeModal from "./components/EmbedBadgeModal";
 import SubscriptionManager from "./components/SubscriptionManager";
 import LandingPage from "./components/LandingPage";
 import HowToGuide from "./components/HowToGuide";
+import BlogIndex from "./components/BlogIndex";
+import BlogPostDetail from "./components/BlogPostDetail";
 import { supabase } from "./utils/supabaseClient";
 import { initializePaddle } from "@paddle/paddle-js";
 import { 
@@ -23,7 +25,8 @@ import {
   History, 
   Sliders,
   CreditCard,
-  HelpCircle
+  HelpCircle,
+  BookOpen
 } from "lucide-react";
 
 // Helper: Dynamically crop blank/transparent padding edges from the logo PNG on the client side
@@ -89,7 +92,8 @@ function cropImageTransparentEdges(imgElement: HTMLImageElement): string {
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [currentTab, setCurrentTab] = useState<"editor" | "history" | "billing" | "howto">("editor");
+  const [currentTab, setCurrentTab] = useState<"editor" | "history" | "billing" | "howto" | "blog">("editor");
+  const [selectedBlogSlug, setSelectedBlogSlug] = useState<string | null>(null);
   const [logoSrc, setLogoSrc] = useState("/logo.png");
 
   useEffect(() => {
@@ -188,8 +192,32 @@ export default function App() {
       });
     };
 
+    // 4. Initial URL Path Routing for /blog and /blog/:slug
+    const initPath = window.location.pathname;
+    if (initPath.startsWith("/blog")) {
+      const parts = initPath.split("/blog");
+      const slugPart = parts[1] ? parts[1].replace(/^\//, "") : "";
+      setCurrentTab("blog");
+      setSelectedBlogSlug(slugPart || null);
+    }
+
+    const handlePopState = () => {
+      const currentPath = window.location.pathname;
+      if (currentPath.startsWith("/blog")) {
+        const parts = currentPath.split("/blog");
+        const slugPart = parts[1] ? parts[1].replace(/^\//, "") : "";
+        setCurrentTab("blog");
+        setSelectedBlogSlug(slugPart || null);
+      } else {
+        setSelectedBlogSlug(null);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener("popstate", handlePopState);
     };
   }, []);
 
@@ -261,7 +289,11 @@ export default function App() {
             {/* View Tabs */}
             <div className="flex bg-gray-950 p-0.5 sm:p-1 rounded-xl border border-gray-850 overflow-x-auto max-w-full">
               <button
-                onClick={() => setCurrentTab("editor")}
+                onClick={() => {
+                  window.history.pushState({}, "", "/");
+                  setCurrentTab("editor");
+                  setSelectedBlogSlug(null);
+                }}
                 className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
                   currentTab === "editor"
                     ? "bg-gray-850 text-white"
@@ -273,7 +305,27 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => setCurrentTab("howto")}
+                onClick={() => {
+                  window.history.pushState({}, "", "/blog");
+                  setCurrentTab("blog");
+                  setSelectedBlogSlug(null);
+                }}
+                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
+                  currentTab === "blog"
+                    ? "bg-gray-850 text-white"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                <BookOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
+                <span>Blog</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  window.history.pushState({}, "", "/");
+                  setCurrentTab("howto");
+                  setSelectedBlogSlug(null);
+                }}
                 className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
                   currentTab === "howto"
                     ? "bg-gray-850 text-white"
@@ -376,6 +428,32 @@ export default function App() {
 
       {/* Main Workspace Frame */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 md:px-8 py-4 md:py-8">
+        <div style={{ display: currentTab === "blog" ? "block" : "none" }}>
+          {selectedBlogSlug ? (
+            <BlogPostDetail 
+              slug={selectedBlogSlug} 
+              onBackToBlog={() => {
+                window.history.pushState({}, "", "/blog");
+                setSelectedBlogSlug(null);
+              }}
+              onOpenAuth={() => setAuthModalOpen(true)}
+              onGoToWorkspace={() => {
+                window.history.pushState({}, "", "/");
+                setCurrentTab("editor");
+                setSelectedBlogSlug(null);
+              }}
+            />
+          ) : (
+            <BlogIndex 
+              onSelectPost={(slug) => {
+                window.history.pushState({}, "", `/blog/${slug}`);
+                setSelectedBlogSlug(slug);
+              }}
+              onOpenAuth={() => setAuthModalOpen(true)}
+            />
+          )}
+        </div>
+
         <div style={{ display: currentTab === "howto" ? "block" : "none" }}>
           <HowToGuide 
             onGoToEditor={() => {
@@ -432,7 +510,21 @@ export default function App() {
               <span>© 2026 Chroma Isolate Engine. Powered by Supabase & Paddle.</span>
               <div className="flex gap-4">
                 <button 
-                  onClick={() => setCurrentTab("howto")}
+                  onClick={() => {
+                    window.history.pushState({}, "", "/blog");
+                    setCurrentTab("blog");
+                    setSelectedBlogSlug(null);
+                  }}
+                  className="hover:text-emerald-400 transition duration-150 bg-transparent border-none cursor-pointer text-[11px] font-mono text-gray-400 font-bold"
+                >
+                  Blog
+                </button>
+                <button 
+                  onClick={() => {
+                    window.history.pushState({}, "", "/");
+                    setCurrentTab("howto");
+                    setSelectedBlogSlug(null);
+                  }}
                   className="hover:text-gray-300 transition duration-150 bg-transparent border-none cursor-pointer text-[11px] font-mono text-gray-500"
                 >
                   How It Works
