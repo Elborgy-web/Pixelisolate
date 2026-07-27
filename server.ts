@@ -43,6 +43,12 @@ app.use((req, res, next) => {
   res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
   res.setHeader("Last-Modified", new Date("2026-07-25T12:00:00Z").toUTCString());
 
+  // Cross-Origin Isolation required for SharedArrayBuffer (WebGPU + WASM threading)
+  // needed by @huggingface/transformers RMBG-1.4 for client-side AI background removal
+  // Using 'credentialless' instead of 'require-corp' so HuggingFace CDN model downloads work
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
+
   // Canonicalize WWW to non-WWW hostnames
   const host = req.headers.host || "";
   if (host.startsWith("www.pixelisolate.online")) {
@@ -60,10 +66,11 @@ app.use((req, res, next) => {
   next();
 });
 
+
 // Set up json parser with extended limit, storing rawBody for webhook signature verification
 app.use(
   express.json({
-    limit: "50mb",
+    limit: "100mb",
     verify: (req: any, res, buf) => {
       req.rawBody = buf;
     },
@@ -563,6 +570,38 @@ app.get("/api/billing/config", (req, res) => {
 
 
 
+// Helper to convert any user string into a valid UUID
+function toValidUUID(str: string): string {
+  if (!str) return "00000000-0000-4000-a000-000000000000";
+  const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(str);
+  if (isUuid) return str;
+  const hash = crypto.createHash("md5").update(str).digest("hex");
+  return `${hash.substring(0, 8)}-${hash.substring(8, 12)}-4${hash.substring(13, 16)}-a${hash.substring(17, 20)}-${hash.substring(20, 32)}`;
+}
+
+// Helper to guarantee user exists in auth.users and profiles tables to satisfy foreign key constraints
+async function ensureValidAuthUser(userId: string): Promise<string> {
+  const targetUuid = toValidUUID(userId);
+  try {
+    const { data: userRes } = await supabaseAdmin.auth.admin.getUserById(targetUuid).catch(() => ({ data: null }));
+    if (!userRes?.user) {
+      await supabaseAdmin.auth.admin.createUser({
+        id: targetUuid,
+        email: `${targetUuid}@pixelisolate.internal`,
+        email_confirm: true,
+      }).catch((e: any) => console.warn("[History] Auth user auto-create info:", e.message));
+    }
+
+    await supabaseAdmin.from("profiles").upsert(
+      { id: targetUuid },
+      { onConflict: "id", ignoreDuplicates: true }
+    );
+  } catch (err) {
+    console.warn("[History] User environment preparation warning:", err);
+  }
+  return targetUuid;
+}
+
 // API Endpoint: Save processed image pair to history (bypasses RLS & storage policies via admin client)
 app.post("/api/vault", async (req, res) => {
   try {
@@ -572,8 +611,8 @@ app.post("/api/vault", async (req, res) => {
       return;
     }
 
-    // Sanitize userId to only allow UUID-safe characters (alphanumeric + hyphens)
-    const safeUserId = String(userId).replace(/[^a-zA-Z0-9\-_]/g, "_").substring(0, 64);
+    const targetUuid = await ensureValidAuthUser(userId);
+    const safeUserId = String(targetUuid).replace(/[^a-zA-Z0-9\-_]/g, "_").substring(0, 64);
 
     // Helper: Convert base64 DataURI to Buffer
     const base64ToBuffer = (base64Str: string) => {
@@ -630,7 +669,7 @@ app.post("/api/vault", async (req, res) => {
     const { data: inserted, error: dbError } = await supabaseAdmin
       .from("history")
       .insert({
-        user_id: userId,
+        user_id: targetUuid,
         original_url: origUrlData.publicUrl,
         processed_url: procUrlData.publicUrl,
       })

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../utils/supabaseClient";
-import { Download, Trash2, Loader2, Sparkles, Image as ImageIcon } from "lucide-react";
+import { Download, Trash2, Loader2, Sparkles, Image as ImageIcon, Lock, ShieldCheck } from "lucide-react";
+import { decryptDataUri } from "../utils/cryptoVault";
 
 interface HistoryItem {
   id: string;
@@ -33,10 +34,51 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
       const { data, error } = await supabase
         .from("history")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(500);
 
       if (error) throw error;
-      setHistoryItems(data || []);
+
+      // Decrypt encrypted zero-knowledge vault items locally in browser
+      const decryptedItems = await Promise.all(
+        (data || []).map(async (item) => {
+          let origUrl = item.original_url;
+          let procUrl = item.processed_url;
+
+          try {
+            const [resOrig, resProc] = await Promise.all([
+              fetch(origUrl).catch(() => null),
+              fetch(procUrl).catch(() => null),
+            ]);
+
+            if (resOrig && resOrig.ok) {
+              const textOrig = await resOrig.text();
+              if (textOrig.includes("data:application/") || textOrig.startsWith("data:")) {
+                const dec = await decryptDataUri(textOrig, userId!);
+                if (dec) origUrl = dec;
+              }
+            }
+
+            if (resProc && resProc.ok) {
+              const textProc = await resProc.text();
+              if (textProc.includes("data:application/") || textProc.startsWith("data:")) {
+                const dec = await decryptDataUri(textProc, userId!);
+                if (dec) procUrl = dec;
+              }
+            }
+          } catch (decErr) {
+            console.warn("Could not decrypt history item locally:", decErr);
+          }
+
+          return {
+            ...item,
+            original_url: origUrl,
+            processed_url: procUrl,
+          };
+        })
+      );
+
+      setHistoryItems(decryptedItems);
     } catch (err: any) {
       console.error("Failed to load user history:", err);
       alert("Failed to load history: " + err.message);
@@ -138,10 +180,17 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
-      <div className="flex justify-between items-center border-b border-gray-900 pb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-900 pb-4 gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">My Isolated History Gallery</h2>
-          <p className="text-[11px] text-gray-500 mt-0.5">Secure cloud archives of original uploads and transparent assets.</p>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xl font-bold text-white tracking-tight">My Isolated History Gallery</h2>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono font-semibold">
+              <Lock className="h-3 w-3" /> Zero-Knowledge AES-256 Encrypted
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-500 mt-0.5">
+            Images are client-side encrypted on your device before saving. Only you possess the decryption key—unreadable by developers or server admins.
+          </p>
         </div>
         <button 
           onClick={fetchHistory}

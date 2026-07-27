@@ -1380,8 +1380,8 @@ export function sharpAlphaThreshold(
  * Flood-Fill Background Remover — Graphic / Product Mode.
  *
  * For flat-colour backgrounds (pink, white, grey, solid studio backdrops) the
- * semantic ISNet model often keeps "holes" inside the foreground (between text
- * letters, through arm gaps, etc.) because ISNet classifies by semantic shape,
+ * semantic AI Magic model often keeps "holes" inside the foreground (between text
+ * letters, through arm gaps, etc.) because neural models classify by semantic shape,
  * not pixel colour.
  *
  * This BFS flood-fill starts from all 4 corners of the alpha mask and expands

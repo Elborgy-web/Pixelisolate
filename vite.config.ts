@@ -13,6 +13,10 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    // Web Workers must be ES modules for @huggingface/transformers to work
+    worker: {
+      format: 'es' as const,
+    },
     build: {
       minify: 'esbuild' as const,
       cssMinify: true,
@@ -30,6 +34,9 @@ export default defineConfig(() => {
               if (id.includes('onnxruntime-web')) {
                 return 'vendor-onnx';
               }
+              if (id.includes('@huggingface')) {
+                return 'vendor-huggingface';
+              }
             }
           },
         },
@@ -38,6 +45,12 @@ export default defineConfig(() => {
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      // Cross-Origin Isolation headers required for SharedArrayBuffer (WebGPU + WASM threads)
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'credentialless',
+      },
     },
   };
 });
+

@@ -6,3 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+scratch/
+public/test.png
+public/the gradient background.jpg
+

@@ -152,7 +152,7 @@ export function decontaminateWithField(
 
   for (let i = 0; i < n; i++) {
     const av = data[i * 4 + 3];
-    if (av <= 2 || av >= 252) continue; // only edge/transition pixels
+    if (av <= 2) continue; // process all non-zero alpha pixels
 
     const I_r = data[i * 4];
     const I_g = data[i * 4 + 1];
@@ -162,41 +162,47 @@ export function decontaminateWithField(
     const B_g = field.g[i];
     const B_b = field.b[i];
 
-    // Local Background Color Distance Alpha Suppression:
-    // If a pixel's RGB color matches the local background color field B(x,y),
-    // it is a background halo pixel that the neural model falsely left opaque.
-    // Suppress its alpha smoothly to 0 so grey halos vanish completely.
+    // Local Background Color Distance & Luminance Alpha Suppression:
+    // 1. If pixel's RGB matches local background field B(x,y) (distToBg < 60), suppress alpha
+    // 2. If background is light (lumB > 160) and pixel is light near background (lumI > lumB - 25),
+    //    suppress alpha of trapped background gap pixels inside hair loops!
     const dr = I_r - B_r, dg = I_g - B_g, db = I_b - B_b;
     const distToBg = Math.sqrt(dr * dr + dg * dg + db * db);
 
-    if (distToBg < 35) {
-      const factor = distToBg <= 15 ? 0 : (distToBg - 15) / 20;
-      const cleanAv = Math.round(av * factor);
-      data[i * 4 + 3] = cleanAv;
-      if (cleanAv <= 2) {
-        data[i * 4] = 0;
-        data[i * 4 + 1] = 0;
-        data[i * 4 + 2] = 0;
-        continue;
-      }
+    const lumI = 0.299 * I_r + 0.587 * I_g + 0.114 * I_b;
+    const lumB = 0.299 * B_r + 0.587 * B_g + 0.114 * B_b;
+
+    let cleanAv = av;
+    if (distToBg < 60) {
+      const bgWeight = distToBg <= 15 ? 1 : 1 - (distToBg - 15) / 45;
+      const keepFactor = (1 - bgWeight) * (1 - bgWeight);
+      cleanAv = Math.round(av * keepFactor);
+    } else if (lumB > 160 && lumI > lumB - 25) {
+      const diffRatio = Math.max(0, (lumB - lumI) / 25);
+      cleanAv = Math.round(av * diffRatio);
     }
 
-    const a = data[i * 4 + 3] / 255;
-    if (a <= 0.01) continue;
+    if (cleanAv <= 2) {
+      data[i * 4 + 3] = 0;
+      data[i * 4] = 0;
+      data[i * 4 + 1] = 0;
+      data[i * 4 + 2] = 0;
+      continue;
+    }
 
-    // True foreground color unmixing: I = a*F + (1-a)*B => F = (I - (1-a)*B) / a
-    // eps = Math.max(a, 0.08) allows full removal of background light tint without division blowup
+    data[i * 4 + 3] = cleanAv;
+    const a = cleanAv / 255;
     const eps = Math.max(a, 0.08);
 
+    // True foreground color unmixing: I = a*F + (1-a)*B => F = (I - (1-a)*B) / a
     let F_r = (I_r - (1 - a) * B_r) / eps;
     let F_g = (I_g - (1 - a) * B_g) / eps;
     let F_b = (I_b - (1 - a) * B_b) / eps;
 
     // Luminance Constraint for Hair/Dark Subjects:
-    // If background is bright (lumB > 150), hair RGB cannot be brighter than observed pixel I,
+    // If background is bright (lumB > 140), hair RGB cannot be brighter than observed pixel I,
     // enforcing pure dark hair color and preventing any light-grey background tint from surviving!
-    const lumB = 0.299 * B_r + 0.587 * B_g + 0.114 * B_b;
-    if (lumB > 150) {
+    if (lumB > 140) {
       F_r = Math.min(I_r, F_r);
       F_g = Math.min(I_g, F_g);
       F_b = Math.min(I_b, F_b);
@@ -211,6 +217,7 @@ export function decontaminateWithField(
     data[i * 4 + 1] = Math.round(I_g * (1 - strength) + F_g * strength);
     data[i * 4 + 2] = Math.round(I_b * (1 - strength) + F_b * strength);
   }
+
 }
 
 

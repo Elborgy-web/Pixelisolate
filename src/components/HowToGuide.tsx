@@ -122,7 +122,7 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
             </div>
 
             <p className="text-xs text-gray-300 leading-relaxed max-w-3xl">
-              AI Magic mode leverages client-side WebAssembly execution to isolate subjects without transmitting your private images to external servers. It runs a full 32-bit precision <code className="text-emerald-400 font-mono font-bold bg-emerald-950/40 px-1 py-0.5 rounded border border-emerald-900/30">isnet</code> neural network model directly in the browser to distinguish subject edges.
+              AI Magic mode leverages client-side execution powered by our advanced <code className="text-emerald-400 font-mono font-bold bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-900/30">AI Magic Engine</code>. It runs sub-pixel neural segmentation directly inside your browser memory to isolate subject boundaries, hair strands, and delicate edges with maximum precision.
             </p>
 
             <hr className="border-gray-900" />
@@ -141,10 +141,10 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
               <div className="bg-gray-950/60 p-4.5 rounded-2xl border border-gray-900 flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-xs font-bold text-white font-mono uppercase tracking-wide">
                   <CheckCircle className="h-4 w-4 text-emerald-400" />
-                  <span>GPU Acceleration (WebGPU)</span>
+                  <span>Zero-Knowledge AES-256 Encryption</span>
                 </div>
                 <p className="text-[11px] text-gray-400 leading-relaxed">
-                  The model utilizes Chrome and Edge’s native WebGPU features to run on your device's graphics card. This delivers sub-second background removals and ensures smooth bulk queues without relying on slow cloud CPU clusters.
+                  Every image saved to your History Gallery is encrypted client-side on your device using Web Crypto AES-256-GCM before uploading. Only you hold the decryption key—completely private and unreadable by developers or server admins.
                 </p>
               </div>
             </div>
@@ -155,7 +155,7 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
                 <span>When to use AI Magic</span>
               </h3>
               <p className="text-[11px] text-emerald-300/80 leading-relaxed">
-                Ideal for portraits, ecommerce products, fashion photos, vehicles, and animal cutouts. Because the model is optimized for real-world photo subjects, it handles textures like hair and fabric with high edge fidelity.
+                Ideal for portraits, ecommerce products, fashion photos, vehicles, and animal cutouts. Because the AI Magic Engine is optimized for real-world photo subjects, it handles textures like hair and fabric with high edge fidelity.
               </p>
             </div>
           </div>

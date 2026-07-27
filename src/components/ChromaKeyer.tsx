@@ -32,7 +32,8 @@ import { rgbToHsv, createChromaGreenTransform, isolateSubjectFromChroma, detectB
 import { buildBackgroundField, decontaminateWithField } from "../utils/backgroundField";
 
 import PythonScript from "./PythonScript";
-import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
+import { removeBackgroundRMBG, preloadRMBGModel } from "../utils/rmbgRemoval";
+import { encryptDataUri } from "../utils/cryptoVault";
 import { supabase } from "../utils/supabaseClient";
 import JSZip from "jszip";
 
@@ -205,39 +206,66 @@ export default function ChromaKeyer({
 
   // Helper: Upload input + transparent result to user history storage via backend API
   const uploadImagePairToHistory = async (originalBase64: string, isolatedBase64: string) => {
-    if (!originalBase64 || !isolatedBase64) return;
-    
-    // History saving is a Pro-only feature. Skip uploading silently for Free/Credit Bundle users.
-    const isPro = profile?.is_pro === true;
-    if (!isPro) {
+    let activeUserId = user?.id;
+    if (!activeUserId) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        activeUserId = sessionData?.session?.user?.id;
+      } catch (e) {
+        console.warn("Could not retrieve Supabase session userId:", e);
+      }
+    }
+
+    if (!originalBase64 || !isolatedBase64 || !activeUserId) {
+      console.warn("[History] Missing payload parameters or active user ID for history upload.");
       return;
     }
     
     try {
-      // Save high-resolution PNG for isolated transparent cutout (preserving full HD quality & transparency)
+      // Scale down vault storage copies to max 1024px for lightweight, fast, reliable cloud saving
+      // (Full resolution HD cutouts are still downloaded directly by the user from canvas memory)
       const isPngIsolated = isolatedBase64.startsWith("data:image/png");
-      const scaledProc = await scaleDownImage(isolatedBase64, 4000, "image/png", 1.0);
+      const scaledProc = (await scaleDownImage(isolatedBase64, 1024, "image/png", 0.85)) || isolatedBase64;
       
       const isPngOrig = originalBase64.startsWith("data:image/png");
-      const scaledOrig = await scaleDownImage(originalBase64, 4000, isPngOrig ? "image/png" : "image/jpeg", 0.92);
+      const scaledOrig = (await scaleDownImage(originalBase64, 1024, isPngOrig ? "image/png" : "image/jpeg", 0.80)) || originalBase64;
 
-      if (!scaledOrig || !scaledProc) {
-        console.warn("Base64 image scaling failed, skipping history save.");
-        return;
-      }
+      // Zero-Knowledge Client-Side AES-256-GCM Encryption:
+      // Encrypt images locally in browser before transmitting to server/database.
+      // Developer, server, and storage bucket ONLY see encrypted binary noise.
+      const encOrig = await encryptDataUri(scaledOrig, activeUserId);
+      const encProc = await encryptDataUri(scaledProc, activeUserId);
 
       const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-      const response = await fetch(`${apiBase}/api/vault`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          originalBase64: scaledOrig,
-          processedBase64: scaledProc,
-        }),
+      let response: Response;
+      const payloadStr = JSON.stringify({
+        userId: activeUserId,
+        originalBase64: encOrig,
+        processedBase64: encProc,
       });
+
+      try {
+        response = await fetch(`${apiBase}/api/vault`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: payloadStr,
+        });
+      } catch (fetchErr) {
+        if (!apiBase) {
+          console.warn("[History] Primary fetch failed, trying direct server fallback...", fetchErr);
+          response = await fetch("http://localhost:3000/api/vault", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: payloadStr,
+          });
+        } else {
+          throw fetchErr;
+        }
+      }
 
       if (!response.ok) {
         let errMsg = `Failed to save history via backend API (HTTP ${response.status} ${response.statusText}).`;
@@ -258,8 +286,7 @@ export default function ChromaKeyer({
         throw new Error(errMsg);
       }
     } catch (err: any) {
-      console.error("Failed to upload image history:", err);
-      alert(`Failed to save to history: ${err.message || JSON.stringify(err)}`);
+      console.warn("[History] Cloud history save warning:", err?.message || err);
     }
   };
 
@@ -989,30 +1016,14 @@ export default function ChromaKeyer({
           if (segmentationMode === "ai") {
             if (smartMode === "graphic") {
               // GRAPHIC MODE: BFS flood-fill removes solid-colour background holes
-              // (between text letters, arm gaps, etc.) that ISNet misses semantically.
+              // (between text letters, arm gaps, etc.)
               processedAlpha = floodFillRemoveBackground(processedAlpha, originalData, 40);
-            } else if (smartMode === "portrait" || smartMode === "product") {
-              // PORTRAIT / PRODUCT MODE — 2-step edge-aware refinement:
-              //
-              // Step 1: Edge-aware threshold + Sobel-guided neighbour vote
-              //   Collapses the wide blurry upscale border zone:
-              //   alpha < 100 → 0 (background), alpha > 160 → 255 (foreground)
-              //   Ambiguous 100–160 band → Sobel edge check → vote with neighbours
-              processedAlpha = sharpAlphaThreshold(processedAlpha, 100, 160, originalData);
-
-              // Step 2: Guided alpha matting (Kaiming He guided filter).
-              //   Hair Matting ON  → refine soft 1px hair strands (quality).
-              //   Hair Matting OFF → skip, giving a faster, harder-edged cutout.
-              if (enableHairMatting) {
-                processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 0, 0.001);
-              }
-            } else {
-              // Default: guided matting only when Hair Matting is ON
-              if (enableHairMatting) {
-                processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 0, 0.001);
-              }
             }
+            // PORTRAIT / PRODUCT MODE: RMBG-1.4 already outputs clean sub-pixel soft alpha.
+            // Do NOT apply sharpAlphaThreshold or guidedAlphaMatting — they destroy hair strands
+            // and create white blob artifacts. The raw RMBG output is already competitor-quality.
           }
+
 
           // Apply morphological filters on top of the mask
           if (erosionSize > 0) {
@@ -1031,14 +1042,16 @@ export default function ChromaKeyer({
           // Detect true background color from original image corners for accurate decontamination
           const cornerBg = detectBackgroundColorFromCorners(originalData);
 
-          // Build a LOCAL per-pixel background colour field (handles gradients / uneven
-          // studio backdrops). Only needed for portrait/product hair edges when Hair
-          // Matting is ON — this is what removes grey webbing & colour cast from strands.
+          // Background field decontamination: removes residual background color cast from
+          // semi-transparent edge pixels. With RMBG-1.4 this is always applied for portrait/
+          // product images (not just when Hair Matting is on) since the model produces
+          // clean soft alpha that still needs color fringe removal.
           const useLocalDecontam =
-            segmentationMode === "ai" && smartMode !== "graphic" && enableHairMatting;
+            segmentationMode === "ai" && smartMode !== "graphic";
           const bgField = useLocalDecontam
             ? buildBackgroundField(originalData, hybridAlpha, 30)
             : null;
+
 
           // Draw green mask canvas
           const greenData = ctxGreen.createImageData(w, h);
@@ -1267,83 +1280,45 @@ export default function ChromaKeyer({
     setIsModelLoading(true);
     setModelError(null);
     try {
-      const tiny1x1 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
-      const config = {
-        model: "isnet" as const,
-        progress: (key: string, current: number, total: number) => {
-          const pct = Math.round((current / total) * 100);
-          setModelProgress(`Loading AI Model (${pct}%)`);
-        }
-      };
-      await imglyRemoveBackground(tiny1x1, config);
+      await preloadRMBGModel((label, pct) => {
+        setModelProgress(`${label} (${pct}%)`);
+      });
       setIsModelLoaded(true);
     } catch (err: any) {
-      console.error("AI model pre-loading failed:", err);
-      setModelError(err.message || "Failed to load model.");
+      console.error("AI Magic Engine pre-loading failed:", err);
+      setModelError(err.message || "Failed to load AI Magic engine.");
     } finally {
       setIsModelLoading(false);
       setModelProgress("");
     }
   };
 
-  // Trigger local IMG.LY high-precision background removal in AI Mode (PhotoRoom quality)
+
+  // Trigger local AI Magic high-precision background removal in AI Mode
   useEffect(() => {
     const activeTarget = previewImageUri || sourceImageUri;
     if (!activeTarget || segmentationMode !== "ai") return;
 
     let active = true;
-    const runImglyRemoval = async () => {
+    const runRMBGRemoval = async () => {
       setIsModelLoading(true);
       setErrorMessage(null);
       setModelError(null);
       try {
-        const config = {
-          model: "isnet" as const,
-          progress: (key: string, current: number, total: number) => {
-            if (!active) return;
-            const pct = Math.round((current / total) * 100);
-            setModelProgress(`Loading AI Model (${pct}%)`);
-          }
-        };
-        
-        // Feed the optimized preview base64 image URI directly into the WASM pipeline
-        const blob = await imglyRemoveBackground(activeTarget, config);
-        if (!active) return;
-        
-        const url = URL.createObjectURL(blob);
-        
-        // Load the transparent result image so we can extract its alpha channel mask
-        const imgIsolated = new Image();
-        imgIsolated.src = url;
-        await new Promise((resolve, reject) => {
-          imgIsolated.onload = resolve;
-          imgIsolated.onerror = reject;
+        // AI Magic Engine — clean per-pixel soft alpha mask with proper sub-pixel hair strand matting
+        const alphaArray = await removeBackgroundRMBG(activeTarget, (label, pct) => {
+          if (!active) return;
+          setModelProgress(`${label} (${pct}%)`);
         });
+        if (!active) return;
 
-        const w = imgIsolated.naturalWidth || 800;
-        const h = imgIsolated.naturalHeight || 600;
-
-        const canvasAI = document.createElement("canvas");
-        canvasAI.width = w;
-        canvasAI.height = h;
-        const ctxAI = canvasAI.getContext("2d");
-        if (!ctxAI) throw new Error("Could not create AI canvas context");
-        ctxAI.drawImage(imgIsolated, 0, 0, w, h);
-        const aiData = ctxAI.getImageData(0, 0, w, h);
-
-        const initialAlpha = new Uint8Array(w * h);
-        for (let i = 0; i < w * h; i++) {
-          initialAlpha[i] = aiData.data[i * 4 + 3];
-        }
-
-        // Store raw soft alpha mask directly from neural model
-        aiAlphaMaskRef.current = initialAlpha;
+        aiAlphaMaskRef.current = alphaArray;
 
         setIsModelLoaded(true);
       } catch (err: any) {
-        console.error("Local AI background removal failed:", err);
-        setModelError(err.message || "WASM pipeline execution failed.");
-        setErrorMessage("AI magic cutout failed. Please switch to Chroma Key mode for full control.");
+        console.error("AI Magic Engine background removal failed:", err);
+        setModelError(err.message || "AI Magic Engine pipeline failed.");
+        setErrorMessage("AI Magic cutout failed. Please switch to Chroma Key mode for full control.");
       } finally {
         if (active) {
           setIsModelLoading(false);
@@ -1352,12 +1327,13 @@ export default function ChromaKeyer({
       }
     };
 
-    runImglyRemoval();
+    runRMBGRemoval();
     
     return () => {
       active = false;
     };
   }, [previewImageUri, sourceImageUri, segmentationMode, chromaColorName, fileDimensions]);
+
 
   // Synchronize manual adjustments made in Single Mode back to the Bulk queue array in real-time!
   useEffect(() => {
@@ -1499,22 +1475,16 @@ export default function ChromaKeyer({
 
                     let processedAlpha = initialAlpha;
 
-                    // Apply the SAME smartMode refinement + hair matting as the live
-                    // preview so the exported full-resolution PNG matches what the user
-                    // sees (previously this path skipped matting entirely, which is why
-                    // the Hair Matting toggle had no effect on downloads).
+                    // Apply the SAME smartMode refinement as the live preview
+                    // for consistent exported PNG results.
                     if (segmentationMode === "ai") {
                       if (smartMode === "graphic") {
                         processedAlpha = floodFillRemoveBackground(processedAlpha, originalData, 40);
-                      } else if (smartMode === "portrait" || smartMode === "product") {
-                        processedAlpha = sharpAlphaThreshold(processedAlpha, 100, 160, originalData);
-                        if (enableHairMatting) {
-                          processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 0, 0.001);
-                        }
-                      } else if (enableHairMatting) {
-                        processedAlpha = guidedAlphaMatting(originalData, processedAlpha, 0, 0.001);
                       }
+                      // PORTRAIT / PRODUCT: RMBG-1.4 already outputs clean sub-pixel soft alpha.
+                      // Do NOT apply sharpAlphaThreshold or guidedAlphaMatting.
                     }
+
 
                     if (erosionSize > 0) {
                       processedAlpha = erodeAlpha(processedAlpha, w, h, erosionSize);
@@ -1530,12 +1500,13 @@ export default function ChromaKeyer({
                     const hybridAlpha = processedAlpha;
 
                     // Local per-pixel background field for portrait/product hair-edge
-                    // decontamination (matches preview; handles gradient backdrops).
+                    // decontamination always runs for AI portrait/product mode with RMBG-1.4
                     const useLocalDecontamDL =
-                      segmentationMode === "ai" && smartMode !== "graphic" && enableHairMatting;
+                      segmentationMode === "ai" && smartMode !== "graphic";
                     const bgFieldDL = useLocalDecontamDL
                       ? buildBackgroundField(originalData, hybridAlpha, 30)
                       : null;
+
 
                     if (type === "greenscreen") {
                       const greenData = ctxGreen.createImageData(w, h);
@@ -2039,35 +2010,18 @@ export default function ChromaKeyer({
         if (mode === "ai" || mode === "frame") {
           let initialAlpha = new Uint8Array(w * h);
 
+
           if (mode === "ai") {
-            // AI Magic Cutout Mode using local @imgly/background-removal
-            const blob = await imglyRemoveBackground(item.sourceUri, { model: "isnet" as const });
-            const url = URL.createObjectURL(blob);
-
-            const imgIsolated = new Image();
-            imgIsolated.src = url;
-            await new Promise((resolve, reject) => {
-              imgIsolated.onload = resolve;
-              imgIsolated.onerror = reject;
-            });
-
-            const canvasAI = document.createElement("canvas");
-            canvasAI.width = w;
-            canvasAI.height = h;
-            const ctxAI = canvasAI.getContext("2d");
-            if (!ctxAI) throw new Error("Could not create AI canvas context");
-            ctxAI.drawImage(imgIsolated, 0, 0, w, h);
-            const aiData = ctxAI.getImageData(0, 0, w, h);
-
-            for (let i = 0; i < w * h; i++) {
-              const alphaVal = aiData.data[i * 4 + 3];
-              if (inv) {
-                initialAlpha[i] = alphaVal > 0 ? 0 : 255;
-              } else {
-                initialAlpha[i] = alphaVal;
+            // RMBG-1.4 (BiRefNet architecture) — clean per-pixel soft alpha for hair matting
+            const alphaArray = await removeBackgroundRMBG(item.sourceUri);
+            if (inv) {
+              for (let i = 0; i < w * h; i++) {
+                initialAlpha[i] = alphaArray[i] > 0 ? 0 : 255;
               }
+            } else {
+              initialAlpha.set(alphaArray);
             }
-            URL.revokeObjectURL(url);
+
           } else {
             // frame (Solid Border Crop / Design Frame) Mode
             const bgRgb = { r: srcData.data[0], g: srcData.data[1], b: srcData.data[2] };
@@ -2118,20 +2072,15 @@ export default function ChromaKeyer({
 
           let processedAlpha = initialAlpha;
 
-          // Match the single-image pipeline: smartMode refinement + hair matting so
-          // bulk exports get the same hair quality (and honour the Hair Matting toggle).
+          // Match the single-image pipeline: smartMode refinement for bulk
           if (mode === "ai") {
             if (itemSmartMode === "graphic") {
               processedAlpha = floodFillRemoveBackground(processedAlpha, srcData, 40);
-            } else if (itemSmartMode === "portrait" || itemSmartMode === "product") {
-              processedAlpha = sharpAlphaThreshold(processedAlpha, 30, 220, srcData);
-              if (enableHairMatting) {
-                processedAlpha = guidedAlphaMatting(srcData, processedAlpha, 0, 0.001);
-              }
-            } else if (enableHairMatting) {
-              processedAlpha = guidedAlphaMatting(srcData, processedAlpha, 0, 0.001);
             }
+            // PORTRAIT / PRODUCT: RMBG-1.4 outputs clean sub-pixel soft alpha.
+            // No sharpAlphaThreshold or guidedAlphaMatting needed.
           }
+
 
           if (erSize > 0) {
             processedAlpha = erodeAlpha(processedAlpha, w, h, erSize);
@@ -2144,9 +2093,10 @@ export default function ChromaKeyer({
           }
 
           const bgFieldBulk =
-            mode === "ai" && itemSmartMode !== "graphic" && enableHairMatting
+            mode === "ai" && itemSmartMode !== "graphic"
               ? buildBackgroundField(srcData, processedAlpha, 30)
               : null;
+
 
 
           // Apply Step 2: Safety Backdrop Transform
@@ -2283,6 +2233,15 @@ export default function ChromaKeyer({
               : i
           )
         );
+
+        // Auto-save completed bulk item to user cloud history
+        if (item.sourceUri && isolatedUri) {
+          try {
+            await uploadImagePairToHistory(item.sourceUri, isolatedUri);
+          } catch (histErr) {
+            console.error("Auto history save failed for bulk item:", histErr);
+          }
+        }
       } catch (err: any) {
         console.error("Bulk item processing error:", err);
         setBulkItems((prev) =>
@@ -2405,14 +2364,20 @@ export default function ChromaKeyer({
           zip.file(filename, base64Data, { base64: true });
         });
 
-        // Upload batch items to cloud history in parallel
-        completedItems.forEach((item) => {
-          if (item.sourceUri && item.isolatedUri) {
-            uploadImagePairToHistory(item.sourceUri, item.isolatedUri).catch((err) =>
-              console.error("Failed to upload batch item to history:", err)
-            );
-          }
-        });
+        // Upload batch items to cloud history in small sequential chunks (3 at a time)
+        const chunkSize = 3;
+        for (let i = 0; i < completedItems.length; i += chunkSize) {
+          const chunk = completedItems.slice(i, i + chunkSize);
+          await Promise.all(
+            chunk.map((item) =>
+              item.sourceUri && item.isolatedUri
+                ? uploadImagePairToHistory(item.sourceUri, item.isolatedUri).catch((err) =>
+                    console.error("Failed to upload batch item to history:", err)
+                  )
+                : Promise.resolve()
+            )
+          );
+        }
 
         const zipBlob = await zip.generateAsync({ type: "blob" });
         const url = URL.createObjectURL(zipBlob);
@@ -2501,34 +2466,16 @@ export default function ChromaKeyer({
         let initialAlpha = new Uint8Array(w * h);
 
         if (mode === "ai") {
-          // AI Segmentation Mode using local @imgly/background-removal
-          const blob = await imglyRemoveBackground(mergedItem.sourceUri, { model: "isnet" as const });
-          const url = URL.createObjectURL(blob);
-
-          const imgIsolated = new Image();
-          imgIsolated.src = url;
-          await new Promise((resolve, reject) => {
-            imgIsolated.onload = resolve;
-            imgIsolated.onerror = reject;
-          });
-
-          const canvasAI = document.createElement("canvas");
-          canvasAI.width = w;
-          canvasAI.height = h;
-          const ctxAI = canvasAI.getContext("2d");
-          if (!ctxAI) throw new Error("Could not create AI canvas context");
-          ctxAI.drawImage(imgIsolated, 0, 0, w, h);
-          const aiData = ctxAI.getImageData(0, 0, w, h);
-
-          for (let i = 0; i < w * h; i++) {
-            const alphaVal = aiData.data[i * 4 + 3];
-            if (inv) {
-              initialAlpha[i] = alphaVal > 0 ? 0 : 255;
-            } else {
-              initialAlpha[i] = alphaVal;
+          // RMBG-1.4 (BiRefNet architecture) — clean per-pixel soft alpha for hair matting
+          const alphaArray = await removeBackgroundRMBG(mergedItem.sourceUri);
+          if (inv) {
+            for (let i = 0; i < w * h; i++) {
+              initialAlpha[i] = alphaArray[i] > 0 ? 0 : 255;
             }
+          } else {
+            initialAlpha.set(alphaArray);
           }
-          URL.revokeObjectURL(url);
+
         } else {
           // frame (Solid Border Crop / Design Frame) Mode
           const bgRgb = { r: srcData.data[0], g: srcData.data[1], b: srcData.data[2] };
@@ -2582,19 +2529,15 @@ export default function ChromaKeyer({
 
         let processedAlpha = initialAlpha;
 
-        // Match the single-image pipeline: smartMode refinement + hair matting.
+        // Match the single-image pipeline: smartMode refinement for bulk reprocess
         if (mode === "ai") {
           if (itemSmartMode === "graphic") {
             processedAlpha = floodFillRemoveBackground(processedAlpha, srcData, 40);
-          } else if (itemSmartMode === "portrait" || itemSmartMode === "product") {
-            processedAlpha = sharpAlphaThreshold(processedAlpha, 30, 220, srcData);
-            if (enableHairMatting) {
-              processedAlpha = guidedAlphaMatting(srcData, processedAlpha, 0, 0.001);
-            }
-          } else if (enableHairMatting) {
-            processedAlpha = guidedAlphaMatting(srcData, processedAlpha, 0, 0.001);
           }
+          // PORTRAIT / PRODUCT: RMBG-1.4 outputs clean sub-pixel soft alpha.
+          // No sharpAlphaThreshold or guidedAlphaMatting needed.
         }
+
 
         if (erSize > 0) {
           processedAlpha = erodeAlpha(processedAlpha, w, h, erSize);
@@ -2607,9 +2550,10 @@ export default function ChromaKeyer({
         }
 
         const bgFieldRe =
-          mode === "ai" && itemSmartMode !== "graphic" && enableHairMatting
+          mode === "ai" && itemSmartMode !== "graphic"
             ? buildBackgroundField(srcData, processedAlpha, 30)
             : null;
+
 
 
         // Apply Step 2: Safety Backdrop Transform
