@@ -79,4 +79,9 @@ async function grantProUser(targetEmail) {
   }
 }
 
-grantProUser("rjhustles@gmail.com");
+async function run() {
+  await grantProUser("rjhustles@gmail.com");
+  await grantProUser("detourdesignllc@gmail.com");
+}
+
+run();
