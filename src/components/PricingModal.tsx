@@ -248,7 +248,7 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
             <div className="relative flex items-center w-full sm:w-auto">
               <input
                 type="text"
-                placeholder="e.g. SAVE20"
+                placeholder="Promo code"
                 value={promoCode}
                 onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                 className="px-3 py-1.5 pr-7 rounded-xl bg-gray-900 border border-gray-800 text-white font-mono text-xs focus:outline-none focus:border-emerald-500 w-full sm:w-44 uppercase tracking-wider"
