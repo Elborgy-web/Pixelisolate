@@ -29,15 +29,18 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
 
   // Valid promo code definitions
   const cleanCode = promoCode.trim().toUpperCase();
-  const PRO_PROMO_CODES = ["PRODUCTHUNT", "STARTUP30", "SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"];
-  const CREDIT_PROMO_CODES = ["SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"]; // Excludes Pro-only codes
+  const PRO_PROMO_CODES = ["RJ30", "STARTUP30", "PRODUCTHUNT", "SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"];
+  const CREDIT_PROMO_CODES = ["RJ30", "SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"];
 
   const isProDiscountValid = PRO_PROMO_CODES.includes(cleanCode);
   const isCreditDiscountValid = CREDIT_PROMO_CODES.includes(cleanCode);
 
-  const is30PercentPro = cleanCode === "STARTUP30";
-  const proDiscountPrice = is30PercentPro ? "$5.59" : "$6.39";
-  const proDiscountBadgeLabel = is30PercentPro ? "30% OFF" : "20% OFF";
+  const is30PercentCode = cleanCode === "STARTUP30" || cleanCode === "RJ30";
+  const proDiscountPrice = is30PercentCode ? "$5.59" : "$6.39";
+  const proDiscountBadgeLabel = is30PercentCode ? "30% OFF" : "20% OFF";
+
+  const creditDiscountPrice = is30PercentCode ? "$3.50" : "$4.00";
+  const creditDiscountBadgeLabel = is30PercentCode ? "30% OFF" : "20% OFF";
 
   const handleCheckout = (priceId: string, purchaseType: "subscription" | "credit_topup", creditsToGrant?: number) => {
     if (!userId) {
@@ -51,23 +54,21 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
         items: [{ priceId: priceId.trim(), quantity: 1 }],
         customer: userEmail ? { email: userEmail } : undefined,
         customData: {
-          userId: userId,
-          purchaseType: purchaseType,
+          userId,
+          purchaseType,
           creditsToGrant: creditsToGrant || 0,
         },
         settings: {
           displayMode: "overlay",
           theme: "dark",
-          successUrl: purchaseType === "subscription"
-            ? `${window.location.origin}/dashboard?payment=success`
-            : `${window.location.origin}/dashboard?topup=success`,
-        },
+          successUrl: purchaseType === "subscription" 
+            ? `${window.location.origin}/dashboard?payment=success` 
+            : `${window.location.origin}/dashboard?topup=success`
+        }
       };
 
-      // Only pass discountCode to Paddle if it's valid for the specific purchase type
-      if (purchaseType === "subscription" && isProDiscountValid) {
-        checkoutOptions.discountCode = cleanCode;
-      } else if (purchaseType === "credit_topup" && isCreditDiscountValid) {
+      // Pass discount code to Paddle checkout if valid code is entered
+      if ((purchaseType === "subscription" && isProDiscountValid) || (purchaseType === "credit_topup" && isCreditDiscountValid)) {
         checkoutOptions.discountCode = cleanCode;
       }
 
@@ -83,19 +84,23 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
         className="relative w-full max-w-4xl bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Accents */}
+        {/* Glow ambient backdrops */}
         <div className="absolute -top-32 -left-32 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Header */}
+        {/* Modal Header */}
         <div className="flex justify-between items-start mb-8">
           <div>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider mb-2">
-              <Sparkles className="h-3 w-3 animate-spin animate-duration-3000" />
+              <Zap className="h-3 w-3 animate-spin animate-duration-3000" />
               Pro Upgrades
             </span>
-            <h2 className="text-2xl font-bold text-white tracking-tight">Unlock Unlimited Potential & High Resolution</h2>
-            <p className="text-gray-400 text-sm mt-1">Get crystal-clear HD downloads, batch imports, and priority WASM processing.</p>
+            <h2 className="text-2xl font-bold text-white tracking-tight">
+              Unlock Unlimited Potential & High Resolution
+            </h2>
+            <p className="text-gray-400 text-sm mt-1">
+              Get crystal-clear HD downloads, batch imports, and priority WASM processing.
+            </p>
           </div>
           <button 
             onClick={onClose}
@@ -107,20 +112,21 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
 
         {/* Pricing Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* Card 1: Subscription Tier (Pro) */}
+          
+          {/* Card 1: Pro Subscription */}
           <div className="relative rounded-2xl bg-gray-950/60 border border-emerald-500/30 p-6 flex flex-col justify-between shadow-lg overflow-hidden group">
             <div className="absolute top-0 right-0 px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-bl-xl text-[9px] font-mono font-bold text-white uppercase tracking-wider shadow">
               Most Popular
             </div>
-            
+
             <div>
               <div className="flex items-center gap-2 text-emerald-400 mb-3">
-                <Zap className="h-5 w-5" />
+                <Sparkles className="h-5 w-5" />
                 <span className="font-mono text-xs font-semibold uppercase tracking-wider">Unlimited Subscription</span>
               </div>
               <h3 className="text-xl font-bold text-white">Pro Plan</h3>
               <p className="text-gray-400 text-xs mt-1.5 mb-6">Perfect for designers, creators, and daily power-users.</p>
-              
+
               <div className="flex items-baseline gap-2 mb-6">
                 {isProDiscountValid ? (
                   <>
@@ -173,7 +179,7 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               }}
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-xs hover:shadow-lg hover:shadow-emerald-500/10 active:scale-[0.99] transition duration-200 cursor-pointer flex items-center justify-center gap-1.5"
             >
-              <Zap className="h-3.5 w-3.5 shrink-0" />
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
               <span>{isProDiscountValid ? `Subscribe to Pro (${proDiscountPrice}/mo)` : "Subscribe to Pro"}</span>
             </button>
           </div>
@@ -191,11 +197,11 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               <div className="flex items-baseline gap-2 mb-6">
                 {isCreditDiscountValid ? (
                   <>
-                    <span className="text-3xl font-extrabold text-white tracking-tight">$4.00</span>
+                    <span className="text-3xl font-extrabold text-white tracking-tight">{creditDiscountPrice}</span>
                     <span className="text-sm text-gray-500 line-through">$5.00</span>
                     <span className="text-xs text-emerald-400 font-mono font-bold">one-time</span>
                     <span className="ml-auto text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-wider">
-                      20% OFF
+                      {creditDiscountBadgeLabel}
                     </span>
                   </>
                 ) : (
@@ -233,7 +239,7 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               className="w-full py-3 px-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-semibold text-xs active:scale-[0.99] transition duration-200 cursor-pointer flex items-center justify-center gap-1.5 border border-gray-700"
             >
               <Package className="h-3.5 w-3.5 shrink-0" />
-              <span>{isCreditDiscountValid ? "Purchase Credits ($4.00)" : "Purchase Credits"}</span>
+              <span>{isCreditDiscountValid ? `Purchase Credits (${creditDiscountPrice})` : "Purchase Credits"}</span>
             </button>
           </div>
         </div>
@@ -241,7 +247,7 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
         {/* Promo Code Input Bar */}
         <div className="mb-6 p-4 rounded-2xl bg-gray-950/60 border border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-gray-300 font-mono">
-            <Sparkles className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
+            <Zap className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
             <span>Have a Promo Code?</span>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -268,8 +274,8 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
             {promoCode.trim() && (
               isProDiscountValid || isCreditDiscountValid ? (
                 <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 whitespace-nowrap">
-                  {cleanCode === "STARTUP30"
-                    ? "30% OFF Pro Plan Applied"
+                  {is30PercentCode
+                    ? "30% OFF Applied"
                     : cleanCode === "PRODUCTHUNT"
                     ? "20% OFF Pro Plan Applied"
                     : "20% OFF Applied"}
