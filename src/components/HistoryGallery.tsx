@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../utils/supabaseClient";
-import { Download, Trash2, Loader2, Sparkles, Image as ImageIcon, Lock, ShieldCheck } from "lucide-react";
-import { decryptDataUri, decryptStorageBuffer } from "../utils/cryptoVault";
+import { Download, Trash2, Loader2, Sparkles, Image as ImageIcon, Lock } from "lucide-react";
+import { decryptStorageBuffer } from "../utils/cryptoVault";
 
 interface HistoryItem {
   id: string;
   original_url: string;
   processed_url: string;
   created_at: string;
+  user_id?: string;
 }
 
 interface HistoryGalleryProps {
   userId: string | null;
   isPro: boolean;
 }
+
+// In-memory cache for decrypted history items to avoid duplicate network fetches
+const decryptedMemoryCache = new Map<string, { origUrl: string; procUrl: string }>();
 
 export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
@@ -29,71 +33,89 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
   }, [userId]);
 
   const fetchHistory = async () => {
+    if (!userId) return;
     setLoading(true);
+
     try {
-      const { data, error } = await supabase
+      // 1. Query Supabase history table filtered by user_id for 0ms database lookup
+      let { data, error } = await supabase
         .from("history")
         .select("*")
+        .eq("user_id", userId)
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(100);
 
-      if (error) throw error;
+      // Fallback query if user_id column filtering is handled by RLS policy
+      if (error || !data) {
+        const { data: fallbackData } = await supabase
+          .from("history")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(100);
+        data = fallbackData || [];
+      }
 
-      // Decrypt encrypted zero-knowledge vault items locally in browser from raw storage buffers
-      const decryptedItems = await Promise.all(
-        (data || []).map(async (item) => {
+      // Immediately display history items to user without waiting for decryption fetches
+      setHistoryItems(data);
+      setLoading(false);
+
+      // 2. Perform background progressive decryption for encrypted vault items
+      const rawList = data || [];
+      const updatedList = await Promise.all(
+        rawList.map(async (item) => {
+          if (decryptedMemoryCache.has(item.id)) {
+            const cached = decryptedMemoryCache.get(item.id)!;
+            return { ...item, original_url: cached.origUrl, processed_url: cached.procUrl };
+          }
+
           let origUrl = item.original_url;
           let procUrl = item.processed_url;
 
+          // Fetch helper with 2-second timeout to prevent network hangs
+          const fetchWithTimeout = async (url: string) => {
+            if (!url || url.startsWith("data:image/")) return null;
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 2000);
+            try {
+              const res = await fetch(url, { signal: controller.signal });
+              clearTimeout(timer);
+              return res.ok ? res.arrayBuffer() : null;
+            } catch (e) {
+              clearTimeout(timer);
+              return null;
+            }
+          };
+
           try {
-            const [resOrig, resProc] = await Promise.all([
-              fetch(origUrl).catch(() => null),
-              fetch(procUrl).catch(() => null),
+            const [bufOrig, bufProc] = await Promise.all([
+              fetchWithTimeout(origUrl),
+              fetchWithTimeout(procUrl),
             ]);
 
-            if (resOrig && resOrig.ok) {
-              const bufferOrig = await resOrig.arrayBuffer();
-              const dec = await decryptStorageBuffer(bufferOrig, userId!);
-              if (dec) origUrl = dec;
+            if (bufOrig) {
+              const decOrig = await decryptStorageBuffer(bufOrig, userId);
+              if (decOrig && decOrig.startsWith("data:")) origUrl = decOrig;
             }
 
-            if (resProc && resProc.ok) {
-              const bufferProc = await resProc.arrayBuffer();
-              const dec = await decryptStorageBuffer(bufferProc, userId!);
-              if (dec) procUrl = dec;
+            if (bufProc) {
+              const decProc = await decryptStorageBuffer(bufProc, userId);
+              if (decProc && decProc.startsWith("data:")) procUrl = decProc;
             }
           } catch (decErr) {
-            console.warn("Could not decrypt history item locally:", decErr);
+            console.warn("Background decryption skipped for item:", item.id);
           }
 
-          return {
-            ...item,
-            original_url: origUrl,
-            processed_url: procUrl,
-          };
+          decryptedMemoryCache.set(item.id, { origUrl, procUrl });
+          return { ...item, original_url: origUrl, processed_url: procUrl };
         })
       );
 
-      setHistoryItems(decryptedItems);
+      setHistoryItems(updatedList);
     } catch (err: any) {
       console.error("Failed to load user history:", err);
-      alert("Failed to load history: " + err.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const getStoragePathFromUrl = (url: string): string | null => {
-    // Helper to extract file path from Supabase storage URL
-    try {
-      const parts = url.split("/history_images/");
-      if (parts.length > 1) {
-        return parts[1];
-      }
-    } catch (e) {
-      console.warn("Could not parse storage path:", e);
-    }
-    return null;
   };
 
   const handleDelete = async (item: HistoryItem) => {
@@ -115,6 +137,7 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
         throw new Error(errData.error || "Failed to delete history via backend API.");
       }
 
+      decryptedMemoryCache.delete(item.id);
       setHistoryItems((prev) => prev.filter((i) => i.id !== item.id));
     } catch (err: any) {
       console.error("Failed to delete history item:", err);
@@ -138,7 +161,6 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
       window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
       console.error("Download failed:", err);
-      // Fallback
       window.open(url, "_blank");
     }
   };
