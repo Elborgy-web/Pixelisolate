@@ -7,27 +7,8 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 const distDir = path.join(rootDir, "dist");
 
-// Fallback seed posts to pre-render static HTML pages
-const SEED_POSTS = [
-  {
-    slug: "how-to-eliminate-white-halos-on-dark-tshirts",
-    title: "How to Eliminate White Halos on Dark T-Shirts (POD Masterclass) | PixelIsolate",
-    excerpt: "Learn how subpixel green screen chroma keying and neural AI segmentation eliminate white edge halos and color bleeding on black & dark garments.",
-    cover_image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1000&auto=format&fit=crop"
-  },
-  {
-    slug: "e-commerce-product-photography-background-removal-guide",
-    title: "The Ultimate Guide to E-Commerce Product Photography Background Removal | PixelIsolate",
-    excerpt: "Boost your Shopify & Amazon conversion rates with clean, professional white & transparent background product photography.",
-    cover_image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1000&auto=format&fit=crop"
-  },
-  {
-    slug: "ai-background-removal-vs-chroma-keying-which-is-better",
-    title: "AI Background Removal vs. Chroma Keying: Which Should You Use? | PixelIsolate",
-    excerpt: "Understand the technical differences between AI neural segmentation models and traditional RGB/HSV Chroma Keying to pick the perfect workflow.",
-    cover_image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop"
-  }
-];
+// Dynamic posts to pre-render static HTML pages (cleared hardcoded seeds)
+const SEED_POSTS = [];
 
 function prerender() {
   console.log("[Prerender] Starting static HTML generation for Blog routes...");
