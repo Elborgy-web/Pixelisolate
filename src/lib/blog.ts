@@ -306,13 +306,22 @@ export async function getPublishedPosts(category?: string, search?: string, incl
   const allMap = new Map<string, BlogPost>();
 
   // Add initial seed posts
-  INITIAL_SEED_POSTS.forEach(p => allMap.set(p.slug, p));
+  INITIAL_SEED_POSTS.forEach(p => {
+    allMap.set(p.id, p);
+    allMap.set(p.slug, p);
+  });
 
-  // Add local posts
-  localPosts.forEach(p => allMap.set(p.slug, p));
+  // Add local posts (Overwrites seed posts if edited in local storage!)
+  localPosts.forEach(p => {
+    if (p.id) allMap.set(p.id, p);
+    if (p.slug) allMap.set(p.slug, p);
+  });
 
   // Add DB posts (takes precedence)
-  dbPosts.forEach(p => allMap.set(p.slug, p));
+  dbPosts.forEach(p => {
+    if (p.id) allMap.set(p.id, p);
+    if (p.slug) allMap.set(p.slug, p);
+  });
 
   let result = Array.from(allMap.values());
 
@@ -586,6 +595,9 @@ export async function updatePost(
     updated_at: new Date().toISOString()
   };
 
+  let updatedPostResult: BlogPost | null = null;
+
+  // 1. Try DB update
   try {
     const { data } = await supabase
       .from("posts")
@@ -593,25 +605,37 @@ export async function updatePost(
       .eq("id", postId)
       .select()
       .single();
-    if (data) return data as BlogPost;
+    if (data) {
+      updatedPostResult = data as BlogPost;
+    }
   } catch (e) {}
 
+  // 2. Persistent Local Storage Update (Ensures edited seed posts persist across page refreshes!)
   const stored = getStoredPosts();
   const idx = stored.findIndex(p => p.id === postId || p.slug === postId);
+
   if (idx !== -1) {
     stored[idx] = { ...stored[idx], ...updatedFields };
+    updatedPostResult = stored[idx];
+  } else {
+    // Check initial seed posts
+    const seedItem = INITIAL_SEED_POSTS.find(p => p.id === postId || p.slug === postId);
+    if (seedItem) {
+      const updatedSeed = { ...seedItem, ...updatedFields };
+      stored.unshift(updatedSeed);
+      updatedPostResult = updatedSeed;
+    }
+  }
+
+  if (stored.length > 0) {
     saveStoredPosts(stored);
-    return stored[idx];
   }
 
-  // Also check INITIAL_SEED_POSTS in memory
-  const seedItem = INITIAL_SEED_POSTS.find(p => p.id === postId || p.slug === postId);
-  if (seedItem) {
-    Object.assign(seedItem, updatedFields);
-    return seedItem;
+  if (updatedPostResult) {
+    triggerFacebookAutoScrape(updatedPostResult.slug);
   }
 
-  return null;
+  return updatedPostResult;
 }
 
 /**
