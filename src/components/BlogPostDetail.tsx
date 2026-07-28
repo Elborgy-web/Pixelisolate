@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getPostBySlug, toggleUpvote, hasUserUpvoted, getPostComments, addComment, deleteComment, deletePost, togglePostPublishStatus, BlogPost, BlogComment } from "../lib/blog";
+import { getPostBySlug, getCachedPostBySlug, toggleUpvote, hasUserUpvoted, getPostComments, addComment, deleteComment, deletePost, togglePostPublishStatus, BlogPost, BlogComment } from "../lib/blog";
 import { BlogCTA } from "./BlogCTA";
 import ShareModal from "./ShareModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
@@ -30,12 +30,13 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   onOpenEditPost,
   onGoToWorkspace,
 }) => {
-  const [post, setPost] = useState<BlogPost | null>(null);
+  // Instant 0ms cache-first state initialization to eliminate skeleton screens
+  const [post, setPost] = useState<BlogPost | null>(() => getCachedPostBySlug(slug));
   const [comments, setComments] = useState<BlogComment[]>([]);
   const [commentText, setCommentText] = useState<string>("");
   const [isSubmittingComment, setIsSubmittingComment] = useState<boolean>(false);
   const [isUpvoted, setIsUpvoted] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !post);
   const [shareModalOpen, setShareModalOpen] = useState<boolean>(false);
   const [toc, setToc] = useState<TocItem[]>([]);
 
@@ -49,11 +50,14 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   const canEdit = isAuthor || isAdminOrMod;
 
   const loadPostDetails = async () => {
-    setIsLoading(true);
+    // Only set isLoading if we don't already have the post in state
+    if (!post) {
+      setIsLoading(true);
+    }
     const data = await getPostBySlug(slug);
-    setPost(data);
-
     if (data) {
+      setPost(data);
+
       // Parse Table of Contents from markdown headings (#, ##, ###)
       const lines = data.content.split("\n");
       const items: TocItem[] = [];
@@ -91,9 +95,10 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
     setIsLoading(false);
   };
 
+  const userId = user?.id;
   useEffect(() => {
     loadPostDetails();
-  }, [slug, user]);
+  }, [slug, userId]);
 
   const handleUpvote = async () => {
     if (!user) {

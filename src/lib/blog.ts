@@ -220,22 +220,42 @@ export async function getPublishedPosts(category?: string, search?: string, incl
 }
 
 /**
+ * Synchronously retrieve cached post by slug for 0ms instant initial rendering.
+ */
+export function getCachedPostBySlug(slug: string): BlogPost | null {
+  if (!slug) return null;
+  const cleanSlug = slug.trim().replace(/^\//, "").replace(/\/$/, "").toLowerCase();
+
+  // 1. Check in-memory RAM cache first
+  if (postsMemoryCache) {
+    const memMatch = postsMemoryCache.find(
+      p => p.slug?.toLowerCase() === cleanSlug || p.id === cleanSlug
+    );
+    if (memMatch) return memMatch;
+  }
+
+  // 2. Check localStorage stored posts
+  const localPosts = getStoredPosts();
+  const localMatch = localPosts.find(
+    p => p.slug?.toLowerCase() === cleanSlug || p.id === cleanSlug
+  );
+  if (localMatch) return localMatch;
+
+  return null;
+}
+
+/**
  * Fetch a single post by slug.
  */
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   if (!slug) return null;
   const cleanSlug = slug.trim().replace(/^\//, "").replace(/\/$/, "");
 
-  // 1. Check local storage posts first (instant match for created & edited posts)
-  const localPosts = getStoredPosts();
-  const localMatch = localPosts.find(p => p.slug === cleanSlug || p.id === cleanSlug);
-  if (localMatch) return localMatch;
+  // 1. Check cached posts first (0ms RAM lookup)
+  const cached = getCachedPostBySlug(cleanSlug);
+  if (cached) return cached;
 
-  // 2. Check initial seed posts
-  const seedMatch = INITIAL_SEED_POSTS.find(p => p.slug === cleanSlug || p.id === cleanSlug);
-  if (seedMatch) return seedMatch;
-
-  // 3. Try DB query
+  // 2. Try DB query
   try {
     const { data, error } = await supabase
       .from("posts")
@@ -246,9 +266,9 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     if (!error && data) return data as BlogPost;
   } catch (e) {}
 
-  // 4. Fallback check
+  // 3. Fallback check
   const all = await getPublishedPosts("All", "", true);
-  return all.find(p => p.slug === cleanSlug || p.id === cleanSlug) || null;
+  return all.find(p => p.slug?.toLowerCase() === cleanSlug.toLowerCase() || p.id === cleanSlug) || null;
 }
 
 /**

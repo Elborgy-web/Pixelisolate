@@ -42,6 +42,9 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
   const [postToDelete, setPostToDelete] = useState<BlogPost | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const userId = user?.id;
+  const userRole = profile?.role;
+
   const loadPosts = useCallback(async () => {
     // Only show skeleton loader if cache is empty
     if (posts.length === 0) {
@@ -59,7 +62,7 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
       setUserVotes(votesState);
     }
     setIsLoading(false);
-  }, [selectedCategory, searchQuery, user, profile, isAdminOrMod, posts.length]);
+  }, [selectedCategory, searchQuery, userId, userRole, isAdminOrMod]);
 
   useEffect(() => {
     loadPosts();
