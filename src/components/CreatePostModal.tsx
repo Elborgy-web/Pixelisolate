@@ -1,13 +1,14 @@
-import React, { useState } from "react";
-import { X, PenTool, Sparkles, Image as ImageIcon, Send, FileText } from "lucide-react";
-import { createPost, BlogPost } from "../lib/blog";
+import React, { useState, useEffect, useRef } from "react";
+import { X, PenTool, Sparkles, Image as ImageIcon, Send, FileText, Save, Check } from "lucide-react";
+import { createPost, updatePost, BlogPost } from "../lib/blog";
 
 interface CreatePostModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: any;
   profile: any;
-  onPostCreated: (newPost: BlogPost) => void;
+  postToEdit?: BlogPost | null;
+  onPostSaved: (post: BlogPost) => void;
 }
 
 const CATEGORIES = ["POD Tips", "E-Commerce", "AI Tools", "Tutorials", "Design & Printing"];
@@ -17,16 +18,47 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   onClose,
   user,
   profile,
-  onPostCreated,
+  postToEdit = null,
+  onPostSaved,
 }) => {
   if (!isOpen) return null;
 
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("POD Tips");
-  const [excerpt, setExcerpt] = useState("");
-  const [coverImage, setCoverImage] = useState("");
-  const [content, setContent] = useState("");
+  const [title, setTitle] = useState(postToEdit?.title || "");
+  const [category, setCategory] = useState(postToEdit?.category || "POD Tips");
+  const [excerpt, setExcerpt] = useState(postToEdit?.excerpt || "");
+  const [coverImage, setCoverImage] = useState(postToEdit?.cover_image || "");
+  const [content, setContent] = useState(postToEdit?.content || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (postToEdit) {
+      setTitle(postToEdit.title);
+      setCategory(postToEdit.category);
+      setExcerpt(postToEdit.excerpt);
+      setCoverImage(postToEdit.cover_image);
+      setContent(postToEdit.content);
+    } else {
+      setTitle("");
+      setCategory("POD Tips");
+      setExcerpt("");
+      setCoverImage("");
+      setContent("");
+    }
+  }, [postToEdit, isOpen]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      if (evt.target?.result) {
+        setCoverImage(evt.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,24 +66,29 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
     setIsSubmitting(true);
 
+    const postPayload = {
+      title: title.trim(),
+      category,
+      excerpt: excerpt.trim(),
+      cover_image: coverImage.trim() || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop",
+      content: content.trim(),
+    };
+
     try {
-      const created = await createPost(
-        {
-          title: title.trim(),
-          category,
-          excerpt: excerpt.trim(),
-          cover_image: coverImage.trim() || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop",
-          content: content.trim(),
-        },
-        user,
-        profile
-      );
+      let result: BlogPost | null = null;
+      if (postToEdit) {
+        result = await updatePost(postToEdit.id, postPayload);
+      } else {
+        result = await createPost(postPayload, user, profile);
+      }
 
       setIsSubmitting(false);
-      onPostCreated(created);
+      if (result) {
+        onPostSaved(result);
+      }
       onClose();
     } catch (err) {
-      console.error("Failed to create post:", err);
+      console.error("Failed to save post:", err);
       setIsSubmitting(false);
     }
   };
@@ -67,8 +104,12 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
               <PenTool className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white tracking-tight">Write Community Blog Article</h3>
-              <p className="text-xs text-gray-500 font-mono">Publish your guide, workflow tips & background isolation case study</p>
+              <h3 className="text-lg font-bold text-white tracking-tight">
+                {postToEdit ? "Edit Community Article" : "Write Community Article"}
+              </h3>
+              <p className="text-xs text-gray-500 font-mono">
+                {postToEdit ? "Update your title, artwork, and article body" : "Publish your guide, workflow tips & background isolation case study"}
+              </p>
             </div>
           </div>
           <button
@@ -122,18 +163,41 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
             />
           </div>
 
-          {/* Cover Image URL */}
+          {/* Cover Image URL & File Upload */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-mono text-gray-400 uppercase">Cover Image URL (Optional)</label>
+            <label className="block text-xs font-mono text-gray-400 uppercase">Cover Image (Browse Local File or URL)</label>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
             <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3.5 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 font-mono text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <ImageIcon className="h-4 w-4" />
+                <span>Browse Image</span>
+              </button>
               <input
-                type="url"
-                value={coverImage}
+                type="text"
+                value={coverImage.startsWith("data:") ? "[Local Image File Selected]" : coverImage}
                 onChange={(e) => setCoverImage(e.target.value)}
-                placeholder="https://images.unsplash.com/photo-..."
-                className="flex-1 px-3.5 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-xs font-mono text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500"
+                placeholder="or paste Image URL..."
+                className="flex-1 px-3.5 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-xs font-mono text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 truncate"
               />
             </div>
+
+            {/* Live Cover Preview */}
+            {coverImage && (
+              <div className="mt-2 relative w-full h-32 rounded-xl overflow-hidden border border-gray-800 bg-gray-900">
+                <img src={coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
+                <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-gray-950/80 text-[10px] font-mono text-emerald-400 font-bold">Cover Preview</span>
+              </div>
+            )}
           </div>
 
           {/* Article Content (Markdown) */}
@@ -155,7 +219,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
           {/* Actions */}
           <div className="pt-3 border-t border-gray-900 flex items-center justify-between">
             <span className="text-[10px] font-mono text-gray-500">
-              Posting as: <strong className="text-gray-300">{profile?.display_name || user?.email?.split("@")[0]}</strong>
+              Author: <strong className="text-gray-300">{postToEdit ? postToEdit.author_name : (profile?.display_name || user?.email?.split("@")[0])}</strong>
             </span>
             <div className="flex gap-3">
               <button
@@ -170,8 +234,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                 disabled={isSubmitting}
                 className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs font-mono shadow-lg shadow-emerald-500/20 transition flex items-center gap-2 cursor-pointer"
               >
-                <Send className="h-4 w-4" />
-                <span>{isSubmitting ? "Publishing..." : "Publish Article"}</span>
+                {postToEdit ? <Save className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                <span>{isSubmitting ? "Saving..." : postToEdit ? "Save Changes" : "Publish Article"}</span>
               </button>
             </div>
           </div>

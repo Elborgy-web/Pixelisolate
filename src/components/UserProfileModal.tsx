@@ -63,6 +63,20 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }, 1200);
   };
 
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      if (evt.target?.result) {
+        setAvatarUrl(evt.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in font-sans">
       <div className="relative w-full max-w-lg bg-gray-950 border border-gray-850 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
@@ -98,10 +112,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         )}
 
         <form onSubmit={handleSave} className="space-y-4">
-          {/* Avatar Preview & URL */}
+          {/* Avatar Preview & File Upload */}
           <div className="space-y-2">
             <label className="block text-xs font-mono text-gray-400 uppercase">Profile Picture / Avatar</label>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <img
                 src={avatarUrl}
                 alt="Avatar Preview"
@@ -110,13 +124,34 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/identicon/svg?seed=${user?.id || "user"}`;
                 }}
               />
+
               <input
-                type="url"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/photo-..."
-                className="flex-1 px-3.5 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-xs font-mono text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500"
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarFileSelect}
               />
+
+              <div className="flex-1 space-y-1.5">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 font-mono text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <ImageIcon className="h-3.5 w-3.5" />
+                    <span>Browse Picture</span>
+                  </button>
+                  <input
+                    type="text"
+                    value={avatarUrl.startsWith("data:") ? "[Local Image File Selected]" : avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    placeholder="or paste Image URL..."
+                    className="flex-1 px-3 py-2 bg-gray-900 border border-gray-800 rounded-xl text-xs font-mono text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 truncate"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 

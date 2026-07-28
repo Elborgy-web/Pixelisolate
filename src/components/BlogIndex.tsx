@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { getPublishedPosts, toggleUpvote, hasUserUpvoted, deletePost, togglePostPublishStatus, BlogPost } from "../lib/blog";
-import { Search, Clock, Calendar, ArrowRight, Tag, Sparkles, BookOpen, ThumbsUp, MessageSquare, Plus, User, ShieldCheck, Trash2, Eye, EyeOff } from "lucide-react";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
+import { Search, Clock, Calendar, ArrowRight, Tag, Sparkles, BookOpen, ThumbsUp, MessageSquare, Plus, User, ShieldCheck, Trash2, Eye, EyeOff, Edit3 } from "lucide-react";
 
 interface BlogIndexProps {
   onSelectPost: (slug: string) => void;
@@ -8,6 +9,7 @@ interface BlogIndexProps {
   profile: any;
   onOpenAuth?: () => void;
   onOpenCreatePost?: () => void;
+  onOpenEditPost?: (post: BlogPost) => void;
   onOpenProfile?: () => void;
 }
 
@@ -19,6 +21,7 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
   profile,
   onOpenAuth,
   onOpenCreatePost,
+  onOpenEditPost,
   onOpenProfile,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
@@ -27,9 +30,13 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [userVotes, setUserVotes] = useState<Record<string, boolean>>({});
 
+  // Delete modal state
+  const [postToDelete, setPostToDelete] = useState<BlogPost | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin");
 
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     setIsLoading(true);
     const data = await getPublishedPosts(selectedCategory, searchQuery, isAdminOrMod);
     setPosts(data);
@@ -42,11 +49,11 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
       setUserVotes(votesState);
     }
     setIsLoading(false);
-  };
+  }, [selectedCategory, searchQuery, user, profile, isAdminOrMod]);
 
   useEffect(() => {
     loadPosts();
-  }, [selectedCategory, searchQuery, user, profile]);
+  }, [loadPosts]);
 
   const handleUpvote = async (e: React.MouseEvent, post: BlogPost) => {
     e.stopPropagation();
@@ -72,12 +79,13 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
     );
   };
 
-  const handleDeletePost = async (e: React.MouseEvent, post: BlogPost) => {
-    e.stopPropagation();
-    if (window.confirm(`Are you sure you want to delete post "${post.title}"?`)) {
-      await deletePost(post.id);
-      setPosts((prev) => prev.filter((p) => p.id !== post.id));
-    }
+  const handleConfirmDelete = async () => {
+    if (!postToDelete) return;
+    setIsDeleting(true);
+    await deletePost(postToDelete.id);
+    setPosts((prev) => prev.filter((p) => p.id !== postToDelete.id));
+    setIsDeleting(false);
+    setPostToDelete(null);
   };
 
   return (
@@ -195,6 +203,9 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
             {posts.map((post) => {
               const isUpvoted = userVotes[post.id];
+              const isAuthor = user && (user.id === post.author_id);
+              const canEdit = isAuthor || isAdminOrMod;
+
               return (
                 <article
                   key={post.id || post.slug}
@@ -259,7 +270,7 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
                     </div>
                   </div>
 
-                  {/* Card Footer: Upvote, Comments & Admin Toolbar */}
+                  {/* Card Footer: Upvote, Comments & Author/Admin Toolbar */}
                   <div className="pt-4 mt-6 border-t border-gray-900 flex items-center justify-between font-mono text-xs">
                     {/* Upvote & Comment counts */}
                     <div className="flex items-center gap-3">
@@ -282,23 +293,39 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
                       </span>
                     </div>
 
-                    {/* Read Article & Admin Actions */}
+                    {/* Toolbar & Read Article */}
                     <div className="flex items-center gap-2">
-                      {isAdminOrMod && (
+                      {canEdit && (
                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
-                            onClick={(e) => handleTogglePublish(e, post)}
-                            className="p-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-amber-400 transition"
-                            title={post.is_published ? "Unpublish Post" : "Publish Post"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onOpenEditPost) onOpenEditPost(post);
+                            }}
+                            className="p-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-emerald-400 transition"
+                            title="Edit Article"
                           >
-                            {post.is_published ? <Eye className="h-3.5 w-3.5 text-emerald-400" /> : <EyeOff className="h-3.5 w-3.5 text-amber-400" />}
+                            <Edit3 className="h-3.5 w-3.5" />
                           </button>
+                          {isAdminOrMod && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleTogglePublish(e, post)}
+                              className="p-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-amber-400 transition"
+                              title={post.is_published ? "Unpublish Post" : "Publish Post"}
+                            >
+                              {post.is_published ? <Eye className="h-3.5 w-3.5 text-emerald-400" /> : <EyeOff className="h-3.5 w-3.5 text-amber-400" />}
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={(e) => handleDeletePost(e, post)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPostToDelete(post);
+                            }}
                             className="p-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-red-400 transition"
-                            title="Delete Post"
+                            title="Delete Article"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -318,6 +345,16 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
         )}
 
       </div>
+
+      {/* Styled Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!postToDelete}
+        title="Delete Article"
+        message={`Are you sure you want to permanently delete "${postToDelete?.title}"?`}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setPostToDelete(null)}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 };

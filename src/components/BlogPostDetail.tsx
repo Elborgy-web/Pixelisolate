@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { getPostBySlug, toggleUpvote, hasUserUpvoted, getPostComments, addComment, deleteComment, deletePost, togglePostPublishStatus, BlogPost, BlogComment } from "../lib/blog";
 import { BlogCTA } from "./BlogCTA";
-import { ArrowLeft, Calendar, Clock, User, Share2, Check, List, Sparkles, ThumbsUp, MessageSquare, Send, Trash2, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import ShareModal from "./ShareModal";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
+import { ArrowLeft, Calendar, Clock, User, Share2, Check, List, Sparkles, ThumbsUp, MessageSquare, Send, Trash2, ShieldCheck, Eye, EyeOff, Edit3 } from "lucide-react";
 
 interface BlogPostDetailProps {
   slug: string;
@@ -9,6 +11,7 @@ interface BlogPostDetailProps {
   user: any;
   profile: any;
   onOpenAuth?: () => void;
+  onOpenEditPost?: (post: BlogPost) => void;
   onGoToWorkspace?: () => void;
 }
 
@@ -24,6 +27,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   user,
   profile,
   onOpenAuth,
+  onOpenEditPost,
   onGoToWorkspace,
 }) => {
   const [post, setPost] = useState<BlogPost | null>(null);
@@ -32,10 +36,17 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   const [isSubmittingComment, setIsSubmittingComment] = useState<boolean>(false);
   const [isUpvoted, setIsUpvoted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [copied, setCopied] = useState<boolean>(false);
+  const [shareModalOpen, setShareModalOpen] = useState<boolean>(false);
   const [toc, setToc] = useState<TocItem[]>([]);
 
+  // Delete Modals states
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [isDeletingPost, setIsDeletingPost] = useState<boolean>(false);
+  const [showPostDeleteModal, setShowPostDeleteModal] = useState<boolean>(false);
+
   const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin");
+  const isAuthor = user && post && (user.id === post.author_id);
+  const canEdit = isAuthor || isAdminOrMod;
 
   const loadPostDetails = async () => {
     setIsLoading(true);
@@ -112,13 +123,12 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
     setIsSubmittingComment(false);
   };
 
-  const handleDeleteComment = async (commentId: string) => {
-    if (!post) return;
-    if (window.confirm("Are you sure you want to delete this comment?")) {
-      await deleteComment(commentId, post.id);
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-      setPost((prev) => (prev ? { ...prev, comments_count: Math.max(0, (prev.comments_count || 1) - 1) } : null));
-    }
+  const handleConfirmDeleteComment = async () => {
+    if (!post || !commentToDelete) return;
+    await deleteComment(commentToDelete, post.id);
+    setComments((prev) => prev.filter((c) => c.id !== commentToDelete));
+    setPost((prev) => (prev ? { ...prev, comments_count: Math.max(0, (prev.comments_count || 1) - 1) } : null));
+    setCommentToDelete(null);
   };
 
   const handleTogglePublish = async () => {
@@ -128,20 +138,13 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
     setPost((prev) => (prev ? { ...prev, is_published: newStatus } : null));
   };
 
-  const handleDeletePost = async () => {
+  const handleConfirmDeletePost = async () => {
     if (!post) return;
-    if (window.confirm(`Are you sure you want to delete post "${post.title}"?`)) {
-      await deletePost(post.id);
-      onBackToBlog();
-    }
-  };
-
-  const handleShare = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    setIsDeletingPost(true);
+    await deletePost(post.id);
+    setIsDeletingPost(false);
+    setShowPostDeleteModal(false);
+    onBackToBlog();
   };
 
   // Convert Markdown content into HTML blocks
@@ -225,7 +228,6 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
     });
   };
 
-  // Inline formatting helper for bold, code
   const formatInlineMarkdown = (text: string) => {
     const parts = text.split(/(\*\*.*?\*\*|\`.*?\`)/g);
     return parts.map((part, i) => {
@@ -310,26 +312,37 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
               <span>Back to Blog</span>
             </button>
 
-            {/* Admin Toolbar */}
-            {isAdminOrMod && (
-              <div className="flex items-center gap-2 bg-gray-950/80 p-1.5 rounded-xl border border-amber-500/30">
-                <span className="text-[10px] font-mono text-amber-400 font-bold px-2">MODERATOR TOOLBAR</span>
+            {/* Author / Admin Toolbar */}
+            {canEdit && (
+              <div className="flex items-center gap-2 bg-gray-950/80 p-1.5 rounded-xl border border-gray-800">
                 <button
                   type="button"
-                  onClick={handleTogglePublish}
-                  className="px-2.5 py-1 rounded-lg bg-gray-900 hover:bg-gray-800 text-[10px] font-mono text-gray-300 hover:text-white transition flex items-center gap-1"
+                  onClick={() => onOpenEditPost && onOpenEditPost(post)}
+                  className="px-2.5 py-1 rounded-lg bg-gray-900 hover:bg-gray-800 text-[10px] font-mono text-emerald-400 transition flex items-center gap-1 cursor-pointer"
                 >
-                  {post.is_published ? <EyeOff className="h-3.5 w-3.5 text-amber-400" /> : <Eye className="h-3.5 w-3.5 text-emerald-400" />}
-                  <span>{post.is_published ? "Unpublish" : "Publish"}</span>
+                  <Edit3 className="h-3.5 w-3.5" />
+                  <span>Edit Article</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={handleDeletePost}
-                  className="px-2.5 py-1 rounded-lg bg-gray-900 hover:bg-gray-800 text-[10px] font-mono text-red-400 transition flex items-center gap-1"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span>Delete</span>
-                </button>
+                {isAdminOrMod && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleTogglePublish}
+                      className="px-2.5 py-1 rounded-lg bg-gray-900 hover:bg-gray-800 text-[10px] font-mono text-gray-300 hover:text-white transition flex items-center gap-1 cursor-pointer"
+                    >
+                      {post.is_published ? <EyeOff className="h-3.5 w-3.5 text-amber-400" /> : <Eye className="h-3.5 w-3.5 text-emerald-400" />}
+                      <span>{post.is_published ? "Unpublish" : "Publish"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPostDeleteModal(true)}
+                      className="px-2.5 py-1 rounded-lg bg-gray-900 hover:bg-gray-800 text-[10px] font-mono text-red-400 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -384,13 +397,15 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
                 <Clock className="h-3.5 w-3.5" />
                 {post.reading_time_minutes} min read
               </span>
+
+              {/* Social Share Button */}
               <button
-                onClick={handleShare}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-800 text-gray-300 hover:text-white transition cursor-pointer"
-                title="Copy Article Link"
+                onClick={() => setShareModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-900 border border-gray-800 text-gray-300 hover:text-white transition cursor-pointer"
+                title="Share Article to Social Media"
               >
-                {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Share2 className="h-3.5 w-3.5" />}
-                <span>{copied ? "Copied!" : "Share"}</span>
+                <Share2 className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Share</span>
               </button>
             </div>
           </div>
@@ -490,8 +505,8 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
 
                           {(isCommentAuthor || isAdminOrMod) && (
                             <button
-                              onClick={() => handleDeleteComment(comment.id)}
-                              className="text-gray-500 hover:text-red-400 transition"
+                              onClick={() => setCommentToDelete(comment.id)}
+                              className="text-gray-500 hover:text-red-400 transition cursor-pointer"
                               title="Delete Comment"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -536,6 +551,33 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
         </div>
 
       </article>
+
+      {/* Social Share Modal */}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        title={post.title}
+        url={window.location.href}
+      />
+
+      {/* Delete Comment Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!commentToDelete}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        onConfirm={handleConfirmDeleteComment}
+        onCancel={() => setCommentToDelete(null)}
+      />
+
+      {/* Delete Post Modal */}
+      <ConfirmDeleteModal
+        isOpen={showPostDeleteModal}
+        title="Delete Article"
+        message={`Are you sure you want to permanently delete "${post.title}"?`}
+        onConfirm={handleConfirmDeletePost}
+        onCancel={() => setShowPostDeleteModal(false)}
+        isDeleting={isDeletingPost}
+      />
     </div>
   );
 };

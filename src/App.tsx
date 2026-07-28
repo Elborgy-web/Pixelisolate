@@ -153,6 +153,7 @@ export default function App() {
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [embedBadgeModalOpen, setEmbedBadgeModalOpen] = useState(false);
   const [createPostModalOpen, setCreatePostModalOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<any>(null);
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
 
   // Global-like Alert UI state
@@ -443,6 +444,10 @@ export default function App() {
               user={user}
               profile={profile}
               onOpenAuth={() => setAuthModalOpen(true)}
+              onOpenEditPost={(post) => {
+                setEditingPost(post);
+                setCreatePostModalOpen(true);
+              }}
               onGoToWorkspace={() => {
                 window.history.pushState({}, "", "/");
                 setCurrentTab("editor");
@@ -460,10 +465,15 @@ export default function App() {
               onOpenAuth={() => setAuthModalOpen(true)}
               onOpenCreatePost={() => {
                 if (user) {
+                  setEditingPost(null);
                   setCreatePostModalOpen(true);
                 } else {
                   setAuthModalOpen(true);
                 }
+              }}
+              onOpenEditPost={(post) => {
+                setEditingPost(post);
+                setCreatePostModalOpen(true);
               }}
               onOpenProfile={() => setUserProfileModalOpen(true)}
             />
@@ -583,13 +593,18 @@ export default function App() {
 
       <CreatePostModal
         isOpen={createPostModalOpen}
-        onClose={() => setCreatePostModalOpen(false)}
+        onClose={() => {
+          setCreatePostModalOpen(false);
+          setEditingPost(null);
+        }}
         user={user}
         profile={profile}
-        onPostCreated={(newPost) => {
-          window.history.pushState({}, "", `/blog/${newPost.slug}`);
-          setSelectedBlogSlug(newPost.slug);
+        postToEdit={editingPost}
+        onPostSaved={(savedPost) => {
+          window.history.pushState({}, "", `/blog/${savedPost.slug}`);
+          setSelectedBlogSlug(savedPost.slug);
           setCurrentTab("blog");
+          setEditingPost(null);
         }}
       />
 

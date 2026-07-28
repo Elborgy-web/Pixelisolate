@@ -551,6 +551,58 @@ export async function deleteComment(commentId: string, postId: string): Promise<
 }
 
 /**
+ * Update an existing Blog Post (by author or admin/moderator).
+ */
+export async function updatePost(
+  postId: string,
+  postData: {
+    title: string;
+    excerpt: string;
+    content: string;
+    category: string;
+    cover_image?: string;
+  }
+): Promise<BlogPost | null> {
+  const readingTime = Math.max(2, Math.ceil(postData.content.split(/\s+/).length / 180));
+  const updatedFields = {
+    title: postData.title,
+    excerpt: postData.excerpt,
+    content: postData.content,
+    category: postData.category,
+    cover_image: postData.cover_image,
+    reading_time_minutes: readingTime,
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    const { data } = await supabase
+      .from("posts")
+      .update(updatedFields)
+      .eq("id", postId)
+      .select()
+      .single();
+    if (data) return data as BlogPost;
+  } catch (e) {}
+
+  const stored = getStoredPosts();
+  const idx = stored.findIndex(p => p.id === postId || p.slug === postId);
+  if (idx !== -1) {
+    stored[idx] = { ...stored[idx], ...updatedFields };
+    saveStoredPosts(stored);
+    return stored[idx];
+  }
+
+  // Also check INITIAL_SEED_POSTS in memory
+  const seedItem = INITIAL_SEED_POSTS.find(p => p.id === postId || p.slug === postId);
+  if (seedItem) {
+    Object.assign(seedItem, updatedFields);
+    return seedItem;
+  }
+
+  return null;
+}
+
+/**
  * Toggle post publish status (Admin/Moderator).
  */
 export async function togglePostPublishStatus(postId: string, isPublished: boolean): Promise<void> {
