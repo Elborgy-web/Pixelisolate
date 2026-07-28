@@ -14,6 +14,8 @@ import LandingPage from "./components/LandingPage";
 import HowToGuide from "./components/HowToGuide";
 import BlogIndex from "./components/BlogIndex";
 import BlogPostDetail from "./components/BlogPostDetail";
+import CreatePostModal from "./components/CreatePostModal";
+import UserProfileModal from "./components/UserProfileModal";
 import { supabase } from "./utils/supabaseClient";
 import { initializePaddle } from "@paddle/paddle-js";
 import { 
@@ -150,6 +152,8 @@ export default function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [embedBadgeModalOpen, setEmbedBadgeModalOpen] = useState(false);
+  const [createPostModalOpen, setCreatePostModalOpen] = useState(false);
+  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
 
   // Global-like Alert UI state
   const [customAlert, setCustomAlert] = useState<{
@@ -436,6 +440,8 @@ export default function App() {
                 window.history.pushState({}, "", "/blog");
                 setSelectedBlogSlug(null);
               }}
+              user={user}
+              profile={profile}
               onOpenAuth={() => setAuthModalOpen(true)}
               onGoToWorkspace={() => {
                 window.history.pushState({}, "", "/");
@@ -449,7 +455,17 @@ export default function App() {
                 window.history.pushState({}, "", `/blog/${slug}`);
                 setSelectedBlogSlug(slug);
               }}
+              user={user}
+              profile={profile}
               onOpenAuth={() => setAuthModalOpen(true)}
+              onOpenCreatePost={() => {
+                if (user) {
+                  setCreatePostModalOpen(true);
+                } else {
+                  setAuthModalOpen(true);
+                }
+              }}
+              onOpenProfile={() => setUserProfileModalOpen(true)}
             />
           )}
         </div>
@@ -563,6 +579,28 @@ export default function App() {
       <EmbedBadgeModal
         isOpen={embedBadgeModalOpen}
         onClose={() => setEmbedBadgeModalOpen(false)}
+      />
+
+      <CreatePostModal
+        isOpen={createPostModalOpen}
+        onClose={() => setCreatePostModalOpen(false)}
+        user={user}
+        profile={profile}
+        onPostCreated={(newPost) => {
+          window.history.pushState({}, "", `/blog/${newPost.slug}`);
+          setSelectedBlogSlug(newPost.slug);
+          setCurrentTab("blog");
+        }}
+      />
+
+      <UserProfileModal
+        isOpen={userProfileModalOpen}
+        onClose={() => setUserProfileModalOpen(false)}
+        user={user}
+        profile={profile}
+        onSaveSuccess={(updatedProfile) => {
+          setProfile(updatedProfile);
+        }}
       />
 
       {/* Custom Alert Modal */}

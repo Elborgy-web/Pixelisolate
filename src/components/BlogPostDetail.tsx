@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { getPostBySlug, BlogPost } from "../lib/blog";
+import { getPostBySlug, toggleUpvote, hasUserUpvoted, getPostComments, addComment, deleteComment, deletePost, togglePostPublishStatus, BlogPost, BlogComment } from "../lib/blog";
 import { BlogCTA } from "./BlogCTA";
-import { ArrowLeft, Calendar, Clock, User, Share2, Check, List, Sparkles } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, User, Share2, Check, List, Sparkles, ThumbsUp, MessageSquare, Send, Trash2, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
 interface BlogPostDetailProps {
   slug: string;
   onBackToBlog: () => void;
+  user: any;
+  profile: any;
   onOpenAuth?: () => void;
   onGoToWorkspace?: () => void;
 }
@@ -19,56 +21,120 @@ interface TocItem {
 export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   slug,
   onBackToBlog,
+  user,
+  profile,
   onOpenAuth,
-  onGoToWorkspace
+  onGoToWorkspace,
 }) => {
   const [post, setPost] = useState<BlogPost | null>(null);
+  const [comments, setComments] = useState<BlogComment[]>([]);
+  const [commentText, setCommentText] = useState<string>("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState<boolean>(false);
+  const [isUpvoted, setIsUpvoted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
   const [toc, setToc] = useState<TocItem[]>([]);
 
-  useEffect(() => {
-    let isMounted = true;
+  const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin");
+
+  const loadPostDetails = async () => {
     setIsLoading(true);
+    const data = await getPostBySlug(slug);
+    setPost(data);
 
-    getPostBySlug(slug).then(data => {
-      if (isMounted) {
-        setPost(data);
-        setIsLoading(false);
-
-        if (data) {
-          // Parse Table of Contents from markdown headings (#, ##, ###)
-          const lines = data.content.split("\n");
-          const items: TocItem[] = [];
-          lines.forEach(line => {
-            const match = line.match(/^(#{1,3})\s+(.+)$/);
-            if (match) {
-              const level = match[1].length;
-              const text = match[2].trim();
-              const id = text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
-              items.push({ id, text, level });
-            }
-          });
-          setToc(items);
-
-          // Update Document Title & Meta Tags dynamically for SEO
-          document.title = data.meta_title || `${data.title} | PixelIsolate Blog`;
-          
-          let metaDesc = document.querySelector('meta[name="description"]');
-          if (!metaDesc) {
-            metaDesc = document.createElement("meta");
-            metaDesc.setAttribute("name", "description");
-            document.head.appendChild(metaDesc);
-          }
-          metaDesc.setAttribute("content", data.meta_description || data.excerpt);
+    if (data) {
+      // Parse Table of Contents from markdown headings (#, ##, ###)
+      const lines = data.content.split("\n");
+      const items: TocItem[] = [];
+      lines.forEach((line) => {
+        const match = line.match(/^(#{1,3})\s+(.+)$/);
+        if (match) {
+          const level = match[1].length;
+          const text = match[2].trim();
+          const id = text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
+          items.push({ id, text, level });
         }
-      }
-    });
+      });
+      setToc(items);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [slug]);
+      // Fetch Comments
+      const comms = await getPostComments(data.id);
+      setComments(comms);
+
+      // Check User Upvote State
+      if (user) {
+        setIsUpvoted(hasUserUpvoted(data.id, user.id));
+      }
+
+      // Update Document Title & Meta Tags dynamically for SEO
+      document.title = data.meta_title || `${data.title} | PixelIsolate Blog`;
+      let metaDesc = document.querySelector('meta[name="description"]');
+      if (!metaDesc) {
+        metaDesc = document.createElement("meta");
+        metaDesc.setAttribute("name", "description");
+        document.head.appendChild(metaDesc);
+      }
+      metaDesc.setAttribute("content", data.meta_description || data.excerpt);
+    }
+
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadPostDetails();
+  }, [slug, user]);
+
+  const handleUpvote = async () => {
+    if (!user) {
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
+    if (!post) return;
+
+    const { upvoted, count } = await toggleUpvote(post.id, user.id);
+    setIsUpvoted(upvoted);
+    setPost((prev) => (prev ? { ...prev, upvotes_count: count } : null));
+  };
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
+    if (!commentText.trim() || !post) return;
+
+    setIsSubmittingComment(true);
+    const newComment = await addComment(post.id, user, profile, commentText.trim());
+    setComments((prev) => [...prev, newComment]);
+    setPost((prev) => (prev ? { ...prev, comments_count: (prev.comments_count || 0) + 1 } : null));
+    setCommentText("");
+    setIsSubmittingComment(false);
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!post) return;
+    if (window.confirm("Are you sure you want to delete this comment?")) {
+      await deleteComment(commentId, post.id);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      setPost((prev) => (prev ? { ...prev, comments_count: Math.max(0, (prev.comments_count || 1) - 1) } : null));
+    }
+  };
+
+  const handleTogglePublish = async () => {
+    if (!post) return;
+    const newStatus = !post.is_published;
+    await togglePostPublishStatus(post.id, newStatus);
+    setPost((prev) => (prev ? { ...prev, is_published: newStatus } : null));
+  };
+
+  const handleDeletePost = async () => {
+    if (!post) return;
+    if (window.confirm(`Are you sure you want to delete post "${post.title}"?`)) {
+      await deletePost(post.id);
+      onBackToBlog();
+    }
+  };
 
   const handleShare = () => {
     if (navigator.clipboard) {
@@ -124,7 +190,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
 
       // Bullet List
       if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
-        const items = trimmed.split("\n").map(l => l.replace(/^[*|-]\s+/, ""));
+        const items = trimmed.split("\n").map((l) => l.replace(/^[*|-]\s+/, ""));
         return (
           <ul key={idx} className="my-4 space-y-2 font-sans text-sm sm:text-base text-gray-300 list-disc list-inside">
             {items.map((item, iIdx) => (
@@ -138,7 +204,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
 
       // Numbered List
       if (/^\d+\.\s+/.test(trimmed)) {
-        const items = trimmed.split("\n").map(l => l.replace(/^\d+\.\s+/, ""));
+        const items = trimmed.split("\n").map((l) => l.replace(/^\d+\.\s+/, ""));
         return (
           <ol key={idx} className="my-4 space-y-2 font-sans text-sm sm:text-base text-gray-300 list-decimal list-inside">
             {items.map((item, iIdx) => (
@@ -159,9 +225,8 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
     });
   };
 
-  // Inline formatting helper for bold, code, links
+  // Inline formatting helper for bold, code
   const formatInlineMarkdown = (text: string) => {
-    // Bold **text**
     const parts = text.split(/(\*\*.*?\*\*|\`.*?\`)/g);
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**")) {
@@ -199,7 +264,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
     );
   }
 
-  // BlogPosting JSON-LD Schema for Google Rich Snippets
+  // BlogPosting JSON-LD Schema
   const jsonLdSchema = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
@@ -208,7 +273,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
     "image": [post.cover_image],
     "datePublished": post.published_at,
     "author": [{
-      "@type": "Organization",
+      "@type": "Person",
       "name": post.author_name,
       "url": "https://pixelisolate.online"
     }],
@@ -228,22 +293,46 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
 
   return (
     <div className="min-h-screen bg-[#07080a] text-gray-100 py-10 px-4 sm:px-6 lg:px-8 font-sans">
-      {/* Inject JSON-LD Schema */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
       />
 
       <article className="max-w-4xl mx-auto space-y-8">
-        {/* Navigation & Header */}
+        {/* Navigation & Header Toolbar */}
         <div className="space-y-6 border-b border-gray-850 pb-8">
-          <button
-            onClick={onBackToBlog}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gray-950 hover:bg-gray-900 border border-gray-850 text-xs font-mono text-gray-400 hover:text-emerald-400 transition cursor-pointer"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back to Blog</span>
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <button
+              onClick={onBackToBlog}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gray-950 hover:bg-gray-900 border border-gray-850 text-xs font-mono text-gray-400 hover:text-emerald-400 transition cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Back to Blog</span>
+            </button>
+
+            {/* Admin Toolbar */}
+            {isAdminOrMod && (
+              <div className="flex items-center gap-2 bg-gray-950/80 p-1.5 rounded-xl border border-amber-500/30">
+                <span className="text-[10px] font-mono text-amber-400 font-bold px-2">MODERATOR TOOLBAR</span>
+                <button
+                  type="button"
+                  onClick={handleTogglePublish}
+                  className="px-2.5 py-1 rounded-lg bg-gray-900 hover:bg-gray-800 text-[10px] font-mono text-gray-300 hover:text-white transition flex items-center gap-1"
+                >
+                  {post.is_published ? <EyeOff className="h-3.5 w-3.5 text-amber-400" /> : <Eye className="h-3.5 w-3.5 text-emerald-400" />}
+                  <span>{post.is_published ? "Unpublish" : "Publish"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeletePost}
+                  className="px-2.5 py-1 rounded-lg bg-gray-900 hover:bg-gray-800 text-[10px] font-mono text-red-400 transition flex items-center gap-1"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Delete</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-4">
             <span className="inline-block px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold uppercase tracking-wider">
@@ -257,19 +346,35 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
             </p>
           </div>
 
-          {/* Author & Meta Bar */}
+          {/* Author, Meta & Upvote Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-4 pt-2 text-xs font-mono text-gray-400">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-400">
-                <User className="h-4 w-4" />
-              </div>
+              <img
+                src={post.author_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${post.author_name}`}
+                alt={post.author_name}
+                className="w-9 h-9 rounded-full object-cover border border-emerald-500/40"
+              />
               <div>
                 <p className="font-bold text-gray-200">{post.author_name}</p>
-                <p className="text-[10px] text-gray-500">Author & Editorial Team</p>
+                <p className="text-[10px] text-gray-500">Community Contributor</p>
               </div>
             </div>
 
             <div className="flex items-center gap-4 text-gray-500">
+              {/* Upvote Button */}
+              <button
+                type="button"
+                onClick={handleUpvote}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition cursor-pointer ${
+                  isUpvoted
+                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold"
+                    : "bg-gray-950 hover:bg-gray-900 text-gray-300 border-gray-800"
+                }`}
+              >
+                <ThumbsUp className={`h-3.5 w-3.5 ${isUpvoted ? "fill-current text-emerald-400" : ""}`} />
+                <span>{post.upvotes_count || 0} Upvotes</span>
+              </button>
+
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
                 {new Date(post.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -300,14 +405,108 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
           />
         </div>
 
-        {/* Content Layout with Table of Contents & Article Body */}
+        {/* Content Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Main Article Content */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-8 space-y-8">
             {renderMarkdownContent(post.content)}
 
             {/* Embedded Conversion CTA */}
             <BlogCTA onOpenAuth={onOpenAuth} onGoToWorkspace={onGoToWorkspace} />
+
+            {/* Comments Section */}
+            <div className="pt-8 border-t border-gray-850 space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-emerald-400" />
+                  <span>Community Discussion ({comments.length})</span>
+                </h3>
+              </div>
+
+              {/* Comment Input */}
+              {user ? (
+                <form onSubmit={handleAddComment} className="space-y-3 bg-gray-950/60 p-4 rounded-2xl border border-gray-850">
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={profile?.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${user?.id}`}
+                      alt="User Avatar"
+                      className="w-6 h-6 rounded-full object-cover border border-emerald-500/40"
+                    />
+                    <span className="text-xs font-mono font-bold text-gray-300">
+                      {profile?.display_name || user.email?.split("@")[0]}
+                    </span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Add your thoughts, feedback, or Print-on-Demand questions..."
+                    className="w-full p-3 bg-gray-900 border border-gray-800 rounded-xl text-xs font-sans text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 resize-none"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isSubmittingComment || !commentText.trim()}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs font-mono shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      <span>{isSubmittingComment ? "Posting..." : "Post Comment"}</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="p-4 bg-gray-950/60 rounded-2xl border border-gray-850 text-center space-y-2 font-mono text-xs">
+                  <p className="text-gray-400">Join the discussion to leave a comment and upvote articles.</p>
+                  <button
+                    onClick={onOpenAuth}
+                    className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold hover:bg-emerald-500/20 transition cursor-pointer"
+                  >
+                    Sign In to Comment
+                  </button>
+                </div>
+              )}
+
+              {/* Comments List */}
+              <div className="space-y-4">
+                {comments.length === 0 ? (
+                  <p className="text-xs text-gray-500 font-mono italic">No comments yet. Be the first to start the discussion!</p>
+                ) : (
+                  comments.map((comment) => {
+                    const isCommentAuthor = user && user.id === comment.user_id;
+                    return (
+                      <div key={comment.id} className="p-4 rounded-xl bg-gray-950/40 border border-gray-850/80 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={comment.user_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${comment.user_name}`}
+                              alt={comment.user_name}
+                              className="w-6 h-6 rounded-full object-cover border border-gray-800"
+                            />
+                            <span className="text-xs font-mono font-bold text-gray-200">{comment.user_name}</span>
+                            <span className="text-[10px] font-mono text-gray-500">
+                              {new Date(comment.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                            </span>
+                          </div>
+
+                          {(isCommentAuthor || isAdminOrMod) && (
+                            <button
+                              onClick={() => handleDeleteComment(comment.id)}
+                              className="text-gray-500 hover:text-red-400 transition"
+                              title="Delete Comment"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-300 leading-relaxed font-sans pl-8">
+                          {comment.content}
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Sidebar / Table of Contents */}
