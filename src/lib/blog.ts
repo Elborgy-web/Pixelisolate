@@ -311,7 +311,7 @@ export async function createPost(
   const readingTime = Math.max(2, Math.ceil(postData.content.split(/\s+/).length / 180));
   const authorName = profile?.display_name || user?.email?.split("@")[0] || "Community Member";
   const authorAvatar = profile?.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${user?.id || authorName}`;
-  const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin");
+  const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin") || user?.email?.toLowerCase() === "rjhustles@gmail.com";
 
   const newPost: BlogPost = {
     id: `post-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,

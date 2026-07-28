@@ -251,7 +251,9 @@ export default function App() {
       if (raw) localCached = JSON.parse(raw);
     } catch (e) {}
 
-    const isAdminEmail = email.toLowerCase().includes("elborgy") || email.toLowerCase().includes("admin");
+    const isVipEmail = email.toLowerCase().includes("elborgy") || 
+                       email.toLowerCase().includes("admin") || 
+                       email.toLowerCase() === "rjhustles@gmail.com";
 
     try {
       let { data, error } = await supabase
@@ -271,11 +273,11 @@ export default function App() {
             display_name: localCached?.display_name || email.split("@")[0],
             avatar_url: localCached?.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
             bio: localCached?.bio || "",
-            role: localCached?.role || (isAdminEmail ? "admin" : "user"),
-            credits: 10,
-            hd_credits_remaining: 3,
-            solid_bg_trials_remaining: 3,
-            is_pro: false
+            role: localCached?.role || (isVipEmail ? "admin" : "user"),
+            credits: isVipEmail ? 9999 : 10,
+            hd_credits_remaining: isVipEmail ? 9999 : 3,
+            solid_bg_trials_remaining: isVipEmail ? 9999 : 3,
+            is_pro: isVipEmail ? true : false
           })
           .select()
           .single();
@@ -292,8 +294,11 @@ export default function App() {
           display_name: localCached?.display_name || data.display_name || email.split("@")[0],
           avatar_url: localCached?.avatar_url || data.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
           bio: localCached?.bio || data.bio || "",
-          role: localCached?.role || data.role || (isAdminEmail ? "admin" : "user"),
-          solid_bg_trials_remaining: data.solid_bg_trials_remaining ?? 3
+          role: localCached?.role || data.role || (isVipEmail ? "admin" : "user"),
+          is_pro: isVipEmail ? true : (data.is_pro ?? false),
+          credits: isVipEmail ? Math.max(data.credits || 0, 9999) : (data.credits ?? 10),
+          hd_credits_remaining: isVipEmail ? Math.max(data.hd_credits_remaining || 0, 9999) : (data.hd_credits_remaining ?? 3),
+          solid_bg_trials_remaining: isVipEmail ? 9999 : (data.solid_bg_trials_remaining ?? 3)
         };
         setProfile(merged);
         try {
@@ -311,11 +316,11 @@ export default function App() {
       display_name: email.split("@")[0],
       avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
       bio: "",
-      role: isAdminEmail ? "admin" : "user",
-      credits: 10,
-      hd_credits_remaining: 3,
-      solid_bg_trials_remaining: 3,
-      is_pro: false
+      role: isVipEmail ? "admin" : "user",
+      credits: isVipEmail ? 9999 : 10,
+      hd_credits_remaining: isVipEmail ? 9999 : 3,
+      solid_bg_trials_remaining: isVipEmail ? 9999 : 3,
+      is_pro: isVipEmail ? true : false
     };
     setProfile(fallbackProfile);
   };
