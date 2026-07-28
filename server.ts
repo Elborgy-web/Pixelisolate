@@ -1027,7 +1027,7 @@ app.get(["/blog", "/blog/:slug"], async (req, res) => {
         });
       } else {
         html = injectOpenGraphTags(html, {
-          title: "PixelIsolate Blog: Print-on-Demand & AI Design Guides",
+          title: "Pixel Isolate Blog: Print-on-Demand & AI Design Guides",
           description: "Expert tutorials on background removal, subpixel chroma keying, eliminating white print halos, and scaling e-commerce photography.",
           imageUrl: "https://pixelisolate.online/logo.png",
           pageUrl: `https://pixelisolate.online/blog/${cleanSlug}`,

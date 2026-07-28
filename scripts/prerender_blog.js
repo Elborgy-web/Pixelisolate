@@ -25,7 +25,7 @@ function prerender() {
   const blogDir = path.join(distDir, "blog");
   if (!fs.existsSync(blogDir)) fs.mkdirSync(blogDir, { recursive: true });
 
-  const blogTitle = "PixelIsolate Blog: Print-on-Demand & AI Design Guides";
+  const blogTitle = "Pixel Isolate Blog: Print-on-Demand & AI Design Guides";
   const blogDesc = "Expert tutorials on background removal, subpixel chroma keying, eliminating white print halos, and scaling e-commerce photography.";
   const blogUrl = "https://pixelisolate.online/blog";
   const blogImage = "https://pixelisolate.online/logo.png";

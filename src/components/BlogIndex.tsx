@@ -106,10 +106,10 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
         <div className="text-center max-w-3xl mx-auto space-y-4 pt-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold uppercase tracking-wider">
             <BookOpen className="h-3.5 w-3.5" />
-            <span>PixelIsolate Community Knowledge Hub</span>
+            <span>Pixel Isolate Community Knowledge Hub</span>
           </div>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
-            PixelIsolate Blog: Print-on-Demand & AI Design Guides
+            Pixel Isolate Blog: Print-on-Demand & AI Design Guides
           </h1>
           <p className="text-base sm:text-lg text-gray-400 font-sans leading-relaxed">
             Community-driven tutorials on background removal, subpixel chroma keying, eliminating white print halos, and e-commerce growth.
