@@ -14,8 +14,7 @@
     { "source": "/sitemap.xml", "destination": "/sitemap.xml" },
     { "source": "/llms.txt", "destination": "/llms.txt" },
     { "source": "/llms-full.txt", "destination": "/llms-full.txt" },
-    { "source": "/blog", "destination": "https://pixelisolate-backend.onrender.com/blog" },
-    { "source": "/blog/(.*)", "destination": "https://pixelisolate-backend.onrender.com/blog/$1" },
+    { "source": "/blog/(.*)", "destination": "/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
