@@ -229,14 +229,55 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   };
 
   const formatInlineMarkdown = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*|\`.*?\`)/g);
+    const regex = /(\[.*?\]\(https?:\/\/.*?\)|https?:\/\/[^\s<]+|\*\*.*?\*\*|\`.*?\`)/g;
+    const parts = text.split(regex);
+
     return parts.map((part, i) => {
+      if (!part) return null;
+
+      // 1. Markdown Link: [Anchor Text](https://url.com)
+      const mdLinkMatch = part.match(/^\[(.*?)\]\((https?:\/\/.*?)\)$/);
+      if (mdLinkMatch) {
+        const anchorText = mdLinkMatch[1];
+        const href = mdLinkMatch[2];
+        return (
+          <a
+            key={i}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 font-semibold transition"
+          >
+            {anchorText}
+          </a>
+        );
+      }
+
+      // 2. Raw URL: https://...
+      if (/^https?:\/\/[^\s<]+$/.test(part)) {
+        return (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 font-semibold transition"
+          >
+            {part}
+          </a>
+        );
+      }
+
+      // 3. Bold **text**
       if (part.startsWith("**") && part.endsWith("**")) {
         return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
       }
+
+      // 4. Code `text`
       if (part.startsWith("`") && part.endsWith("`")) {
         return <code key={i} className="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800 text-emerald-400 font-mono text-xs">{part.slice(1, -1)}</code>;
       }
+
       return part;
     });
   };

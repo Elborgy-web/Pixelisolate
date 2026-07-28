@@ -204,7 +204,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
           <div className="space-y-1.5">
             <div className="flex justify-between items-center">
               <label className="block text-xs font-mono text-gray-400 uppercase">Article Body (Markdown Supported) *</label>
-              <span className="text-[10px] font-mono text-emerald-400"># Heading 1, ## Heading 2, **Bold**</span>
+              <span className="text-[10px] font-mono text-emerald-400"># Heading 1, ## Heading 2, **Bold**, [Link Text](https://...)</span>
             </div>
             <textarea
               required
