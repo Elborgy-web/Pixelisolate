@@ -446,16 +446,26 @@ export async function createPost(
   // Trigger Facebook auto-scrape in background so FB gets OpenGraph preview immediately
   triggerFacebookAutoScrape(slug);
 
-  // Try DB insert
+  // Save locally first so it is available instantly for UI and routing
+  const stored = getStoredPosts();
+  stored.unshift(newPost);
+  saveStoredPosts(stored);
+
+  // Try API insert via backend
+  try {
+    const apiBase = (import.meta.env.VITE_API_URL || "").trim();
+    await fetch(`${apiBase}/api/blog/posts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newPost)
+    });
+  } catch (e) {}
+
+  // Try direct DB insert
   try {
     const { data, error } = await supabase.from("posts").insert(newPost).select().single();
     if (!error && data) return data as BlogPost;
   } catch (e) {}
-
-  // Fallback: Store locally
-  const stored = getStoredPosts();
-  stored.unshift(newPost);
-  saveStoredPosts(stored);
 
   return newPost;
 }
@@ -644,9 +654,15 @@ export async function updatePost(
     updatedPostResult = seedItem;
   }
 
-  if (stored.length > 0) {
-    saveStoredPosts(stored);
-  }
+  // 4. Try backend API update
+  try {
+    const apiBase = (import.meta.env.VITE_API_URL || "").trim();
+    await fetch(`${apiBase}/api/blog/posts/${encodeURIComponent(postId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedFields)
+    });
+  } catch (e) {}
 
   if (updatedPostResult) {
     triggerFacebookAutoScrape(updatedPostResult.slug);

@@ -863,6 +863,71 @@ app.delete("/api/vault/:id", async (req, res) => {
   }
 });
 
+// Backend Blog API: Create Post (Admin bypasses RLS)
+app.post("/api/blog/posts", async (req, res) => {
+  try {
+    const postPayload = req.body;
+    if (!postPayload.title || !postPayload.slug) {
+      res.status(400).json({ error: "Missing title or slug" });
+      return;
+    }
+    const { data, error } = await supabaseAdmin
+      .from("posts")
+      .upsert(postPayload, { onConflict: "id" })
+      .select()
+      .single();
+
+    if (error) {
+      console.warn("[Blog API] Admin post insert warning:", error.message);
+      res.status(200).json({ success: false, warning: error.message, data: postPayload });
+      return;
+    }
+    res.status(200).json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to create post" });
+  }
+});
+
+// Backend Blog API: Update Post (Admin bypasses RLS)
+app.put("/api/blog/posts/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedFields = req.body;
+    const { data, error } = await supabaseAdmin
+      .from("posts")
+      .update(updatedFields)
+      .eq("id", id)
+      .select();
+
+    if (error || !data || data.length === 0) {
+      const { data: slugData } = await supabaseAdmin
+        .from("posts")
+        .update(updatedFields)
+        .eq("slug", id)
+        .select();
+      if (slugData && slugData.length > 0) {
+        res.status(200).json({ success: true, data: slugData[0] });
+        return;
+      }
+    }
+    res.status(200).json({ success: true, data: data ? data[0] : updatedFields });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to update post" });
+  }
+});
+
+// Backend Blog API: Delete Post (Admin bypasses RLS)
+app.delete("/api/blog/posts/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await supabaseAdmin.from("posts").delete().eq("id", id);
+    await supabaseAdmin.from("posts").delete().eq("slug", id);
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to delete post" });
+  }
+});
+
 
 // OpenGraph & Meta Tag SSR for /blog and /blog/:slug
 app.get(["/blog", "/blog/:slug"], async (req, res) => {
