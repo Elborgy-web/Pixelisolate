@@ -126,8 +126,21 @@ function cropImageTransparentEdges(imgElement: HTMLImageElement): string {
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [currentTab, setCurrentTab] = useState<"editor" | "history" | "billing" | "howto" | "blog">("editor");
-  const [selectedBlogSlug, setSelectedBlogSlug] = useState<string | null>(null);
+  const [currentTab, setCurrentTab] = useState<"editor" | "history" | "billing" | "howto" | "blog">(() => {
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/blog")) {
+      return "blog";
+    }
+    return "editor";
+  });
+
+  const [selectedBlogSlug, setSelectedBlogSlug] = useState<string | null>(() => {
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/blog")) {
+      const parts = window.location.pathname.split("/blog");
+      const slug = parts[1] ? parts[1].replace(/^\//, "").trim() : "";
+      return slug || null;
+    }
+    return null;
+  });
   const [logoSrc, setLogoSrc] = useState("/logo.png");
 
   useEffect(() => {

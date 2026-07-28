@@ -67,8 +67,9 @@ export default {
           }
         }
 
-        // Fetch base index.html static asset from Cloudflare Pages binding
-        const assetRes = await env.ASSETS.fetch(request);
+        // Fetch base index.html static asset from Cloudflare Pages binding (must target root '/')
+        const indexReq = new Request(new URL('/', request.url), request);
+        const assetRes = await env.ASSETS.fetch(indexReq);
         let html = await assetRes.text();
 
         const title = post
