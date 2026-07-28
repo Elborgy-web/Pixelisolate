@@ -116,7 +116,7 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
                 <Sparkles className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">AI Magic Cutout Mode</h1>
+                <h2 className="text-xl font-bold text-white tracking-tight">AI Magic Cutout Mode</h2>
                 <p className="text-xs font-mono text-gray-500 uppercase tracking-wider mt-0.5">SOTA Neural Segmentation</p>
               </div>
             </div>
@@ -168,7 +168,7 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
                 <Droplet className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Chroma Key Workspace</h1>
+                <h2 className="text-xl font-bold text-white tracking-tight">Chroma Key Workspace</h2>
                 <p className="text-xs font-mono text-gray-500 uppercase tracking-wider mt-0.5">High-Precision Color Keying</p>
               </div>
             </div>
@@ -218,7 +218,7 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
                 <Sliders className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Edge Refinement Sliders</h1>
+                <h2 className="text-xl font-bold text-white tracking-tight">Edge Refinement Sliders</h2>
                 <p className="text-xs font-mono text-gray-500 uppercase tracking-wider mt-0.5">Post-Processing Morphological Filters</p>
               </div>
             </div>
@@ -265,7 +265,7 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
                 <Brush className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Manual Mask Refinement Brush</h1>
+                <h2 className="text-xl font-bold text-white tracking-tight">Manual Mask Refinement Brush</h2>
                 <p className="text-xs font-mono text-gray-500 uppercase tracking-wider mt-0.5">Interactive Brush & Undo</p>
               </div>
             </div>
@@ -321,7 +321,7 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
                 <Layers className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Bulk Mode & Background Merging</h1>
+                <h2 className="text-xl font-bold text-white tracking-tight">Bulk Mode & Background Merging</h2>
                 <p className="text-xs font-mono text-gray-500 uppercase tracking-wider mt-0.5">Automated Multi-Image Pipelines</p>
               </div>
             </div>
@@ -359,7 +359,7 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
                 <Palette className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Solid Color Background Selector</h1>
+                <h2 className="text-xl font-bold text-white tracking-tight">Solid Color Background Selector</h2>
                 <p className="text-xs font-mono text-gray-500 uppercase tracking-wider mt-0.5">Instant Product Compliance & Previewing</p>
               </div>
             </div>

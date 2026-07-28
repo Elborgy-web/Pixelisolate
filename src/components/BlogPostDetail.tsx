@@ -153,14 +153,14 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
     return paragraphs.map((block, idx) => {
       const trimmed = block.trim();
       
-      // H1 Header
+      // H1 Header (Demoted to H2 in body to preserve single H1 per page)
       if (trimmed.startsWith("# ")) {
         const text = trimmed.replace(/^#\s+/, "");
         const id = text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
         return (
-          <h1 key={idx} id={id} className="text-2xl sm:text-3xl font-extrabold text-white mt-8 mb-4 tracking-tight">
+          <h2 key={idx} id={id} className="text-2xl sm:text-3xl font-extrabold text-white mt-8 mb-4 tracking-tight">
             {text}
-          </h1>
+          </h2>
         );
       }
 

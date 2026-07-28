@@ -31,6 +31,12 @@ export default defineConfig(() => {
               if (id.includes('@supabase')) {
                 return 'vendor-supabase';
               }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('@paddle')) {
+                return 'vendor-paddle';
+              }
               if (id.includes('onnxruntime-web')) {
                 return 'vendor-onnx';
               }
