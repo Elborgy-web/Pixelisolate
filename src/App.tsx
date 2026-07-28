@@ -254,7 +254,8 @@ export default function App() {
     const isVipEmail = email.toLowerCase().includes("elborgy") || 
                        email.toLowerCase().includes("admin") || 
                        email.toLowerCase() === "rjhustles@gmail.com" ||
-                       email.toLowerCase() === "detourdesignllc@gmail.com";
+                       email.toLowerCase() === "detourdesignllc@gmail.com" ||
+                       email.toLowerCase() === "philip@philipanders.com";
 
     try {
       let { data, error } = await supabase

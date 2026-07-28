@@ -45,7 +45,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   const [isDeletingPost, setIsDeletingPost] = useState<boolean>(false);
   const [showPostDeleteModal, setShowPostDeleteModal] = useState<boolean>(false);
 
-  const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin") || user?.email?.toLowerCase() === "rjhustles@gmail.com" || user?.email?.toLowerCase() === "detourdesignllc@gmail.com";
+  const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin") || user?.email?.toLowerCase() === "rjhustles@gmail.com" || user?.email?.toLowerCase() === "detourdesignllc@gmail.com" || user?.email?.toLowerCase() === "philip@philipanders.com";
   const isAuthor = user && post && (user.id === post.author_id);
   const canEdit = isAuthor || isAdminOrMod;
 

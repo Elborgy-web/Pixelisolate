@@ -33,12 +33,12 @@ async function grantProUser(targetEmail) {
       }
     }
 
-    // 2. If user doesn't exist yet, auto-create auth user so they can log in
+    // 2. If user doesn't exist yet, auto-create auth user silently without sending any welcome emails
     if (!targetUserId) {
-      console.log(`[VIP Provisioner] User ${targetEmail} not found in auth.users. Provisioning auth user...`);
+      console.log(`[VIP Provisioner] User ${targetEmail} not found in auth.users. Provisioning auth user silently (no email sent)...`);
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: targetEmail,
-        email_confirm: true,
+        email_confirm: true, // Pre-confirms email silently without sending welcome/verification email
         user_metadata: { role: "admin", is_pro: true }
       });
 
@@ -82,6 +82,7 @@ async function grantProUser(targetEmail) {
 async function run() {
   await grantProUser("rjhustles@gmail.com");
   await grantProUser("detourdesignllc@gmail.com");
+  await grantProUser("philip@philipanders.com");
 }
 
 run();
