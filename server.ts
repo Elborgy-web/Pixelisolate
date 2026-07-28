@@ -957,23 +957,25 @@ function injectOpenGraphTags(html: string, ogData: {
   // 1. Replace main <title> tag
   let cleanHtml = html.replace(/<title>.*?<\/title>/gi, `<title>${safeTitle}</title>`);
 
-  // 2. Strip existing default OpenGraph and Twitter meta tags to prevent duplicate collisions
+  // 2. Strip all existing description, og:*, twitter:* meta tags and canonical link to prevent duplicate collisions
   cleanHtml = cleanHtml
-    .replace(/<meta\s+name="description"\s+content=".*?"\s*\/?>/gi, "")
-    .replace(/<meta\s+property="og:.*?"\s+content=".*?"\s*\/?>/gi, "")
-    .replace(/<meta\s+name="twitter:.*?"\s+content=".*?"\s*\/?>/gi, "")
-    .replace(/<link\s+rel="canonical"\s+href=".*?"\s*\/?>/gi, "");
+    .replace(/<meta\s+[^>]*?(?:name|property)=["'](?:description|og:[^"']+|twitter:[^"']+)["'][^>]*?>/gi, "")
+    .replace(/<link\s+[^>]*?rel=["']canonical["'][^>]*?>/gi, "");
 
-  // 3. Construct clean article OpenGraph tags
+  // 3. Construct clean article OpenGraph tags according to Facebook specifications
   const ogMeta = `
     <meta name="description" content="${safeDesc}" />
     <meta property="og:type" content="${ogType}" />
+    <meta property="og:site_name" content="Pixel Isolate" />
     <meta property="og:title" content="${safeTitle}" />
     <meta property="og:description" content="${safeDesc}" />
+    <meta property="og:url" content="${safeUrl}" />
     <meta property="og:image" content="${safeImage}" />
     <meta property="og:image:secure_url" content="${safeImage}" />
-    <meta property="og:url" content="${safeUrl}" />
-    <meta property="og:site_name" content="PixelIsolate" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="${safeTitle}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${safeTitle}" />
     <meta name="twitter:description" content="${safeDesc}" />

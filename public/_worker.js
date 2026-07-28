@@ -59,12 +59,15 @@ export default {
         const description = post
           ? post.excerpt
           : "Community-driven tutorials on background removal, subpixel chroma keying, eliminating white print halos, and e-commerce growth.";
-        const imageUrl = (post && post.cover_image)
-          ? post.cover_image
-          : "https://pixelisolate.online/logo.png";
+        
+        let imageUrl = "https://pixelisolate.online/logo.png";
+        if (post && post.cover_image && post.cover_image.startsWith("http")) {
+          imageUrl = post.cover_image;
+        }
+
         const pageUrl = post
           ? `https://pixelisolate.online/blog/${post.slug}`
-          : "https://pixelisolate.online/blog";
+          : `https://pixelisolate.online${pathname}`;
         const ogType = post ? "article" : "website";
 
         const safeTitle = title.replace(/"/g, '&quot;');
@@ -73,22 +76,24 @@ export default {
         // Replace <title>
         html = html.replace(/<title>.*?<\/title>/gi, `<title>${safeTitle}</title>`);
 
-        // Strip default meta tags to prevent collisions
+        // Universal regex to strip all existing meta tags (description, og:*, twitter:*) and canonical links
         html = html
-          .replace(/<meta\s+name="description"\s+content=".*?"\s*\/?>/gi, "")
-          .replace(/<meta\s+property="og:.*?"\s+content=".*?"\s*\/?>/gi, "")
-          .replace(/<meta\s+name="twitter:.*?"\s+content=".*?"\s*\/?>/gi, "")
-          .replace(/<link\s+rel="canonical"\s+href=".*?"\s*\/?>/gi, "");
+          .replace(/<meta\s+[^>]*?(?:name|property)=["'](?:description|og:[^"']+|twitter:[^"']+)["'][^>]*?>/gi, "")
+          .replace(/<link\s+[^>]*?rel=["']canonical["'][^>]*?>/gi, "");
 
         const ogMeta = `
           <meta name="description" content="${safeDesc}" />
           <meta property="og:type" content="${ogType}" />
+          <meta property="og:site_name" content="Pixel Isolate" />
           <meta property="og:title" content="${safeTitle}" />
           <meta property="og:description" content="${safeDesc}" />
+          <meta property="og:url" content="${pageUrl}" />
           <meta property="og:image" content="${imageUrl}" />
           <meta property="og:image:secure_url" content="${imageUrl}" />
-          <meta property="og:url" content="${pageUrl}" />
-          <meta property="og:site_name" content="Pixel Isolate" />
+          <meta property="og:image:type" content="image/png" />
+          <meta property="og:image:width" content="1200" />
+          <meta property="og:image:height" content="630" />
+          <meta property="og:image:alt" content="${safeTitle}" />
           <meta name="twitter:card" content="summary_large_image" />
           <meta name="twitter:title" content="${safeTitle}" />
           <meta name="twitter:description" content="${safeDesc}" />
