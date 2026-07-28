@@ -8,7 +8,10 @@ import LandingPage from "./components/LandingPage";
 import { supabase } from "./utils/supabaseClient";
 import { initializePaddle } from "@paddle/paddle-js";
 
-// Lazy-loaded route and modal components to reduce initial JS payload by > 75% on mobile
+import BlogIndex from "./components/BlogIndex";
+import BlogPostDetail from "./components/BlogPostDetail";
+
+// Lazy-loaded heavy modal and canvas components
 const ChromaKeyer = React.lazy(() => import("./components/ChromaKeyer"));
 const HistoryGallery = React.lazy(() => import("./components/HistoryGallery"));
 const AuthModal = React.lazy(() => import("./components/AuthModal"));
@@ -16,8 +19,6 @@ const PricingModal = React.lazy(() => import("./components/PricingModal"));
 const EmbedBadgeModal = React.lazy(() => import("./components/EmbedBadgeModal"));
 const SubscriptionManager = React.lazy(() => import("./components/SubscriptionManager"));
 const HowToGuide = React.lazy(() => import("./components/HowToGuide"));
-const BlogIndex = React.lazy(() => import("./components/BlogIndex"));
-const BlogPostDetail = React.lazy(() => import("./components/BlogPostDetail"));
 const CreatePostModal = React.lazy(() => import("./components/CreatePostModal"));
 const UserProfileModal = React.lazy(() => import("./components/UserProfileModal"));
 

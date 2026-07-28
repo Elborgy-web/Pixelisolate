@@ -113,8 +113,37 @@ function saveStoredVotes(votes: Record<string, string[]>) {
   } catch (e) {}
 }
 
+let postsMemoryCache: BlogPost[] | null = null;
+
 /**
- * Fetch all posts (published or all for admin/moderator).
+ * Synchronously get cached posts for instant 0ms rendering.
+ */
+export function getCachedPosts(category?: string, search?: string, includeUnpublished = false): BlogPost[] {
+  let posts: BlogPost[] = postsMemoryCache || getStoredPosts();
+
+  if (!includeUnpublished) {
+    posts = posts.filter(p => p.is_published);
+  }
+
+  if (category && category !== "All") {
+    posts = posts.filter(p => p.category.toLowerCase() === category.toLowerCase());
+  }
+
+  if (search && search.trim() !== "") {
+    const q = search.toLowerCase().trim();
+    posts = posts.filter(
+      p =>
+        p.title.toLowerCase().includes(q) ||
+        p.excerpt.toLowerCase().includes(q) ||
+        p.author_name.toLowerCase().includes(q)
+    );
+  }
+
+  return posts.sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
+}
+
+/**
+ * Fetch all posts (published or all for admin/moderator) with background revalidation.
  */
 export async function getPublishedPosts(category?: string, search?: string, includeUnpublished = false): Promise<BlogPost[]> {
   let dbPosts: BlogPost[] = [];
@@ -165,6 +194,10 @@ export async function getPublishedPosts(category?: string, search?: string, incl
 
   let result = Array.from(allMap.values());
 
+  // Cache in memory for instant tab switches
+  postsMemoryCache = result;
+  saveStoredPosts(result);
+
   if (!includeUnpublished) {
     result = result.filter(p => p.is_published);
   }
@@ -179,7 +212,6 @@ export async function getPublishedPosts(category?: string, search?: string, incl
       p =>
         p.title.toLowerCase().includes(q) ||
         p.excerpt.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q) ||
         p.author_name.toLowerCase().includes(q)
     );
   }

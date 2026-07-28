@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { getPublishedPosts, toggleUpvote, hasUserUpvoted, deletePost, togglePostPublishStatus, BlogPost } from "../lib/blog";
+import { getPublishedPosts, getCachedPosts, toggleUpvote, hasUserUpvoted, deletePost, togglePostPublishStatus, BlogPost } from "../lib/blog";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import { Search, Clock, Calendar, ArrowRight, Tag, Sparkles, BookOpen, ThumbsUp, MessageSquare, Plus, User, ShieldCheck, Trash2, Eye, EyeOff, Edit3 } from "lucide-react";
 
@@ -26,18 +26,28 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin");
+
+  // Instant 0ms cache-first state initialization
+  const [posts, setPosts] = useState<BlogPost[]>(() => {
+    return getCachedPosts(selectedCategory, searchQuery, isAdminOrMod);
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    const cached = getCachedPosts(selectedCategory, searchQuery, isAdminOrMod);
+    return cached.length === 0;
+  });
   const [userVotes, setUserVotes] = useState<Record<string, boolean>>({});
 
   // Delete modal state
   const [postToDelete, setPostToDelete] = useState<BlogPost | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin");
-
   const loadPosts = useCallback(async () => {
-    setIsLoading(true);
+    // Only show skeleton loader if cache is empty
+    if (posts.length === 0) {
+      setIsLoading(true);
+    }
+
     const data = await getPublishedPosts(selectedCategory, searchQuery, isAdminOrMod);
     setPosts(data);
 
@@ -49,7 +59,7 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
       setUserVotes(votesState);
     }
     setIsLoading(false);
-  }, [selectedCategory, searchQuery, user, profile, isAdminOrMod]);
+  }, [selectedCategory, searchQuery, user, profile, isAdminOrMod, posts.length]);
 
   useEffect(() => {
     loadPosts();

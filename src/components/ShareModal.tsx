@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Share2, Copy, Check, ExternalLink } from "lucide-react";
+import { X, Share2, Copy, Check } from "lucide-react";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -7,6 +7,24 @@ interface ShareModalProps {
   title: string;
   url: string;
 }
+
+const FacebookIcon = () => (
+  <svg className="w-5 h-5 fill-current text-white shrink-0" viewBox="0 0 24 24">
+    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+  </svg>
+);
+
+const XTwitterIcon = () => (
+  <svg className="w-4 h-4 fill-current text-white shrink-0" viewBox="0 0 24 24">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+  </svg>
+);
+
+const RedditIcon = () => (
+  <svg className="w-5 h-5 fill-current text-white shrink-0" viewBox="0 0 24 24">
+    <path d="M12 0C5.373 0 0 5.373 0 12c0 3.314 1.344 6.315 3.516 8.484l-1.391 3.565a.5.5 0 00.648.648l3.565-1.391C8.502 23.36 10.203 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm6.657 14.538c.17.376.082.822-.224 1.107-1.12 1.042-2.775 1.625-4.433 1.625s-3.313-.583-4.433-1.625a.952.952 0 01-.224-1.107c.106-.238.328-.403.585-.434.258-.03.51.077.671.282.794.74 2.052 1.134 3.401 1.134s2.607-.394 3.401-1.134a.798.798 0 01.671-.282c.257.031.479.196.585.434zM9.25 12a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5zm5.5 0a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z"/>
+  </svg>
+);
 
 export const ShareModal: React.FC<ShareModalProps> = ({
   isOpen,
@@ -24,20 +42,20 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const shareLinks = [
     {
       name: "Facebook",
-      icon: "🌐",
-      color: "from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600",
+      icon: <FacebookIcon />,
+      color: "from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 shadow-blue-500/20",
       link: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
     },
     {
       name: "X (Twitter)",
-      icon: "𝕏",
-      color: "from-gray-800 to-gray-950 hover:from-gray-700 hover:to-gray-900 border border-gray-700",
+      icon: <XTwitterIcon />,
+      color: "from-gray-800 to-gray-950 hover:from-gray-700 hover:to-gray-900 border border-gray-700 shadow-black/40",
       link: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`,
     },
     {
       name: "Reddit",
-      icon: "🤖",
-      color: "from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500",
+      icon: <RedditIcon />,
+      color: "from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 shadow-orange-500/20",
       link: `https://www.reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}`,
     },
   ];
@@ -81,9 +99,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               href={item.link}
               target="_blank"
               rel="noopener noreferrer"
-              className={`p-3.5 rounded-xl bg-gradient-to-br ${item.color} text-white font-mono text-xs font-bold flex flex-col items-center justify-center gap-2 shadow-lg transition cursor-pointer group`}
+              className={`p-3.5 rounded-xl bg-gradient-to-br ${item.color} text-white font-mono text-xs font-bold flex flex-col items-center justify-center gap-2.5 shadow-lg transition cursor-pointer group`}
             >
-              <span className="text-xl group-hover:scale-110 transition-transform">{item.icon}</span>
+              <span className="group-hover:scale-110 transition-transform">{item.icon}</span>
               <span>{item.name}</span>
             </a>
           ))}
