@@ -234,6 +234,15 @@ export default function App() {
   }, []);
 
   const fetchProfile = async (userId: string, email: string) => {
+    // 1. Read cached profile from localStorage for instant persistence across page refreshes
+    let localCached: any = null;
+    try {
+      const raw = localStorage.getItem(`pixelisolate_profile_${userId}`);
+      if (raw) localCached = JSON.parse(raw);
+    } catch (e) {}
+
+    const isAdminEmail = email.toLowerCase().includes("elborgy") || email.toLowerCase().includes("admin");
+
     try {
       let { data, error } = await supabase
         .from("profiles")
@@ -246,38 +255,59 @@ export default function App() {
         console.info("[Auth] Profile not found in database. Auto-creating client-side...");
         const { data: newProfile, error: insertError } = await supabase
           .from("profiles")
-          .insert({ id: userId, email: email, credits: 10, hd_credits_remaining: 3, solid_bg_trials_remaining: 3, is_pro: false })
+          .insert({
+            id: userId,
+            email: email,
+            display_name: localCached?.display_name || email.split("@")[0],
+            avatar_url: localCached?.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
+            bio: localCached?.bio || "",
+            role: localCached?.role || (isAdminEmail ? "admin" : "user"),
+            credits: 10,
+            hd_credits_remaining: 3,
+            solid_bg_trials_remaining: 3,
+            is_pro: false
+          })
           .select()
           .single();
         
         if (!insertError) {
           data = newProfile;
           error = null;
-        } else {
-          console.warn("[Auth] Client-side profile insert failed:", insertError);
         }
       }
 
-      if (error) {
-        console.warn("Profile fetch failed, using memory state:", error);
-        setProfile({
-          id: userId,
-          email: email,
-          credits: 10,
-          hd_credits_remaining: 3,
-          solid_bg_trials_remaining: 3,
-          is_pro: false
-        });
-      } else {
-        const profileData = {
+      if (!error && data) {
+        const merged = {
           ...data,
+          display_name: localCached?.display_name || data.display_name || email.split("@")[0],
+          avatar_url: localCached?.avatar_url || data.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
+          bio: localCached?.bio || data.bio || "",
+          role: localCached?.role || data.role || (isAdminEmail ? "admin" : "user"),
           solid_bg_trials_remaining: data.solid_bg_trials_remaining ?? 3
         };
-        setProfile(profileData);
+        setProfile(merged);
+        try {
+          localStorage.setItem(`pixelisolate_profile_${userId}`, JSON.stringify(merged));
+        } catch (e) {}
+        return;
       }
     } catch (err) {
-      console.error("Error loading profile:", err);
+      console.warn("Error loading profile from DB, using cached/fallback profile:", err);
     }
+
+    const fallbackProfile = localCached || {
+      id: userId,
+      email: email,
+      display_name: email.split("@")[0],
+      avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
+      bio: "",
+      role: isAdminEmail ? "admin" : "user",
+      credits: 10,
+      hd_credits_remaining: 3,
+      solid_bg_trials_remaining: 3,
+      is_pro: false
+    };
+    setProfile(fallbackProfile);
   };
 
   const handleLogout = async () => {

@@ -364,6 +364,15 @@ export async function getAllPostSlugs(): Promise<string[]> {
   return posts.map(p => p.slug);
 }
 
+export async function triggerFacebookAutoScrape(slug: string) {
+  try {
+    const articleUrl = `https://pixelisolate.online/blog/${slug}`;
+    fetch(`https://graph.facebook.com/?id=${encodeURIComponent(articleUrl)}&scrape=true`, {
+      method: "POST"
+    }).catch(() => {});
+  } catch (e) {}
+}
+
 /**
  * Create a new Blog Post (by user or admin).
  */
@@ -409,6 +418,9 @@ export async function createPost(
     published_at: new Date().toISOString(),
     created_at: new Date().toISOString()
   };
+
+  // Trigger Facebook auto-scrape in background so FB gets OpenGraph preview immediately
+  triggerFacebookAutoScrape(slug);
 
   // Try DB insert
   try {

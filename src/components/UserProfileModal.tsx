@@ -47,6 +47,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       role: role,
     };
 
+    // Store in localStorage cache for instant persistence across page refreshes
+    try {
+      localStorage.setItem(`pixelisolate_profile_${user.id}`, JSON.stringify(updated));
+    } catch (e) {}
+
     try {
       const { error } = await supabase.from("profiles").upsert(updated);
       if (error) console.warn("Supabase profile save warning:", error);
