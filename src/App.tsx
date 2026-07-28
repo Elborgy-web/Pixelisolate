@@ -197,8 +197,15 @@ export default function App() {
       });
     };
 
-    // 4. Initial URL Path Routing for /blog and /blog/:slug
-    const initPath = window.location.pathname;
+    // 4. Initial URL Path Routing for /blog and /blog/:slug (with ?redirect= handling)
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirectParam = urlParams.get("redirect");
+    let initPath = redirectParam ? decodeURIComponent(redirectParam) : window.location.pathname;
+
+    if (redirectParam) {
+      window.history.replaceState({}, "", initPath);
+    }
+
     if (initPath.startsWith("/blog")) {
       const parts = initPath.split("/blog");
       const slugPart = parts[1] ? parts[1].replace(/^\//, "") : "";

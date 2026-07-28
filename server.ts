@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import crypto from "crypto";
@@ -862,6 +863,107 @@ app.delete("/api/vault/:id", async (req, res) => {
   }
 });
 
+
+// OpenGraph & Meta Tag SSR for /blog and /blog/:slug
+app.get(["/blog", "/blog/:slug"], async (req, res) => {
+  const slug = req.params.slug;
+  const distPath = path.join(process.cwd(), "dist");
+  const indexPath = fs.existsSync(path.join(distPath, "index.html"))
+    ? path.join(distPath, "index.html")
+    : path.join(process.cwd(), "index.html");
+
+  try {
+    let html = fs.readFileSync(indexPath, "utf8");
+
+    if (slug) {
+      let post: any = null;
+      try {
+        const { data } = await supabaseAdmin
+          .from("posts")
+          .select("*")
+          .eq("slug", slug)
+          .single();
+        if (data) post = data;
+      } catch (e) {}
+
+      if (!post) {
+        const seeds = [
+          {
+            slug: "how-to-eliminate-white-halos-on-dark-tshirts",
+            title: "How to Eliminate White Halos on Dark T-Shirts (POD Masterclass)",
+            excerpt: "Learn how subpixel green screen chroma keying and neural AI segmentation eliminate white edge halos and color bleeding on black & dark garments.",
+            cover_image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1000&auto=format&fit=crop"
+          },
+          {
+            slug: "e-commerce-product-photography-background-removal-guide",
+            title: "The Ultimate Guide to E-Commerce Product Photography Background Removal",
+            excerpt: "Boost your Shopify & Amazon conversion rates with clean, professional white & transparent background product photography.",
+            cover_image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1000&auto=format&fit=crop"
+          },
+          {
+            slug: "ai-background-removal-vs-chroma-keying-which-is-better",
+            title: "AI Background Removal vs. Chroma Keying: Which Should You Use?",
+            excerpt: "Understand the technical differences between AI neural segmentation models and traditional RGB/HSV Chroma Keying to pick the perfect workflow.",
+            cover_image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop"
+          }
+        ];
+        post = seeds.find((p) => p.slug === slug);
+      }
+
+      if (post) {
+        const title = `${post.title} | PixelIsolate`;
+        const description = post.excerpt;
+        const imageUrl = post.cover_image || "https://pixelisolate.online/logo.png";
+        const pageUrl = `https://pixelisolate.online/blog/${post.slug}`;
+
+        html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
+
+        const ogTags = `
+          <meta name="description" content="${description}" />
+          <meta property="og:type" content="article" />
+          <meta property="og:title" content="${title}" />
+          <meta property="og:description" content="${description}" />
+          <meta property="og:image" content="${imageUrl}" />
+          <meta property="og:url" content="${pageUrl}" />
+          <meta property="og:site_name" content="PixelIsolate" />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content="${title}" />
+          <meta name="twitter:description" content="${description}" />
+          <meta name="twitter:image" content="${imageUrl}" />
+          <link rel="canonical" href="${pageUrl}" />
+        `;
+
+        html = html.replace("</head>", `${ogTags}\n</head>`);
+      }
+    } else {
+      const title = "PixelIsolate Blog: Print-on-Demand & AI Design Guides";
+      const description = "Expert tutorials on background removal, subpixel chroma keying, eliminating white print halos, and scaling e-commerce photography.";
+      const pageUrl = "https://pixelisolate.online/blog";
+      const imageUrl = "https://pixelisolate.online/logo.png";
+
+      html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
+      const ogTags = `
+        <meta name="description" content="${description}" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="${title}" />
+        <meta property="og:description" content="${description}" />
+        <meta property="og:image" content="${imageUrl}" />
+        <meta property="og:url" content="${pageUrl}" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="${title}" />
+        <meta name="twitter:description" content="${description}" />
+        <meta name="twitter:image" content="${imageUrl}" />
+      `;
+      html = html.replace("</head>", `${ogTags}\n</head>`);
+    }
+
+    res.setHeader("Content-Type", "text/html; charset=UTF-8");
+    res.status(200).send(html);
+  } catch (err) {
+    console.error("Blog SSR error:", err);
+    res.sendFile(indexPath);
+  }
+});
 
 // Setup dev server with Vite in dev, or serve production build in production
 async function run() {
