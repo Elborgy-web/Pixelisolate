@@ -73,7 +73,7 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
 
           // Fetch helper with 2-second timeout to prevent network hangs
           const fetchWithTimeout = async (url: string) => {
-            if (!url || url.startsWith("data:image/")) return null;
+            if (!url || url.startsWith("data:image/") || url.startsWith("blob:")) return null;
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), 2000);
             try {
@@ -94,12 +94,12 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
 
             if (bufOrig) {
               const decOrig = await decryptStorageBuffer(bufOrig, userId);
-              if (decOrig && decOrig.startsWith("data:")) origUrl = decOrig;
+              if (decOrig && (decOrig.startsWith("data:") || decOrig.startsWith("blob:"))) origUrl = decOrig;
             }
 
             if (bufProc) {
               const decProc = await decryptStorageBuffer(bufProc, userId);
-              if (decProc && decProc.startsWith("data:")) procUrl = decProc;
+              if (decProc && (decProc.startsWith("data:") || decProc.startsWith("blob:"))) procUrl = decProc;
             }
           } catch (decErr) {
             console.warn("Background decryption skipped for item:", item.id);
