@@ -1,0 +1,17 @@
+# Pixel Isolate AI Background Remover Engine — Comprehensive Technical Documentation
+
+## Executive Overview
+Pixel Isolate is a high-resolution image background removal and subject isolation application operating on client-side WebAssembly and GPU acceleration. It allows users to isolate foreground subjects from complex backgrounds, fine-tune HSV color keying parameters, perform morphological erosion and dilation, apply solid backdrop colors, and download transparent high-resolution PNG assets.
+
+## Key Features & Technology Stack
+1. **Client-Side AI Neural Segmentation**: Runs deep learning models (RMBG / Llama Scout) inside browser memory, ensuring images are processed locally without cloud server privacy leaks.
+2. **Subpixel HSV Chroma Keyer**: Fine-tunes Hue, Saturation, and Value thresholds to remove solid color backdrops or green screens with zero color bleeding.
+3. **Morphological Edge Filtering**: Controls edge erosion (1-5px), dilation, and Gaussian blur feathering to eliminate white print halos on dark garments.
+4. **Solid Color Background Selector**: Preview and export isolated subjects with pure white (#FFFFFF), dark (#000000), or custom hex canvas backdrops.
+5. **Parallel Bulk Queue Processing**: Process 50+ images simultaneously with batch zip archiving for e-commerce and print-on-demand production lines.
+
+## Canonical Resources
+- Web Application: https://pixelisolate.online/
+- Technical Blog: https://pixelisolate.online/blog
+- Sitemap: https://pixelisolate.online/sitemap.xml
+- API Health Endpoint: https://pixelisolate-backend.onrender.com/api/health

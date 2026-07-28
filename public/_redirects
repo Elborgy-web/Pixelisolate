@@ -2,11 +2,13 @@
 # CLOUDFLARE PAGES / NETLIFY REWRITES (_redirects)
 # ==========================================
 
-# 1. Static HTML Pages (Serve directly with HTTP 200)
+# 1. Static HTML & Text Files (Serve directly with HTTP 200)
 /privacy.html    /privacy.html    200
 /terms.html      /terms.html      200
 /refund.html     /refund.html     200
 /sitemap.xml     /sitemap.xml     200
+/llms.txt        /llms.txt        200
+/llms-full.txt   /llms-full.txt   200
 
 # 2. Backend API Proxy (Proxy to Express backend on Render)
 /api/*           https://pixelisolate-backend.onrender.com/api/:splat  200

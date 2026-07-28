@@ -7,6 +7,8 @@
     { "source": "/terms.html", "destination": "/terms.html" },
     { "source": "/refund.html", "destination": "/refund.html" },
     { "source": "/sitemap.xml", "destination": "/sitemap.xml" },
+    { "source": "/llms.txt", "destination": "/llms.txt" },
+    { "source": "/llms-full.txt", "destination": "/llms-full.txt" },
     { "source": "/blog/(.*)", "destination": "/blog/$1/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

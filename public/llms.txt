@@ -1,0 +1,18 @@
+# Pixel Isolate AI Background Remover Engine
+
+> Pixel Isolate is a high-resolution, browser-based AI background remover engine engineered for subpixel subject isolation, HSV color keying, and bulk background extraction.
+
+## Core Capabilities
+- **AI Neural Segmentation**: Browser-based WebAssembly subject isolation preserving hair, fur, and delicate edges.
+- **Chroma Keying**: Interactive HSV color keying for green screen and custom backdrop removal.
+- **Bulk Batch Processing**: Parallel multi-image extraction for print-on-demand and e-commerce workflows.
+- **Solid Canvas Backdrops**: Apply marketplace-compliant white (#FFFFFF), black, or custom solid color backgrounds.
+
+## Primary Documentation & Links
+- [Homepage & Web App](https://pixelisolate.online/)
+- [Blog & Guides](https://pixelisolate.online/blog)
+- [How to Eliminate White Halos on Dark T-Shirts](https://pixelisolate.online/blog/how-to-eliminate-white-halos-on-dark-tshirts)
+- [E-Commerce Product Photography Guide](https://pixelisolate.online/blog/e-commerce-product-photography-background-removal-guide)
+- [AI Background Removal vs. Chroma Keying](https://pixelisolate.online/blog/ai-background-removal-vs-chroma-keying-which-is-better)
+- [Privacy Policy](https://pixelisolate.online/privacy.html)
+- [Terms of Service](https://pixelisolate.online/terms.html)
