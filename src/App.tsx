@@ -10,17 +10,39 @@ import { initializePaddle } from "@paddle/paddle-js";
 
 import BlogIndex from "./components/BlogIndex";
 import BlogPostDetail from "./components/BlogPostDetail";
+import ErrorBoundary from "./components/ErrorBoundary";
 
-// Lazy-loaded heavy modal and canvas components
-const ChromaKeyer = React.lazy(() => import("./components/ChromaKeyer"));
-const HistoryGallery = React.lazy(() => import("./components/HistoryGallery"));
-const AuthModal = React.lazy(() => import("./components/AuthModal"));
-const PricingModal = React.lazy(() => import("./components/PricingModal"));
-const EmbedBadgeModal = React.lazy(() => import("./components/EmbedBadgeModal"));
-const SubscriptionManager = React.lazy(() => import("./components/SubscriptionManager"));
-const HowToGuide = React.lazy(() => import("./components/HowToGuide"));
-const CreatePostModal = React.lazy(() => import("./components/CreatePostModal"));
-const UserProfileModal = React.lazy(() => import("./components/UserProfileModal"));
+// Helper to auto-retry dynamic imports when new builds are deployed (prevents chunk load white screens)
+const lazyWithRetry = <T extends React.ComponentType<any>>(
+  componentImport: () => Promise<{ default: T }>
+) =>
+  React.lazy(async () => {
+    const pageHasBeenRefreshed = sessionStorage.getItem("page_refreshed_for_new_build");
+
+    try {
+      return await componentImport();
+    } catch (error) {
+      console.warn("[LazyRetry] Dynamic chunk import failed (stale build deployment hash).", error);
+      if (!pageHasBeenRefreshed) {
+        sessionStorage.setItem("page_refreshed_for_new_build", "true");
+        window.location.reload();
+        return new Promise<{ default: T }>(() => {});
+      }
+      sessionStorage.removeItem("page_refreshed_for_new_build");
+      throw error;
+    }
+  });
+
+// Lazy-loaded heavy modal and canvas components with automatic retry
+const ChromaKeyer = lazyWithRetry(() => import("./components/ChromaKeyer"));
+const HistoryGallery = lazyWithRetry(() => import("./components/HistoryGallery"));
+const AuthModal = lazyWithRetry(() => import("./components/AuthModal"));
+const PricingModal = lazyWithRetry(() => import("./components/PricingModal"));
+const EmbedBadgeModal = lazyWithRetry(() => import("./components/EmbedBadgeModal"));
+const SubscriptionManager = lazyWithRetry(() => import("./components/SubscriptionManager"));
+const HowToGuide = lazyWithRetry(() => import("./components/HowToGuide"));
+const CreatePostModal = lazyWithRetry(() => import("./components/CreatePostModal"));
+const UserProfileModal = lazyWithRetry(() => import("./components/UserProfileModal"));
 
 const LoadingFallback = () => (
   <div className="flex flex-col items-center justify-center min-h-[300px] gap-3 p-8 font-mono text-xs text-gray-400">
@@ -487,7 +509,8 @@ export default function App() {
 
       {/* Main Workspace Frame */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 md:px-8 py-4 md:py-8">
-        <React.Suspense fallback={<LoadingFallback />}>
+        <ErrorBoundary>
+          <React.Suspense fallback={<LoadingFallback />}>
           <div style={{ display: currentTab === "blog" ? "block" : "none" }}>
             {selectedBlogSlug ? (
               <BlogPostDetail
@@ -583,6 +606,7 @@ export default function App() {
             </>
           )}
         </React.Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* Footer Details */}
@@ -627,54 +651,56 @@ export default function App() {
       </footer>
 
       {/* Modals */}
-      <React.Suspense fallback={null}>
-        <AuthModal
-          isOpen={authModalOpen}
-          onClose={() => setAuthModalOpen(false)}
-          onSuccess={() => {
-            // Profile updates automatically
-          }}
-        />
+      <ErrorBoundary>
+        <React.Suspense fallback={null}>
+          <AuthModal
+            isOpen={authModalOpen}
+            onClose={() => setAuthModalOpen(false)}
+            onSuccess={() => {
+              // Profile updates automatically
+            }}
+          />
 
-        <PricingModal
-          isOpen={pricingModalOpen}
-          onClose={() => setPricingModalOpen(false)}
-          userId={user?.id || null}
-          userEmail={user?.email || null}
-        />
+          <PricingModal
+            isOpen={pricingModalOpen}
+            onClose={() => setPricingModalOpen(false)}
+            userId={user?.id || null}
+            userEmail={user?.email || null}
+          />
 
-        <EmbedBadgeModal
-          isOpen={embedBadgeModalOpen}
-          onClose={() => setEmbedBadgeModalOpen(false)}
-        />
+          <EmbedBadgeModal
+            isOpen={embedBadgeModalOpen}
+            onClose={() => setEmbedBadgeModalOpen(false)}
+          />
 
-        <CreatePostModal
-          isOpen={createPostModalOpen}
-          onClose={() => {
-            setCreatePostModalOpen(false);
-            setEditingPost(null);
-          }}
-          user={user}
-          profile={profile}
-          postToEdit={editingPost}
-          onPostSaved={(savedPost) => {
-            window.history.pushState({}, "", `/blog/${savedPost.slug}`);
-            setSelectedBlogSlug(savedPost.slug);
-            setCurrentTab("blog");
-            setEditingPost(null);
-          }}
-        />
+          <CreatePostModal
+            isOpen={createPostModalOpen}
+            onClose={() => {
+              setCreatePostModalOpen(false);
+              setEditingPost(null);
+            }}
+            user={user}
+            profile={profile}
+            postToEdit={editingPost}
+            onPostSaved={(savedPost) => {
+              window.history.pushState({}, "", `/blog/${savedPost.slug}`);
+              setSelectedBlogSlug(savedPost.slug);
+              setCurrentTab("blog");
+              setEditingPost(null);
+            }}
+          />
 
-        <UserProfileModal
-          isOpen={userProfileModalOpen}
-          onClose={() => setUserProfileModalOpen(false)}
-          user={user}
-          profile={profile}
-          onSaveSuccess={(updatedProfile) => {
-            setProfile(updatedProfile);
-          }}
-        />
-      </React.Suspense>
+          <UserProfileModal
+            isOpen={userProfileModalOpen}
+            onClose={() => setUserProfileModalOpen(false)}
+            user={user}
+            profile={profile}
+            onSaveSuccess={(updatedProfile) => {
+              setProfile(updatedProfile);
+            }}
+          />
+        </React.Suspense>
+      </ErrorBoundary>
 
       {/* Custom Alert Modal */}
       {customAlert.isOpen && (

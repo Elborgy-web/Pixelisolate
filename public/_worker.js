@@ -118,8 +118,13 @@ export default {
     // Default static asset fetch for all other routes
     const response = await env.ASSETS.fetch(request);
 
-    // If static asset returns 404 for SPA route, fallback to index.html with 200 OK
+    // If static asset returns 404 for SPA route, fallback to index.html with 200 OK (except for static asset extensions)
     if (response.status === 404) {
+      const isStaticAsset = pathname.startsWith('/assets/') || /\.(js|css|wasm|png|jpg|jpeg|svg|ico|json|woff2?)$/i.test(pathname);
+      if (isStaticAsset) {
+        return response; // Return actual 404 for missing static chunks to let browser trigger ChunkLoadError retry
+      }
+
       const indexReq = new Request(new URL('/', request.url), request);
       const indexRes = await env.ASSETS.fetch(indexReq);
       return new Response(indexRes.body, {
