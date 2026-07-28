@@ -15,9 +15,10 @@
 /llms.txt        /llms.txt              200
 /llms-full.txt   /llms-full.txt         200
 
-# 3. Backend API Proxy (Proxy to Express backend on Render)
+# 3. Backend API & SSR Proxy (Proxy to Express SSR backend on Render)
 /api/*           https://pixelisolate-backend.onrender.com/api/:splat  200
+/blog            https://pixelisolate-backend.onrender.com/blog        200
+/blog/*          https://pixelisolate-backend.onrender.com/blog/:splat  200
 
 # 4. Single Page App Fallback
-/blog/*          /index.html            200
 /*               /index.html            200
