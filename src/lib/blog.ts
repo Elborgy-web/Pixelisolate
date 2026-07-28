@@ -352,18 +352,32 @@ export async function getPublishedPosts(category?: string, search?: string, incl
  * Fetch a single post by slug.
  */
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
+  if (!slug) return null;
+  const cleanSlug = slug.trim().replace(/^\//, "").replace(/\/$/, "");
+
+  // 1. Check local storage posts first (instant match for created & edited posts)
+  const localPosts = getStoredPosts();
+  const localMatch = localPosts.find(p => p.slug === cleanSlug || p.id === cleanSlug);
+  if (localMatch) return localMatch;
+
+  // 2. Check initial seed posts
+  const seedMatch = INITIAL_SEED_POSTS.find(p => p.slug === cleanSlug || p.id === cleanSlug);
+  if (seedMatch) return seedMatch;
+
+  // 3. Try DB query
   try {
     const { data, error } = await supabase
       .from("posts")
       .select("*")
-      .eq("slug", slug)
+      .eq("slug", cleanSlug)
       .single();
 
     if (!error && data) return data as BlogPost;
   } catch (e) {}
 
+  // 4. Fallback check
   const all = await getPublishedPosts("All", "", true);
-  return all.find(p => p.slug === slug) || null;
+  return all.find(p => p.slug === cleanSlug || p.id === cleanSlug) || null;
 }
 
 /**
@@ -611,21 +625,23 @@ export async function updatePost(
     }
   } catch (e) {}
 
-  // 2. Persistent Local Storage Update (Ensures edited seed posts persist across page refreshes!)
+  // 2. Mutate in-memory seed post if editing a seed post
+  const seedItem = INITIAL_SEED_POSTS.find(p => p.id === postId || p.slug === postId);
+  if (seedItem) {
+    Object.assign(seedItem, updatedFields);
+    updatedPostResult = seedItem;
+  }
+
+  // 3. Persistent Local Storage Update (Ensures edited seed posts persist across page refreshes!)
   const stored = getStoredPosts();
-  const idx = stored.findIndex(p => p.id === postId || p.slug === postId);
+  const idx = stored.findIndex(p => p.id === postId || p.slug === postId || (seedItem && p.id === seedItem.id));
 
   if (idx !== -1) {
     stored[idx] = { ...stored[idx], ...updatedFields };
     updatedPostResult = stored[idx];
-  } else {
-    // Check initial seed posts
-    const seedItem = INITIAL_SEED_POSTS.find(p => p.id === postId || p.slug === postId);
-    if (seedItem) {
-      const updatedSeed = { ...seedItem, ...updatedFields };
-      stored.unshift(updatedSeed);
-      updatedPostResult = updatedSeed;
-    }
+  } else if (seedItem) {
+    stored.unshift({ ...seedItem });
+    updatedPostResult = seedItem;
   }
 
   if (stored.length > 0) {
