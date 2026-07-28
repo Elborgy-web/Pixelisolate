@@ -3,6 +3,24 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
+    // 1. 301 Permanent Redirect for www.pixelisolate.online -> https://pixelisolate.online
+    if (url.hostname.startsWith('www.')) {
+      const canonicalHost = url.hostname.replace(/^www\./, '');
+      return Response.redirect(`https://${canonicalHost}${pathname}${url.search}`, 301);
+    }
+
+    // 2. Block direct directory browsing / listing attempts with 403 Forbidden
+    if (pathname === '/assets' || pathname === '/assets/' || pathname === '/scripts' || pathname === '/scripts/' || pathname === '/components' || pathname === '/components/') {
+      return new Response("Directory listing forbidden.", {
+        status: 403,
+        headers: {
+          "content-type": "text/plain; charset=UTF-8",
+          "x-content-type-options": "nosniff",
+          "x-frame-options": "DENY"
+        }
+      });
+    }
+
     // Supabase Credentials for Edge Worker SSR
     const SUPABASE_URL = "https://nyiwicwbwzjkijamqqsl.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aXdpY3did3pqa2lqYW1xcXNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDUwODgsImV4cCI6MjA5OTc4MTA4OH0.Y34FVIh9iv6tobH238qAszhN6W3waL4Ko2lkjEqsUd4";

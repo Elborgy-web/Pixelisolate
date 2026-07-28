@@ -2,12 +2,17 @@
 # CLOUDFLARE PAGES / NETLIFY REWRITES (_redirects)
 # ==========================================
 
-# 1. 301 Permanent Redirects for Legacy .html URLs -> Friendly Clean URLs
+# 1. 301 Permanent Canonical Redirects for www -> non-www domain
+https://www.pixelisolate.online/* https://pixelisolate.online/:splat 301!
+http://www.pixelisolate.online/*  https://pixelisolate.online/:splat 301!
+http://pixelisolate.online/*      https://pixelisolate.online/:splat 301!
+
+# 2. 301 Permanent Redirects for Legacy .html URLs -> Friendly Clean URLs
 /privacy.html    https://pixelisolate.online/privacy    301!
 /terms.html      https://pixelisolate.online/terms      301!
 /refund.html     https://pixelisolate.online/refund     301!
 
-# 2. Static HTML & Text Files (Serve directly with HTTP 200)
+# 3. Static HTML & Text Files (Serve directly with HTTP 200)
 /privacy         /privacy/index.html    200
 /terms           /terms/index.html      200
 /refund          /refund/index.html     200
@@ -15,10 +20,10 @@
 /llms.txt        /llms.txt              200
 /llms-full.txt   /llms-full.txt         200
 
-# 3. Backend API Proxy (Proxy to Express backend on Render)
+# 4. Backend API Proxy (Proxy to Express backend on Render)
 /api/*           https://pixelisolate-backend.onrender.com/api/:splat  200
 
-# 4. Single Page App Fallback (Serves /index.html with HTTP 200 OK for all routes)
+# 5. Single Page App Fallback (Serves /index.html with HTTP 200 OK for all routes)
 /blog            /index.html            200
 /blog/*          /index.html            200
 /*               /index.html            200

@@ -44,6 +44,25 @@ app.use((req, res, next) => {
   res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
   res.setHeader("Last-Modified", new Date("2026-07-25T12:00:00Z").toUTCString());
 
+  // Disable directory listing & enforce MIME type checking security
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+
+  // 301 Canonical redirect www to non-www
+  const host = req.headers.host || "";
+  if (host.startsWith("www.")) {
+    const canonicalHost = host.replace(/^www\./, "");
+    res.redirect(301, `https://${canonicalHost}${req.url}`);
+    return;
+  }
+
+  // Explicitly deny direct directory browsing
+  const cleanPath = req.path.toLowerCase();
+  if (cleanPath === "/assets" || cleanPath === "/assets/" || cleanPath === "/scripts" || cleanPath === "/scripts/" || cleanPath === "/components" || cleanPath === "/components/") {
+    res.status(403).setHeader("Content-Type", "text/plain").send("Directory listing forbidden.");
+    return;
+  }
+
   // Cross-Origin Isolation required for SharedArrayBuffer (WebGPU + WASM threading)
   // needed by @huggingface/transformers RMBG-1.4 for client-side AI background removal
   // Using 'credentialless' instead of 'require-corp' so HuggingFace CDN model downloads work
