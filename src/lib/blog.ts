@@ -314,15 +314,12 @@ export async function createPost(
     created_at: new Date().toISOString()
   };
 
-  // Trigger Facebook auto-scrape in background so FB gets OpenGraph preview immediately
-  triggerFacebookAutoScrape(slug);
-
-  // Save locally first so it is available instantly for UI and routing
+  // 1. Save locally first so it is available instantly for UI and routing
   const stored = getStoredPosts();
   stored.unshift(newPost);
   saveStoredPosts(stored);
 
-  // Try API insert via backend
+  // 2. Try API insert via backend (upsert as admin)
   try {
     const apiBase = (import.meta.env.VITE_API_URL || "").trim();
     await fetch(`${apiBase}/api/blog/posts`, {
@@ -332,10 +329,22 @@ export async function createPost(
     });
   } catch (e) {}
 
-  // Try direct DB insert
+  // 3. Try direct DB insert
   try {
-    const { data, error } = await supabase.from("posts").insert(newPost).select().single();
-    if (!error && data) return data as BlogPost;
+    const { data } = await supabase.from("posts").insert(newPost).select().single();
+    if (data) {
+      newPost.id = data.id;
+    }
+  } catch (e) {}
+
+  // 4. NOW trigger Facebook Graph API auto-scrape AFTER post exists in DB!
+  try {
+    const apiBase = (import.meta.env.VITE_API_URL || "").trim();
+    fetch(`${apiBase}/api/blog/scrape-fb`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug: newPost.slug })
+    }).catch(() => {});
   } catch (e) {}
 
   return newPost;

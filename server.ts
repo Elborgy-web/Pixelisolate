@@ -918,9 +918,75 @@ app.delete("/api/blog/posts/:id", async (req, res) => {
 });
 
 
+// Backend Blog API: Trigger Facebook Graph API Scraper
+app.post("/api/blog/scrape-fb", async (req, res) => {
+  try {
+    const { slug } = req.body;
+    if (!slug) {
+      res.status(400).json({ error: "Missing slug" });
+      return;
+    }
+    const articleUrl = `https://pixelisolate.online/blog/${encodeURIComponent(slug)}`;
+    
+    // Call Facebook Graph API to force immediate cache re-scrape
+    const fbRes = await fetch(`https://graph.facebook.com/?id=${encodeURIComponent(articleUrl)}&scrape=true`, {
+      method: "POST"
+    }).catch(() => null);
+    
+    const fbData = fbRes ? await fbRes.json().catch(() => ({})) : {};
+    res.status(200).json({ success: true, url: articleUrl, fbData });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to trigger Facebook scrape" });
+  }
+});
+
+// Helper: Cleanly replace OpenGraph meta tags so crawlers (Facebook, X, LinkedIn) read article metadata first
+function injectOpenGraphTags(html: string, ogData: {
+  title: string;
+  description: string;
+  imageUrl: string;
+  pageUrl: string;
+  type?: string;
+}): string {
+  const safeTitle = ogData.title.replace(/"/g, '&quot;');
+  const safeDesc = ogData.description.replace(/"/g, '&quot;');
+  const safeImage = ogData.imageUrl;
+  const safeUrl = ogData.pageUrl;
+  const ogType = ogData.type || "article";
+
+  // 1. Replace main <title> tag
+  let cleanHtml = html.replace(/<title>.*?<\/title>/gi, `<title>${safeTitle}</title>`);
+
+  // 2. Strip existing default OpenGraph and Twitter meta tags to prevent duplicate collisions
+  cleanHtml = cleanHtml
+    .replace(/<meta\s+name="description"\s+content=".*?"\s*\/?>/gi, "")
+    .replace(/<meta\s+property="og:.*?"\s+content=".*?"\s*\/?>/gi, "")
+    .replace(/<meta\s+name="twitter:.*?"\s+content=".*?"\s*\/?>/gi, "")
+    .replace(/<link\s+rel="canonical"\s+href=".*?"\s*\/?>/gi, "");
+
+  // 3. Construct clean article OpenGraph tags
+  const ogMeta = `
+    <meta name="description" content="${safeDesc}" />
+    <meta property="og:type" content="${ogType}" />
+    <meta property="og:title" content="${safeTitle}" />
+    <meta property="og:description" content="${safeDesc}" />
+    <meta property="og:image" content="${safeImage}" />
+    <meta property="og:image:secure_url" content="${safeImage}" />
+    <meta property="og:url" content="${safeUrl}" />
+    <meta property="og:site_name" content="PixelIsolate" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${safeTitle}" />
+    <meta name="twitter:description" content="${safeDesc}" />
+    <meta name="twitter:image" content="${safeImage}" />
+    <link rel="canonical" href="${safeUrl}" />
+  `;
+
+  return cleanHtml.replace("<head>", `<head>\n${ogMeta}`);
+}
+
 // OpenGraph & Meta Tag SSR for /blog and /blog/:slug
 app.get(["/blog", "/blog/:slug"], async (req, res) => {
-  const slug = req.params.slug;
+  const rawSlug = req.params.slug;
   const distPath = path.join(process.cwd(), "dist");
   const indexPath = fs.existsSync(path.join(distPath, "index.html"))
     ? path.join(distPath, "index.html")
@@ -929,66 +995,53 @@ app.get(["/blog", "/blog/:slug"], async (req, res) => {
   try {
     let html = fs.readFileSync(indexPath, "utf8");
 
-    if (slug) {
+    if (rawSlug) {
+      const cleanSlug = rawSlug.trim().toLowerCase();
       let post: any = null;
       try {
         const { data } = await supabaseAdmin
           .from("posts")
           .select("*")
-          .eq("slug", slug)
+          .eq("slug", cleanSlug)
           .single();
-        if (data) post = data;
+        if (data) {
+          post = data;
+        } else {
+          // Retry matching id or slug case-insensitively
+          const { data: list } = await supabaseAdmin
+            .from("posts")
+            .select("*");
+          if (list) {
+            post = list.find((p: any) => p.slug?.toLowerCase() === cleanSlug || p.id === rawSlug);
+          }
+        }
       } catch (e) {}
 
-      if (!post) {
-        // Only actual posts stored in database are rendered
-      }
-
       if (post) {
-        const title = `${post.title} | PixelIsolate`;
-        const description = post.excerpt;
-        const imageUrl = post.cover_image || "https://pixelisolate.online/logo.png";
-        const pageUrl = `https://pixelisolate.online/blog/${post.slug}`;
-
-        html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
-
-        const ogTags = `
-          <meta name="description" content="${description}" />
-          <meta property="og:type" content="article" />
-          <meta property="og:title" content="${title}" />
-          <meta property="og:description" content="${description}" />
-          <meta property="og:image" content="${imageUrl}" />
-          <meta property="og:url" content="${pageUrl}" />
-          <meta property="og:site_name" content="PixelIsolate" />
-          <meta name="twitter:card" content="summary_large_image" />
-          <meta name="twitter:title" content="${title}" />
-          <meta name="twitter:description" content="${description}" />
-          <meta name="twitter:image" content="${imageUrl}" />
-          <link rel="canonical" href="${pageUrl}" />
-        `;
-
-        html = html.replace("</head>", `${ogTags}\n</head>`);
+        html = injectOpenGraphTags(html, {
+          title: `${post.title} | PixelIsolate`,
+          description: post.excerpt,
+          imageUrl: post.cover_image || "https://pixelisolate.online/logo.png",
+          pageUrl: `https://pixelisolate.online/blog/${post.slug}`,
+          type: "article"
+        });
+      } else {
+        html = injectOpenGraphTags(html, {
+          title: "PixelIsolate Blog: Print-on-Demand & AI Design Guides",
+          description: "Expert tutorials on background removal, subpixel chroma keying, eliminating white print halos, and scaling e-commerce photography.",
+          imageUrl: "https://pixelisolate.online/logo.png",
+          pageUrl: `https://pixelisolate.online/blog/${cleanSlug}`,
+          type: "article"
+        });
       }
     } else {
-      const title = "PixelIsolate Blog: Print-on-Demand & AI Design Guides";
-      const description = "Expert tutorials on background removal, subpixel chroma keying, eliminating white print halos, and scaling e-commerce photography.";
-      const pageUrl = "https://pixelisolate.online/blog";
-      const imageUrl = "https://pixelisolate.online/logo.png";
-
-      html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
-      const ogTags = `
-        <meta name="description" content="${description}" />
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content="${title}" />
-        <meta property="og:description" content="${description}" />
-        <meta property="og:image" content="${imageUrl}" />
-        <meta property="og:url" content="${pageUrl}" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="${title}" />
-        <meta name="twitter:description" content="${description}" />
-        <meta name="twitter:image" content="${imageUrl}" />
-      `;
-      html = html.replace("</head>", `${ogTags}\n</head>`);
+      html = injectOpenGraphTags(html, {
+        title: "PixelIsolate Blog: Print-on-Demand & AI Design Guides",
+        description: "Expert tutorials on background removal, subpixel chroma keying, eliminating white print halos, and scaling e-commerce photography.",
+        imageUrl: "https://pixelisolate.online/logo.png",
+        pageUrl: "https://pixelisolate.online/blog",
+        type: "website"
+      });
     }
 
     res.setHeader("Content-Type", "text/html; charset=UTF-8");
