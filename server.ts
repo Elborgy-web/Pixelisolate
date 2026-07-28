@@ -50,13 +50,6 @@ app.use((req, res, next) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
 
-  // Canonicalize WWW to non-WWW hostnames
-  const host = req.headers.host || "";
-  if (host.startsWith("www.pixelisolate.online")) {
-    res.redirect(301, `https://pixelisolate.online${req.url}`);
-    return;
-  }
-
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, PATCH, DELETE");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Signature");
