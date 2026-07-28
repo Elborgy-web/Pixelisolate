@@ -305,22 +305,23 @@ export async function getPublishedPosts(category?: string, search?: string, incl
   const localPosts = getStoredPosts();
   const allMap = new Map<string, BlogPost>();
 
-  // Add initial seed posts
+  // 1. Add initial seed posts (keyed by unique ID)
   INITIAL_SEED_POSTS.forEach(p => {
     allMap.set(p.id, p);
-    allMap.set(p.slug, p);
   });
 
-  // Add local posts (Overwrites seed posts if edited in local storage!)
+  // 2. Add local posts (user created posts + edited seed posts)
   localPosts.forEach(p => {
-    if (p.id) allMap.set(p.id, p);
-    if (p.slug) allMap.set(p.slug, p);
+    const matchingSeed = INITIAL_SEED_POSTS.find(s => s.id === p.id || s.slug === p.slug);
+    const key = matchingSeed ? matchingSeed.id : (p.id || p.slug);
+    allMap.set(key, p);
   });
 
-  // Add DB posts (takes precedence)
+  // 3. Add DB posts (takes ultimate precedence)
   dbPosts.forEach(p => {
-    if (p.id) allMap.set(p.id, p);
-    if (p.slug) allMap.set(p.slug, p);
+    const matchingSeed = INITIAL_SEED_POSTS.find(s => s.id === p.id || s.slug === p.slug);
+    const key = matchingSeed ? matchingSeed.id : (p.id || p.slug);
+    allMap.set(key, p);
   });
 
   let result = Array.from(allMap.values());
