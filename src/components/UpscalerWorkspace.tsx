@@ -931,11 +931,19 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
               )}
 
               <button
-                onClick={processBatchQueue}
+                onClick={() => {
+                  if (!isPro && freeTrialUsed && selectedTarget === "8k" && onOpenPricing) {
+                    onOpenPricing();
+                  } else {
+                    processBatchQueue();
+                  }
+                }}
                 disabled={bulkItems.length === 0 || bulkProcessingActive}
                 className={`px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg ${
                   bulkItems.length === 0 || bulkProcessingActive
                     ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
+                    : !isPro && freeTrialUsed && selectedTarget === "8k"
+                    ? "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white font-bold hover:brightness-110 shadow-amber-500/20"
                     : "bg-emerald-500 hover:bg-emerald-400 text-gray-950 shadow-emerald-500/20"
                 }`}
               >
@@ -943,6 +951,11 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
                     <span>Processing Batch Queue...</span>
+                  </>
+                ) : !isPro && freeTrialUsed && selectedTarget === "8k" ? (
+                  <>
+                    <Crown className="h-4 w-4" />
+                    <span>Upgrade to Pro for Unlimited 8K Batch</span>
                   </>
                 ) : (
                   <>
@@ -983,88 +996,144 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
               </span>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {bulkItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-gray-900/60 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between shadow-xl backdrop-blur-xl relative overflow-hidden group"
-                >
-                  {/* Item Image Preview */}
-                  <div className="relative h-40 w-full rounded-xl overflow-hidden bg-gray-950 border border-gray-850 flex items-center justify-center mb-3">
-                    <img
-                      src={item.result?.dataUrl || item.previewUrl}
-                      alt={item.file.name}
-                      className="h-full w-full object-contain"
-                    />
-
-                    {/* Status Badge */}
-                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-gray-950/80 border border-gray-800 text-[10px] font-mono text-emerald-400 font-bold backdrop-blur-md flex items-center gap-1">
-                      {item.status === "complete" ? (
-                        <>
-                          <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                          <span>Done</span>
-                        </>
-                      ) : item.status === "processing" ? (
-                        <>
-                          <RefreshCw className="h-3 w-3 text-amber-400 animate-spin" />
-                          <span>Upscaling...</span>
-                        </>
-                      ) : item.status === "error" ? (
-                        <>
-                          <AlertCircle className="h-3 w-3 text-rose-400" />
-                          <span>Error</span>
-                        </>
-                      ) : (
-                        <span>Queued</span>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Details */}
-                  <div className="flex flex-col gap-1 mb-3">
-                    <span className="text-xs font-mono text-gray-200 truncate font-semibold">
-                      {item.file.name}
-                    </span>
-                    <span className="text-[10px] font-mono text-gray-500">
-                      {item.result ? `${item.result.upscaledWidth}x${item.result.upscaledHeight} PNG` : `${item.category.toUpperCase()} image`}
-                    </span>
-                  </div>
-
-                  {/* Progress Bar for Active Item */}
-                  {item.status === "processing" && (
-                    <div className="w-full bg-gray-950 h-1.5 rounded-full overflow-hidden mb-3 border border-gray-800">
-                      <div
-                        className="bg-emerald-500 h-full transition-all duration-300"
-                        style={{ width: `${item.progressPct}%` }}
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {bulkItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-gray-900/60 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between shadow-xl backdrop-blur-xl relative overflow-hidden group"
+                  >
+                    {/* Item Image Preview */}
+                    <div className="relative h-40 w-full rounded-xl overflow-hidden bg-gray-950 border border-gray-850 flex items-center justify-center mb-3">
+                      <img
+                        src={item.result?.dataUrl || item.previewUrl}
+                        alt={item.file.name}
+                        className="h-full w-full object-contain"
                       />
-                    </div>
-                  )}
 
-                  {/* Item Actions */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-800/60">
-                    {item.result?.dataUrl ? (
-                      <button
-                        onClick={() => handleDownloadItem(item)}
-                        className="w-full py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        <span>Download</span>
-                      </button>
-                    ) : (
-                      <span className="text-[10px] font-mono text-gray-600">Waiting in queue</span>
+                      {/* Status Badge */}
+                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-gray-950/80 border border-gray-800 text-[10px] font-mono text-emerald-400 font-bold backdrop-blur-md flex items-center gap-1">
+                        {item.status === "complete" ? (
+                          <>
+                            <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                            <span>Done</span>
+                          </>
+                        ) : item.status === "processing" ? (
+                          <>
+                            <RefreshCw className="h-3 w-3 text-amber-400 animate-spin" />
+                            <span>Upscaling...</span>
+                          </>
+                        ) : item.status === "error" ? (
+                          <>
+                            <AlertCircle className="h-3 w-3 text-rose-400" />
+                            <span>Error</span>
+                          </>
+                        ) : (
+                          <span>Queued</span>
+                        )}
+                      </span>
+                    </div>
+
+                    {/* Details */}
+                    <div className="flex flex-col gap-1 mb-3">
+                      <span className="text-xs font-mono text-gray-200 truncate font-semibold">
+                        {item.file.name}
+                      </span>
+                      <span className="text-[10px] font-mono text-gray-500">
+                        {item.result ? `${item.result.upscaledWidth}x${item.result.upscaledHeight} PNG` : `${item.category.toUpperCase()} image`}
+                      </span>
+                    </div>
+
+                    {/* Progress Bar for Active Item */}
+                    {item.status === "processing" && (
+                      <div className="w-full bg-gray-950 h-1.5 rounded-full overflow-hidden mb-3 border border-gray-800">
+                        <div
+                          className="bg-emerald-500 h-full transition-all duration-300"
+                          style={{ width: `${item.progressPct}%` }}
+                        />
+                      </div>
                     )}
 
-                    <button
-                      onClick={() => setBulkItems((prev) => prev.filter((it) => it.id !== item.id))}
-                      disabled={bulkProcessingActive}
-                      className="p-1.5 rounded-lg text-gray-600 hover:text-rose-400 transition cursor-pointer ml-2"
-                      title="Remove from batch"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {/* Item Actions */}
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-800/60">
+                      {item.result?.dataUrl ? (
+                        <button
+                          onClick={() => handleDownloadItem(item)}
+                          className="w-full py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          <span>Download</span>
+                        </button>
+                      ) : (
+                        <span className="text-[10px] font-mono text-gray-600">Waiting in queue</span>
+                      )}
+
+                      <button
+                        onClick={() => setBulkItems((prev) => prev.filter((it) => it.id !== item.id))}
+                        disabled={bulkProcessingActive}
+                        className="p-1.5 rounded-lg text-gray-600 hover:text-rose-400 transition cursor-pointer ml-2"
+                        title="Remove from batch"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
+                ))}
+              </div>
+
+              {/* Bottom Batch Action Bar */}
+              <div className="flex flex-wrap items-center justify-between p-4 rounded-2xl bg-gray-900/80 border border-gray-800 shadow-xl backdrop-blur-xl gap-4">
+                <span className="text-xs font-mono text-gray-400">
+                  Batch Progress: {bulkItems.filter((i) => i.status === "complete").length} / {bulkItems.length} Processed
+                </span>
+
+                <div className="flex items-center gap-3">
+                  {bulkItems.some((i) => i.status === "complete") && (
+                    <button
+                      onClick={downloadBulkZip}
+                      className="px-5 py-3 rounded-2xl bg-gray-900 hover:bg-gray-800 border border-emerald-500/40 text-emerald-400 font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg"
+                    >
+                      <FolderDown className="h-4 w-4" />
+                      <span>Download ZIP</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      if (!isPro && freeTrialUsed && selectedTarget === "8k" && onOpenPricing) {
+                        onOpenPricing();
+                      } else {
+                        processBatchQueue();
+                      }
+                    }}
+                    disabled={bulkItems.length === 0 || bulkProcessingActive}
+                    className={`px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg ${
+                      bulkItems.length === 0 || bulkProcessingActive
+                        ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
+                        : !isPro && freeTrialUsed && selectedTarget === "8k"
+                        ? "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white font-bold hover:brightness-110 shadow-amber-500/20"
+                        : "bg-emerald-500 hover:bg-emerald-400 text-gray-950 shadow-emerald-500/20"
+                    }`}
+                  >
+                    {bulkProcessingActive ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        <span>Processing Batch Queue...</span>
+                      </>
+                    ) : !isPro && freeTrialUsed && selectedTarget === "8k" ? (
+                      <>
+                        <Crown className="h-4 w-4" />
+                        <span>Upgrade to Pro for Unlimited 8K Batch</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        <span>Process Batch Queue ({bulkItems.filter((i) => i.status !== "complete").length})</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-              ))}
+              </div>
             </div>
           )}
         </div>

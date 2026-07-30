@@ -806,6 +806,57 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
         </div>
       </section>
 
+      {/* 4.5 Real-ESRGAN 4K & 8K AI Super-Resolution Showcase */}
+      <section id="upscaler-showcase" className="py-20 border-b border-gray-900 bg-gradient-to-b from-[#07080a] via-[#0a0d18] to-[#07080a]">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest mb-3">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+              NCNN Vulkan GPU Acceleration
+            </span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+              Real-ESRGAN <span className="bg-gradient-to-r from-emerald-400 to-teal-500 bg-clip-text text-transparent">4K & 8K AI Super-Resolution</span>
+            </h2>
+            <p className="text-xs md:text-sm text-gray-400 font-mono mt-2 max-w-2xl mx-auto">
+              Restore micro-textures, sharpen fuzzy text, and scale graphics up to 8192×8192 with zero alpha transparency corruption.
+            </p>
+          </div>
+
+          {/* Showcase Feature Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="bg-gray-950/60 border border-gray-800 rounded-2xl p-6 shadow-xl backdrop-blur-xl relative overflow-hidden group">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4 font-bold text-sm">
+                8K
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">Progressive 2-Pass 8K Engine</h3>
+              <p className="text-xs text-gray-400 leading-relaxed font-mono">
+                Executes a native 4x model pass followed by a 2x pass using Real-ESRGAN NCNN Vulkan to generate pristine 8192×8192 resolution exports without memory tile misalignment.
+              </p>
+            </div>
+
+            <div className="bg-gray-950/60 border border-gray-800 rounded-2xl p-6 shadow-xl backdrop-blur-xl relative overflow-hidden group">
+              <div className="h-10 w-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 mb-4 font-bold text-sm">
+                🔍
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">1000% Micro Inspection Loupe</h3>
+              <p className="text-xs text-gray-400 leading-relaxed font-mono">
+                Compare Before & After extractions in real-time with dual synchronized side-by-side viewports and magnification controls up to 1000% scale.
+              </p>
+            </div>
+
+            <div className="bg-gray-950/60 border border-gray-800 rounded-2xl p-6 shadow-xl backdrop-blur-xl relative overflow-hidden group">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4 font-bold text-sm">
+                🎯
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">Category Model Tuning</h3>
+              <p className="text-xs text-gray-400 leading-relaxed font-mono">
+                Switch neural weights between Graphic/Text (<span className="text-emerald-400 font-semibold">realesrgan-x4plus-anime</span>), Product photography, and Portrait modes for custom edge sharpening.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* 5. Pricing Tiers & Comparison Matrix */}
       <section id="pricing" className="py-20 bg-[#0a0c14]">
         <div className="max-w-5xl mx-auto px-6">
@@ -848,7 +899,7 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>1 Solid background trial export</span>
+                    <span><strong>2X / 4K Real-ESRGAN AI Upscaling Trial</strong></span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
@@ -887,7 +938,7 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>3 Solid background trial exports</span>
+                    <span><strong>Real-ESRGAN 4K & 8K AI Upscaling</strong></span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
@@ -929,15 +980,15 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span><strong>Unlimited Real-ESRGAN 4K & 8K AI Super-Resolution</strong></span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                     <span><strong>Full Original Resolution</strong> exports</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span><strong>Unlimited</strong> Solid BG colors (PRO)</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span><strong>Bulk Queue Processing</strong> (50+ files)</span>
+                    <span><strong>Bulk Queue Processing & 8K Batch</strong> (50+ files)</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
@@ -981,16 +1032,22 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                     <td className="p-4 text-emerald-400 font-bold">Unlimited Access</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
-                    <td className="p-4 font-bold text-gray-300">HD / Full-Res Exports</td>
-                    <td className="p-4">3 Trial Exports</td>
-                    <td className="p-4 text-amber-400 font-semibold">Unlimited (per credit)</td>
-                    <td className="p-4 text-emerald-400 font-bold">Unlimited Access</td>
+                    <td className="p-4 font-bold text-gray-300">Real-ESRGAN AI Upscaling</td>
+                    <td className="p-4 font-semibold text-amber-400">2X / 4K Trial Engine</td>
+                    <td className="p-4">Full 4K & 8K Upscaling</td>
+                    <td className="p-4 text-emerald-400 font-bold">Unlimited 4K & 8K (Progressive 2-Pass GPU)</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
                     <td className="p-4 font-bold text-gray-300">Max Download Resolution</td>
                     <td className="p-4">Standard Resolution (500px)</td>
-                    <td className="p-4">Full Original HD / Ultra-HD</td>
-                    <td className="p-4 text-emerald-400 font-bold">Full Original HD / Ultra-HD</td>
+                    <td className="p-4">Full Original HD / Ultra-HD (4K/8K)</td>
+                    <td className="p-4 text-emerald-400 font-bold">Full 8K Print Output (8192×8192)</td>
+                  </tr>
+                  <tr className="hover:bg-gray-900/20 transition">
+                    <td className="p-4 font-bold text-gray-300">HD / Full-Res Exports</td>
+                    <td className="p-4">3 Trial Exports</td>
+                    <td className="p-4 text-amber-400 font-semibold">Unlimited (per credit)</td>
+                    <td className="p-4 text-emerald-400 font-bold">Unlimited Access</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
                     <td className="p-4 font-bold text-gray-300">Solid BG Backdrops</td>
@@ -1038,10 +1095,10 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
               [ ENGINE SPECIFICATION PROTOCOL ]
             </span>
             <h3 className="text-xl font-bold text-white tracking-tight mb-4">
-              Core Extraction Methodology & Edge Morphologies
+              Core Extraction & Real-ESRGAN AI Upscaling Methodology
             </h3>
             <p className="text-xs text-gray-400 leading-relaxed font-mono">
-              The Pixel Isolate Background Remover utilizes WebAssembly (WASM) to execute hardware-accelerated morphological edge operations directly in the browser's sandbox. By avoiding cloud latency, the engine performs high-frequency subpixel color-key thresholding to isolate subject outlines with zero quality degradation. In print-on-demand and e-commerce workflows, extraction accuracy is governed by three specific morphological steps. First, the source image is parsed into an 8-bit RGBA canvas, preserving raw dimensions. Next, an HSV color-space mask segments the targeted chrominance key, creating a binary connectivity map. Finally, boundary correction algorithms apply erosion (cv2.erode) to contract halos, dilation (cv2.dilate) to bridge voids, and Gaussian Blur feathering to blend pixel fringes. This combination solves green-screen spill and jagged transparency borders without high computing overhead. E-commerce operators and digital designers can automate these pipelines to export production-ready PNGs or package batch assets into structured archives, optimizing processing speed and output resolution.
+              The Pixel Isolate Background Remover utilizes WebAssembly (WASM) to execute hardware-accelerated morphological edge operations directly in the browser's sandbox. In addition, our backend integrates a hardware-accelerated Real-ESRGAN NCNN Vulkan AI Super-Resolution engine. For 4K upscaling requests, native 4x deep neural networks enhance vector lines and micro-textures. For 8K upscaling requests, a progressive 2-pass engine runs a 4x model pass followed by a native 2x model pass (realesr-animevideov3-x2), scaling resolution up to 8192×8192 while preserving raw alpha transparency channels.
             </p>
           </div>
         </div>
@@ -1099,10 +1156,22 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
           <div className="text-center mb-12">
             <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">[ KNOWLEDGE BASE ]</span>
             <h2 className="text-2xl font-bold text-white tracking-tight mt-1">Frequently Asked Questions</h2>
-            <p className="text-xs text-gray-500 font-mono mt-1">Everything you need to know about keying workflows and export options</p>
+            <p className="text-xs text-gray-500 font-mono mt-1">Everything you need to know about keying workflows, AI upscaling, and export options</p>
           </div>
 
           <div className="space-y-4 font-mono text-xs">
+            <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
+              <h3 className="font-bold text-white mb-2">How does the Real-ESRGAN 4K & 8K AI Upscaler work?</h3>
+              <p className="text-gray-400 leading-relaxed text-[11px]">
+                Our AI upscaler powered by Real-ESRGAN NCNN Vulkan enhances images up to 4K ($4096 \times 4096$) and 8K ($8192 \times 8192$). It uses progressive 2-pass neural processing to sharpen edges, restore lost detail, and eliminate pixelation without introducing blurry artifacts.
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
+              <h3 className="font-bold text-white mb-2">Does 8K AI upscaling preserve transparent PNG backgrounds?</h3>
+              <p className="text-gray-400 leading-relaxed text-[11px]">
+                Yes! Unlike generic upscaling tools that fill transparent areas with black or white boxes, our progressive 2-pass pipeline processes alpha channel masks explicitly, maintaining crisp, isolated transparent PNG cutouts ready for print-on-demand.
+              </p>
+            </div>
             <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
               <h3 className="font-bold text-white mb-2">What makes Pixel Isolate different from cloud background removers?</h3>
               <p className="text-gray-400 leading-relaxed text-[11px]">
@@ -1118,7 +1187,7 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
             <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
               <h3 className="font-bold text-white mb-2">What image resolutions are supported for export?</h3>
               <p className="text-gray-400 leading-relaxed text-[11px]">
-                Free Tier accounts support up to 500px standard preview exports and 3 Full-HD trial downloads. Pro Tier subscribers unlock 100% original full-resolution HD & 4K extractions.
+                Free Tier accounts support up to 500px standard preview exports and 3 Full-HD trial downloads. Pro Tier subscribers unlock 100% original full-resolution HD & 4K extractions plus unlimited 8K AI Super-Resolution upscales.
               </p>
             </div>
           </div>
