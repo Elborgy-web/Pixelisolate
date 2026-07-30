@@ -483,10 +483,11 @@ export async function createPost(
     .replace(/[^\w\s-]/g, "")
     .replace(/\s+/g, "-") + `-${Math.random().toString(36).substring(2, 7)}`;
 
-  const readingTime = Math.max(2, Math.ceil(postData.content.split(/\s+/).length / 180));
-  const authorName = profile?.display_name || user?.email?.split("@")[0] || "Community Member";
+  const readingTime = Math.max(2, Math.ceil((postData.content || "").split(/\s+/).length / 180));
+  const authorName = profile?.display_name || (user?.email ? user.email.split("@")[0] : "") || "Community Member";
   const authorAvatar = profile?.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${user?.id || authorName}`;
-  const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin") || user?.email?.toLowerCase() === "rjhustles@gmail.com" || user?.email?.toLowerCase() === "detourdesignllc@gmail.com" || user?.email?.toLowerCase() === "philip@philipanders.com";
+  const userEmail = (user?.email || "").toLowerCase();
+  const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || userEmail.includes("elborgy") || userEmail.includes("admin") || userEmail === "rjhustles@gmail.com" || userEmail === "detourdesignllc@gmail.com" || userEmail === "philip@philipanders.com";
 
   const newPost: BlogPost = {
     id: `post-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -621,7 +622,7 @@ export async function addComment(
   profile: any,
   content: string
 ): Promise<BlogComment> {
-  const authorName = profile?.display_name || user?.email?.split("@")[0] || "Community Member";
+  const authorName = profile?.display_name || (user?.email ? user.email.split("@")[0] : "") || "Community Member";
   const authorAvatar = profile?.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${user?.id || authorName}`;
 
   const comment: BlogComment = {
@@ -684,7 +685,7 @@ export async function updatePost(
     cover_image?: string;
   }
 ): Promise<BlogPost | null> {
-  const readingTime = Math.max(2, Math.ceil(postData.content.split(/\s+/).length / 180));
+  const readingTime = Math.max(2, Math.ceil((postData?.content || "").split(/\s+/).length / 180));
   const updatedFields = {
     title: postData.title,
     excerpt: postData.excerpt,

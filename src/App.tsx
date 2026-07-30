@@ -318,7 +318,7 @@ export default function App() {
           .insert({
             id: userId,
             email: email,
-            display_name: localCached?.display_name || email.split("@")[0],
+            display_name: localCached?.display_name || (email ? email.split("@")[0] : "User"),
             avatar_url: localCached?.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
             bio: localCached?.bio || "",
             role: localCached?.role || (isVipEmail ? "admin" : "user"),
@@ -339,7 +339,7 @@ export default function App() {
       if (!error && data) {
         const merged = {
           ...data,
-          display_name: localCached?.display_name || data.display_name || email.split("@")[0],
+          display_name: localCached?.display_name || data.display_name || (email ? email.split("@")[0] : "User"),
           avatar_url: localCached?.avatar_url || data.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
           bio: localCached?.bio || data.bio || "",
           role: localCached?.role || data.role || (isVipEmail ? "admin" : "user"),
@@ -361,7 +361,7 @@ export default function App() {
     const fallbackProfile = localCached || {
       id: userId,
       email: email,
-      display_name: email.split("@")[0],
+      display_name: (email ? email.split("@")[0] : "User"),
       avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
       bio: "",
       role: isVipEmail ? "admin" : "user",

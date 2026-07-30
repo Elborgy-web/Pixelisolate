@@ -59,7 +59,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
       setPost(data);
 
       // Parse Table of Contents from markdown headings (#, ##, ###)
-      const lines = data.content.split("\n");
+      const lines = (data.content || "").split("\n");
       const items: TocItem[] = [];
       lines.forEach((line) => {
         const match = line.match(/^(#{1,3})\s+(.+)$/);
@@ -154,9 +154,9 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
 
   // Convert Markdown content into HTML blocks
   const renderMarkdownContent = (content: string) => {
-    const paragraphs = content.split(/\n\n+/);
+    const paragraphs = (content || "").split(/\n\n+/);
     return paragraphs.map((block, idx) => {
-      const trimmed = block.trim();
+      const trimmed = (block || "").trim();
       
       // H1 Header (Demoted to H2 in body to preserve single H1 per page)
       if (trimmed.startsWith("# ")) {
@@ -198,7 +198,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
 
       // Bullet List
       if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
-        const items = trimmed.split("\n").map((l) => l.replace(/^[*|-]\s+/, ""));
+        const items = (trimmed || "").split("\n").map((l) => l.replace(/^[*|-]\s+/, ""));
         return (
           <ul key={idx} className="my-4 space-y-2 font-sans text-sm sm:text-base text-gray-300 list-disc list-inside">
             {items.map((item, iIdx) => (
@@ -212,7 +212,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
 
       // Numbered List
       if (/^\d+\.\s+/.test(trimmed)) {
-        const items = trimmed.split("\n").map((l) => l.replace(/^\d+\.\s+/, ""));
+        const items = (trimmed || "").split("\n").map((l) => l.replace(/^\d+\.\s+/, ""));
         return (
           <ol key={idx} className="my-4 space-y-2 font-sans text-sm sm:text-base text-gray-300 list-decimal list-inside">
             {items.map((item, iIdx) => (
@@ -234,8 +234,9 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   };
 
   const formatInlineMarkdown = (text: string) => {
+    if (!text) return null;
     const regex = /(\[.*?\]\(https?:\/\/.*?\)|https?:\/\/[^\s<]+|\*\*.*?\*\*|\`.*?\`)/g;
-    const parts = text.split(regex);
+    const parts = (text || "").split(regex);
 
     return parts.map((part, i) => {
       if (!part) return null;
@@ -494,7 +495,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
                       className="w-6 h-6 rounded-full object-cover border border-emerald-500/40"
                     />
                     <span className="text-xs font-mono font-bold text-gray-300">
-                      {profile?.display_name || user.email?.split("@")[0]}
+                      {profile?.display_name || (user?.email ? user.email.split("@")[0] : "Author")}
                     </span>
                   </div>
                   <textarea
