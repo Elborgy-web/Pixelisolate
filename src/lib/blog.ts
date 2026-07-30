@@ -754,23 +754,41 @@ export async function createPost(
   stored.unshift(newPost);
   saveStoredPosts(stored);
 
-  // 2. Try API insert via backend (upsert as admin)
-  try {
-    const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-    await fetch(`${apiBase}/api/blog/posts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newPost)
-    });
-  } catch (e) {}
-
-  // 3. Try direct DB insert
+  // 2. Insert into Supabase DB
   try {
     const { data } = await supabase.from("posts").insert(newPost).select().single();
     if (data) {
       newPost.id = data.id;
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn("[Blog] Direct Supabase post insert notice:", e);
+  }
+
+  // 3. Trigger backend API endpoint for post persistence and automated email notification dispatch
+  try {
+    const notifyPayload = JSON.stringify(newPost);
+    const headers = { "Content-Type": "application/json" };
+
+    // Try relative endpoint first (current origin server), fallback to VITE_API_URL if relative fails
+    let res = await fetch("/api/blog/posts", {
+      method: "POST",
+      headers,
+      body: notifyPayload,
+    }).catch(() => null);
+
+    if (!res || !res.ok) {
+      const fallbackApiUrl = (import.meta.env.VITE_API_URL || "").trim();
+      if (fallbackApiUrl) {
+        await fetch(`${fallbackApiUrl}/api/blog/posts`, {
+          method: "POST",
+          headers,
+          body: notifyPayload,
+        }).catch(() => {});
+      }
+    }
+  } catch (e) {
+    console.warn("[Blog] Notification dispatch request notice:", e);
+  }
 
   // 4. NOW trigger Facebook Graph API auto-scrape AFTER post exists in DB!
   try {
