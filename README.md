@@ -85,16 +85,6 @@ By combining **subpixel edge feathering** with dual-engine AI (Neural Segmentati
    git clone [https://github.com/your-username/pixelisolate.git](https://github.com/your-username/pixelisolate.git)
    cd pixelisolate
 
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-https://ai.studio/apps/7630fc65-66db-475d-a72d-ec61380ab7a2
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
 Install dependencies:
 
 Bash
