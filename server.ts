@@ -104,9 +104,13 @@ app.post("/api/upscale", async (req, res) => {
   let inputPath = "";
   let outputPath = "";
   try {
-    const { imageBase64, scale = 4, category = "graphic" } = req.body;
+    const { imageBase64, scale = 4, category = "graphic", isPro = false } = req.body;
     if (!imageBase64) {
       return res.status(400).json({ error: "Missing imageBase64 input" });
+    }
+
+    if (Number(scale) > 4 && !isPro) {
+      return res.status(403).json({ error: "8K AI Super-Resolution requires Pro subscription." });
     }
 
     const tmpDir = path.join(process.cwd(), "tmp");

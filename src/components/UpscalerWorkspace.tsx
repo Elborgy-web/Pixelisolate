@@ -173,7 +173,7 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
   const handleExecuteUpscale = async () => {
     if (!imageSrc) return;
 
-    if (!isPro && freeTrialUsed) {
+    if (!isPro && (freeTrialUsed || selectedTarget === "8k")) {
       if (onOpenPricing) onOpenPricing();
       return;
     }
@@ -191,7 +191,8 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
         selectedTarget,
         selectedCategory,
         "neural",
-        (msg, pct) => setProgressStatus({ label: msg, pct })
+        (msg, pct) => setProgressStatus({ label: msg, pct }),
+        isPro
       );
 
       setUpscaleResult(result);
@@ -211,12 +212,12 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
 
   // Bulk Processing Queue
   const processBatchQueue = async () => {
-    if (bulkItems.length === 0 || bulkProcessingActive) return;
-
-    if (!isPro && freeTrialUsed) {
+    if (!isPro) {
       if (onOpenPricing) onOpenPricing();
       return;
     }
+
+    if (bulkItems.length === 0 || bulkProcessingActive) return;
 
     setBulkProcessingActive(true);
 
@@ -225,9 +226,7 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
       if (item.status === "complete") continue;
 
       setBulkItems((prev) =>
-        prev.map((it) =>
-          it.id === item.id ? { ...it, status: "processing", progressPct: 15, progressMsg: "Upscaling via Real-ESRGAN..." } : it
-        )
+        prev.map((it) => (it.id === item.id ? { ...it, status: "processing", progressPct: 10, progressMsg: "Upscaling..." } : it))
       );
 
       try {
@@ -242,27 +241,16 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
           "neural",
           (msg, pct) => {
             setBulkItems((prev) =>
-              prev.map((it) =>
-                it.id === item.id ? { ...it, progressPct: pct, progressMsg: msg } : it
-              )
+              prev.map((it) => (it.id === item.id ? { ...it, progressPct: pct, progressMsg: msg } : it))
             );
-          }
+          },
+          isPro
         );
 
         setBulkItems((prev) =>
-          prev.map((it) =>
-            it.id === item.id
-              ? { ...it, status: "complete", progressPct: 100, progressMsg: "Done", result }
-              : it
-          )
+          prev.map((it) => (it.id === item.id ? { ...it, status: "complete", progressPct: 100, result } : it))
         );
       } catch (err) {
-        console.error(`Failed to upscale bulk item ${item.file.name}:`, err);
-        setBulkItems((prev) =>
-          prev.map((it) =>
-            it.id === item.id ? { ...it, status: "error", progressMsg: "Failed" } : it
-          )
-        );
       }
     }
 
@@ -500,8 +488,8 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
               className={`w-full py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-lg ${
                 !imageSrc || isProcessing
                   ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
-                  : !isPro && freeTrialUsed
-                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-gray-950 hover:brightness-110 shadow-amber-500/20"
+                  : !isPro && (freeTrialUsed || selectedTarget === "8k")
+                  ? "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-110 text-white shadow-lg shadow-orange-500/25 border border-amber-400/40"
                   : "bg-emerald-500 hover:bg-emerald-400 text-gray-950 shadow-emerald-500/20"
               }`}
             >
@@ -510,15 +498,15 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
                   <RefreshCw className="h-4 w-4 animate-spin" />
                   <span>Processing Super-Resolution...</span>
                 </>
-              ) : !isPro && freeTrialUsed ? (
+              ) : !isPro && (freeTrialUsed || selectedTarget === "8k") ? (
                 <>
-                  <Crown className="h-4 w-4" />
-                  <span>Upgrade to Pro for Unlimited 8K</span>
+                  <Crown className="h-4 w-4 shrink-0 text-white" />
+                  <span>UPGRADE TO PRO FOR UNLIMITED 8K</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  <span>Upscale Image to {selectedTarget.toUpperCase()}</span>
+                  <span>Upscale Image to {selectedTarget.toUpperCase()} {!isPro ? "(1 Free Trial Left)" : ""}</span>
                 </>
               )}
             </button>
@@ -920,50 +908,59 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              {bulkItems.some((i) => i.status === "complete") && (
-                <button
-                  onClick={downloadBulkZip}
-                  className="px-5 py-3 rounded-2xl bg-gray-900 hover:bg-gray-800 border border-emerald-500/40 text-emerald-400 font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg"
-                >
-                  <FolderDown className="h-4 w-4" />
-                  <span>Download ZIP (All Upscaled)</span>
-                </button>
-              )}
+              {!isPro ? (
+                <>
+                  <button
+                    onClick={() => { if (onOpenPricing) onOpenPricing(); }}
+                    className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-110 text-white font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg shadow-orange-500/25 border border-amber-400/40"
+                  >
+                    <Crown className="h-4 w-4 shrink-0 text-white" />
+                    <span>UPGRADE TO PRO TO DOWNLOAD ZIP</span>
+                  </button>
 
-              <button
-                onClick={() => {
-                  if (!isPro && freeTrialUsed && selectedTarget === "8k" && onOpenPricing) {
-                    onOpenPricing();
-                  } else {
-                    processBatchQueue();
-                  }
-                }}
-                disabled={bulkItems.length === 0 || bulkProcessingActive}
-                className={`px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg ${
-                  bulkItems.length === 0 || bulkProcessingActive
-                    ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
-                    : !isPro && freeTrialUsed && selectedTarget === "8k"
-                    ? "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white font-bold hover:brightness-110 shadow-amber-500/20"
-                    : "bg-emerald-500 hover:bg-emerald-400 text-gray-950 shadow-emerald-500/20"
-                }`}
-              >
-                {bulkProcessingActive ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    <span>Processing Batch Queue...</span>
-                  </>
-                ) : !isPro && freeTrialUsed && selectedTarget === "8k" ? (
-                  <>
-                    <Crown className="h-4 w-4" />
-                    <span>Upgrade to Pro for Unlimited 8K Batch</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" />
-                    <span>Process Batch Queue ({bulkItems.filter((i) => i.status !== "complete").length})</span>
-                  </>
-                )}
-              </button>
+                  <button
+                    onClick={() => { if (onOpenPricing) onOpenPricing(); }}
+                    className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-110 text-white font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg shadow-orange-500/25 border border-amber-400/40"
+                  >
+                    <Crown className="h-4 w-4 shrink-0 text-white" />
+                    <span>UPGRADE TO PRO FOR UNLIMITED 8K</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {bulkItems.some((i) => i.status === "complete") && (
+                    <button
+                      onClick={downloadBulkZip}
+                      className="px-5 py-3 rounded-2xl bg-gray-900 hover:bg-gray-800 border border-emerald-500/40 text-emerald-400 font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg"
+                    >
+                      <FolderDown className="h-4 w-4" />
+                      <span>Download ZIP (All Upscaled)</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={processBatchQueue}
+                    disabled={bulkItems.length === 0 || bulkProcessingActive}
+                    className={`px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg ${
+                      bulkItems.length === 0 || bulkProcessingActive
+                        ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
+                        : "bg-emerald-500 hover:bg-emerald-400 text-gray-950 shadow-emerald-500/20"
+                    }`}
+                  >
+                    {bulkProcessingActive ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        <span>Processing Batch Queue...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        <span>Process Batch Queue ({bulkItems.filter((i) => i.status !== "complete").length})</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
 
               {bulkItems.length > 0 && (
                 <button
@@ -977,6 +974,25 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
               )}
             </div>
           </div>
+
+          {/* Pro Upgrade Notice Banner for Free Users */}
+          {!isPro && (
+            <div className="w-full p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-wrap items-center justify-between gap-4 backdrop-blur-xl">
+              <div className="flex items-center gap-3">
+                <Crown className="h-5 w-5 text-amber-400 shrink-0" />
+                <div>
+                  <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wide">Bulk Batch Upscaler is a Pro Feature</h4>
+                  <p className="text-[11px] font-mono text-gray-400">Upgrade to Pro Tier to unlock mass 8K batch processing, ZIP archives, and unlimited downloads.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { if (onOpenPricing) onOpenPricing(); }}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white text-xs font-bold uppercase tracking-wider shrink-0 hover:brightness-110 transition shadow-md shadow-orange-500/20 cursor-pointer"
+              >
+                Upgrade to Pro
+              </button>
+            </div>
+          )}
 
           {/* Batch Grid / Drop Area */}
           {bulkItems.length === 0 ? (
@@ -1056,7 +1072,15 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
 
                     {/* Item Actions */}
                     <div className="flex items-center justify-between pt-2 border-t border-gray-800/60">
-                      {item.result?.dataUrl ? (
+                      {!isPro ? (
+                        <button
+                          onClick={() => { if (onOpenPricing) onOpenPricing(); }}
+                          className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-110 text-white text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md shadow-orange-500/20 border border-amber-400/30"
+                        >
+                          <Crown className="h-3.5 w-3.5 shrink-0 text-white" />
+                          <span>UPGRADE TO PRO TO DOWNLOAD</span>
+                        </button>
+                      ) : item.result?.dataUrl ? (
                         <button
                           onClick={() => handleDownloadItem(item)}
                           className="w-full py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
@@ -1068,14 +1092,16 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
                         <span className="text-[10px] font-mono text-gray-600">Waiting in queue</span>
                       )}
 
-                      <button
-                        onClick={() => setBulkItems((prev) => prev.filter((it) => it.id !== item.id))}
-                        disabled={bulkProcessingActive}
-                        className="p-1.5 rounded-lg text-gray-600 hover:text-rose-400 transition cursor-pointer ml-2"
-                        title="Remove from batch"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {isPro && (
+                        <button
+                          onClick={() => setBulkItems((prev) => prev.filter((it) => it.id !== item.id))}
+                          disabled={bulkProcessingActive}
+                          className="p-1.5 rounded-lg text-gray-600 hover:text-rose-400 transition cursor-pointer ml-2"
+                          title="Remove from batch"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1088,50 +1114,59 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
                 </span>
 
                 <div className="flex items-center gap-3">
-                  {bulkItems.some((i) => i.status === "complete") && (
-                    <button
-                      onClick={downloadBulkZip}
-                      className="px-5 py-3 rounded-2xl bg-gray-900 hover:bg-gray-800 border border-emerald-500/40 text-emerald-400 font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg"
-                    >
-                      <FolderDown className="h-4 w-4" />
-                      <span>Download ZIP</span>
-                    </button>
-                  )}
+                  {!isPro ? (
+                    <>
+                      <button
+                        onClick={() => { if (onOpenPricing) onOpenPricing(); }}
+                        className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-110 text-white font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg shadow-orange-500/25 border border-amber-400/40"
+                      >
+                        <Crown className="h-4 w-4 shrink-0 text-white" />
+                        <span>UPGRADE TO PRO TO DOWNLOAD ZIP</span>
+                      </button>
 
-                  <button
-                    onClick={() => {
-                      if (!isPro && freeTrialUsed && selectedTarget === "8k" && onOpenPricing) {
-                        onOpenPricing();
-                      } else {
-                        processBatchQueue();
-                      }
-                    }}
-                    disabled={bulkItems.length === 0 || bulkProcessingActive}
-                    className={`px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg ${
-                      bulkItems.length === 0 || bulkProcessingActive
-                        ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
-                        : !isPro && freeTrialUsed && selectedTarget === "8k"
-                        ? "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white font-bold hover:brightness-110 shadow-amber-500/20"
-                        : "bg-emerald-500 hover:bg-emerald-400 text-gray-950 shadow-emerald-500/20"
-                    }`}
-                  >
-                    {bulkProcessingActive ? (
-                      <>
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                        <span>Processing Batch Queue...</span>
-                      </>
-                    ) : !isPro && freeTrialUsed && selectedTarget === "8k" ? (
-                      <>
-                        <Crown className="h-4 w-4" />
-                        <span>Upgrade to Pro for Unlimited 8K Batch</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        <span>Process Batch Queue ({bulkItems.filter((i) => i.status !== "complete").length})</span>
-                      </>
-                    )}
-                  </button>
+                      <button
+                        onClick={() => { if (onOpenPricing) onOpenPricing(); }}
+                        className="px-8 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-110 text-white font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg shadow-orange-500/25 border border-amber-400/40"
+                      >
+                        <Crown className="h-4 w-4 shrink-0 text-white" />
+                        <span>UPGRADE TO PRO FOR UNLIMITED 8K</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {bulkItems.some((i) => i.status === "complete") && (
+                        <button
+                          onClick={downloadBulkZip}
+                          className="px-5 py-3 rounded-2xl bg-gray-900 hover:bg-gray-800 border border-emerald-500/40 text-emerald-400 font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg"
+                        >
+                          <FolderDown className="h-4 w-4" />
+                          <span>Download ZIP</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={processBatchQueue}
+                        disabled={bulkItems.length === 0 || bulkProcessingActive}
+                        className={`px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-2 shadow-lg ${
+                          bulkItems.length === 0 || bulkProcessingActive
+                            ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
+                            : "bg-emerald-500 hover:bg-emerald-400 text-gray-950 shadow-emerald-500/20"
+                        }`}
+                      >
+                        {bulkProcessingActive ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            <span>Processing Batch Queue...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4" />
+                            <span>Process Batch Queue ({bulkItems.filter((i) => i.status !== "complete").length})</span>
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

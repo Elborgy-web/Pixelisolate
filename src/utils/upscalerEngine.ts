@@ -66,7 +66,8 @@ export async function processSuperResolution(
   target: UpscaleTarget,
   categoryOverride?: ImageCategory,
   engineMode: UpscaleEngineMode = "neural",
-  onProgress?: (msg: string, pct: number) => void
+  onProgress?: (msg: string, pct: number) => void,
+  isPro: boolean = false
 ): Promise<UpscaleResult> {
   const t0 = performance.now();
   const category = categoryOverride || detectImageCategory(sourceImage);
@@ -99,6 +100,7 @@ export async function processSuperResolution(
         imageBase64,
         scale: scaleFactor,
         category,
+        isPro,
       }),
     });
 
