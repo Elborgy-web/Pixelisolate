@@ -2,10 +2,9 @@ import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 
 const resendApiKey = process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY || '';
-// Initialize with key or dummy placeholder to prevent constructor error when key is empty
 const resend = new Resend(resendApiKey || 're_placeholder_key');
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://nyiwicwbwzjkijamqqsl.supabase.co';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, serviceKey);
 
@@ -85,7 +84,7 @@ export async function sendNewPostNotification(post: BlogPostPayload): Promise<{ 
     return {
       from: SENDER_EMAIL,
       to: [sub.email],
-      subject: `New Masterclass: ${post.title}`,
+      subject: `New Blog Post: ${post.title}`,
       headers: {
         'List-Unsubscribe': `<${unsubUrl}>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
@@ -96,19 +95,19 @@ export async function sendNewPostNotification(post: BlogPostPayload): Promise<{ 
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>New Masterclass: ${post.title}</title>
+            <title>New Blog Post: ${post.title}</title>
           </head>
           <body style="background-color: #080C14; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; margin: 0;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #0F172A; border: 1px solid #1E293B; border-radius: 12px; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
               <div style="margin-bottom: 20px;">
-                <span style="background-color: rgba(0, 245, 212, 0.12); color: #00F5D4; font-size: 11px; font-weight: 700; font-family: monospace; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(0, 245, 212, 0.3); text-transform: uppercase; letter-spacing: 0.5px;">New Masterclass</span>
+                <span style="background-color: rgba(0, 245, 212, 0.12); color: #00F5D4; font-size: 11px; font-weight: 700; font-family: monospace; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(0, 245, 212, 0.3); text-transform: uppercase; letter-spacing: 0.5px;">New Blog Post</span>
               </div>
               <h2 style="color: #FFFFFF; font-size: 22px; font-weight: 800; margin-top: 0; margin-bottom: 14px; line-height: 1.35;">${post.title}</h2>
               <p style="color: #94A3B8; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">${post.excerpt}</p>
               
               <div style="margin: 28px 0;">
                 <a href="${postUrl}" style="background-color: #00F5D4; color: #000000; font-weight: 800; font-size: 14px; text-decoration: none; padding: 14px 28px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(0,245,212,0.4);">
-                  Read Full Masterclass →
+                  Read Full Article →
                 </a>
               </div>
 
@@ -148,7 +147,7 @@ export async function sendNewPostNotification(post: BlogPostPayload): Promise<{ 
             const singleRes = await resend.emails.send({
               ...ownerPayload,
               to: [ownerEmail],
-              from: 'PixelIsolate <onboarding@resend.dev>'
+              from: SENDER_EMAIL
             });
             if (!singleRes.error) {
               console.log(`[BlogNotification] Successfully delivered fallback email to ${ownerEmail} (Resend ID: ${singleRes.data?.id})`);
@@ -168,9 +167,9 @@ export async function sendNewPostNotification(post: BlogPostPayload): Promise<{ 
       try {
         const ownerEmail = 'muhammad.elborgy@gmail.com';
         await resend.emails.send({
-          from: 'PixelIsolate <onboarding@resend.dev>',
+          from: SENDER_EMAIL,
           to: [ownerEmail],
-          subject: `New Masterclass: ${post.title}`,
+          subject: `New Blog Post: ${post.title}`,
           html: emailPayloads[0].html
         });
         console.log(`[BlogNotification] Delivered single fallback email to ${ownerEmail}`);
