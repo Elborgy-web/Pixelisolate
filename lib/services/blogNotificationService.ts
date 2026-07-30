@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 
 const resendApiKey = process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY || '';
+// Initialize with key or dummy placeholder to prevent constructor error when key is empty
 const resend = new Resend(resendApiKey || 're_placeholder_key');
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -9,7 +10,7 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUP
 const supabase = createClient(supabaseUrl, serviceKey);
 
 const APP_URL = process.env.VITE_APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://pixelisolate.online';
-const SENDER_EMAIL = process.env.RESEND_FROM_EMAIL || 'PixelIsolate <onboarding@resend.dev>';
+const SENDER_EMAIL = process.env.RESEND_FROM_EMAIL || 'PixelIsolate <contact@pixelisolate.online>';
 
 export interface BlogPostPayload {
   title: string;
@@ -31,7 +32,13 @@ export async function sendNewPostNotification(post: BlogPostPayload): Promise<{ 
 
     if (!error && data && data.length > 0) {
       subscribers = data
-        .filter((sub: any) => sub.email && typeof sub.email === 'string' && sub.email.includes('@'))
+        .filter((sub: any) => 
+          sub.email && 
+          typeof sub.email === 'string' && 
+          sub.email.includes('@') &&
+          !sub.email.endsWith('.internal') &&
+          !sub.email.endsWith('example.com')
+        )
         .map((sub: any) => ({
           email: sub.email,
           unsubscribe_token: sub.unsubscribe_token || sub.id || 'default',
@@ -45,7 +52,13 @@ export async function sendNewPostNotification(post: BlogPostPayload): Promise<{ 
 
       if (fallbackData) {
         subscribers = fallbackData
-          .filter((sub: any) => sub.email && typeof sub.email === 'string' && sub.email.includes('@'))
+          .filter((sub: any) => 
+            sub.email && 
+            typeof sub.email === 'string' && 
+            sub.email.includes('@') &&
+            !sub.email.endsWith('.internal') &&
+            !sub.email.endsWith('example.com')
+          )
           .map((sub: any) => ({
             email: sub.email,
             unsubscribe_token: sub.id,
@@ -121,16 +134,24 @@ export async function sendNewPostNotification(post: BlogPostPayload): Promise<{ 
     try {
       if (resendApiKey) {
         const batchRes = await resend.batch.send(chunk);
-        if (batchRes.error) {
-          console.warn('[BlogNotification] Resend batch API returned warning/error:', batchRes.error.message);
-          // If in test mode, try fallback individual send to account owner email
-          if (batchRes.error.message?.includes('testing emails')) {
-            console.log('[BlogNotification] Account in testing mode. Dispatching email to account owner...');
-            const ownerSub = subscribers.find(s => s.email.includes('muhammad.elborgy@gmail.com')) || subscribers[0];
-            if (ownerSub) {
-              const singlePayload = emailPayloads.find(p => p.to[0] === ownerSub.email) || emailPayloads[0];
-              await resend.emails.send(singlePayload);
-              console.log(`[BlogNotification] Successfully delivered email to account owner (${ownerSub.email}).`);
+        
+        if (batchRes && batchRes.error) {
+          console.warn('[BlogNotification] Resend batch API returned status:', batchRes.error.name, batchRes.error.message);
+          
+          // If Resend returns 422 validation error or testing mode restriction:
+          // Fall back to sending individual email to verified account owner email
+          const ownerEmail = 'muhammad.elborgy@gmail.com';
+          const ownerPayload = emailPayloads.find(p => p.to[0] === ownerEmail) || emailPayloads[0];
+          
+          if (ownerPayload) {
+            console.log(`[BlogNotification] Resend batch restricted (testing mode/422). Sending fallback email to ${ownerEmail}...`);
+            const singleRes = await resend.emails.send({
+              ...ownerPayload,
+              to: [ownerEmail],
+              from: 'PixelIsolate <onboarding@resend.dev>'
+            });
+            if (!singleRes.error) {
+              console.log(`[BlogNotification] Successfully delivered fallback email to ${ownerEmail} (Resend ID: ${singleRes.data?.id})`);
             }
           }
         } else {
@@ -141,7 +162,19 @@ export async function sendNewPostNotification(post: BlogPostPayload): Promise<{ 
       }
       sentCount += chunk.length;
     } catch (batchErr: any) {
-      console.error('[BlogNotification] Error calling resend.batch.send:', batchErr);
+      console.error('[BlogNotification] Exception in resend.batch.send:', batchErr?.message || batchErr);
+      
+      // Fallback single send to account owner on exception
+      try {
+        const ownerEmail = 'muhammad.elborgy@gmail.com';
+        await resend.emails.send({
+          from: 'PixelIsolate <onboarding@resend.dev>',
+          to: [ownerEmail],
+          subject: `New Masterclass: ${post.title}`,
+          html: emailPayloads[0].html
+        });
+        console.log(`[BlogNotification] Delivered single fallback email to ${ownerEmail}`);
+      } catch (e) {}
     }
   }
 
