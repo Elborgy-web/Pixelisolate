@@ -252,6 +252,8 @@ ${blogUrls}
 });
 
 // Blog API Endpoints
+import { sendNewPostNotification } from "./src/lib/services/blogNotificationService";
+
 app.get("/api/blog/posts", async (req, res) => {
   try {
     const { category, search } = req.query;
@@ -284,6 +286,138 @@ app.get("/api/blog/posts", async (req, res) => {
     console.warn("API blog posts error:", err);
   }
   res.status(200).json([]);
+});
+
+app.post("/api/blog/posts", async (req, res) => {
+  try {
+    const newPost = req.body;
+    if (!newPost || !newPost.title || !newPost.slug) {
+      res.status(400).json({ error: "Missing title or slug in post payload" });
+      return;
+    }
+
+    // 1. Save / Upsert post into Supabase DB
+    const { data, error } = await supabaseAdmin
+      .from("posts")
+      .upsert(newPost, { onConflict: "id" })
+      .select()
+      .single();
+
+    if (error) {
+      console.warn("[BlogAPI] Failed to save post to DB:", error.message);
+    }
+
+    // 2. Trigger automated email notifications to active subscribers if post is published
+    let emailResult = { count: 0 };
+    if (newPost.is_published !== false) {
+      try {
+        emailResult = await sendNewPostNotification({
+          title: newPost.title,
+          slug: newPost.slug,
+          excerpt: newPost.excerpt || "",
+        });
+      } catch (notifyErr) {
+        console.error("[BlogAPI] Error sending post notification emails:", notifyErr);
+      }
+    }
+
+    res.status(200).json({ success: true, post: data || newPost, notifiedSubscribers: emailResult.count });
+  } catch (err: any) {
+    console.error("[BlogAPI] Publish route error:", err);
+    res.status(500).json({ error: err.message || "Failed to publish post" });
+  }
+});
+
+app.post("/api/admin/blog/publish", async (req, res) => {
+  try {
+    const { title, slug, excerpt } = req.body;
+    if (!title || !slug) {
+      res.status(400).json({ error: "Missing title or slug" });
+      return;
+    }
+
+    const result = await sendNewPostNotification({ title, slug, excerpt: excerpt || "" });
+    res.status(200).json({ success: true, count: result.count });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Notification trigger failed" });
+  }
+});
+
+// Unsubscribe API Endpoint (app/api/unsubscribe/route.ts equivalent)
+app.get("/api/unsubscribe", async (req, res) => {
+  try {
+    const token = req.query.token as string;
+
+    if (!token) {
+      res.status(400).json({ error: "Missing token" });
+      return;
+    }
+
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ email_notifications: false })
+      .or(`unsubscribe_token.eq.${token},id.eq.${token}`);
+
+    if (error) {
+      console.error("[Unsubscribe] Database update error:", error);
+      res.status(500).json({ error: "Failed to unsubscribe" });
+      return;
+    }
+
+    // Redirect to unsubscribe confirmation page
+    res.redirect("/unsubscribe/success");
+  } catch (err: any) {
+    console.error("[Unsubscribe] Route error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/api/unsubscribe", async (req, res) => {
+  try {
+    const token = (req.body?.token || req.query.token) as string;
+    if (!token) {
+      res.status(400).json({ error: "Missing token" });
+      return;
+    }
+
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ email_notifications: false })
+      .or(`unsubscribe_token.eq.${token},id.eq.${token}`);
+
+    if (error) {
+      res.status(500).json({ error: "Failed to unsubscribe" });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: "Unsubscribed successfully" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to unsubscribe" });
+  }
+});
+
+app.post("/api/unsubscribe/resubscribe", async (req, res) => {
+  try {
+    const token = (req.body?.token || req.body?.userId || req.query.token) as string;
+    if (!token) {
+      res.status(400).json({ error: "Missing token or userId" });
+      return;
+    }
+
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ email_notifications: true })
+      .or(`unsubscribe_token.eq.${token},id.eq.${token}`);
+
+    if (error) {
+      res.status(500).json({ error: "Failed to resubscribe" });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: "Resubscribed to blog notifications successfully" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to resubscribe" });
+  }
 });
 
 app.get("/api/blog/posts/:slug", async (req, res) => {

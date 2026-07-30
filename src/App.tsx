@@ -52,6 +52,7 @@ const HowToGuide = lazyWithRetry(() => import("./components/HowToGuide"));
 const CreatePostModal = lazyWithRetry(() => import("./components/CreatePostModal"));
 const UserProfileModal = lazyWithRetry(() => import("./components/UserProfileModal"));
 const UpscalerWorkspace = lazyWithRetry(() => import("./components/UpscalerWorkspace"));
+const UnsubscribeSuccessPage = lazyWithRetry(() => import("./components/UnsubscribeSuccessPage"));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center p-12 text-gray-500 font-mono text-xs gap-2">
@@ -137,9 +138,10 @@ function cropImageTransparentEdges(imgElement: HTMLImageElement): string {
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [currentTab, setCurrentTab] = useState<"editor" | "upscaler" | "history" | "billing" | "howto" | "blog">(() => {
-    if (typeof window !== "undefined" && window.location.pathname.startsWith("/blog")) {
-      return "blog";
+  const [currentTab, setCurrentTab] = useState<"editor" | "upscaler" | "history" | "billing" | "howto" | "blog" | "unsubscribe">(() => {
+    if (typeof window !== "undefined") {
+      if (window.location.pathname.startsWith("/blog")) return "blog";
+      if (window.location.pathname.startsWith("/unsubscribe")) return "unsubscribe";
     }
     return "editor";
   });
@@ -267,6 +269,8 @@ export default function App() {
       const slugPart = parts[1] ? parts[1].replace(/^\//, "") : "";
       setCurrentTab("blog");
       setSelectedBlogSlug(slugPart || null);
+    } else if (initPath.startsWith("/unsubscribe")) {
+      setCurrentTab("unsubscribe");
     }
 
     const handlePopState = () => {
@@ -276,6 +280,9 @@ export default function App() {
         const slugPart = parts[1] ? parts[1].replace(/^\//, "") : "";
         setCurrentTab("blog");
         setSelectedBlogSlug(slugPart || null);
+      } else if (currentPath.startsWith("/unsubscribe")) {
+        setCurrentTab("unsubscribe");
+        setSelectedBlogSlug(null);
       } else {
         setSelectedBlogSlug(null);
       }
@@ -660,6 +667,21 @@ export default function App() {
                 />
               </div>
             </>
+          )}
+
+          {currentTab === "unsubscribe" && (
+            <UnsubscribeSuccessPage
+              onGoToBlog={() => {
+                window.history.pushState({}, "", "/blog");
+                setCurrentTab("blog");
+                setSelectedBlogSlug(null);
+              }}
+              onGoToHome={() => {
+                window.history.pushState({}, "", "/");
+                setCurrentTab("editor");
+                setSelectedBlogSlug(null);
+              }}
+            />
           )}
         </React.Suspense>
         </ErrorBoundary>

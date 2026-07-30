@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, User, ShieldCheck, Sparkles, Image as ImageIcon, Save, Check } from "lucide-react";
+import { X, User, ShieldCheck, Sparkles, Image as ImageIcon, Save, Check, Bell } from "lucide-react";
 import { supabase } from "../utils/supabaseClient";
 
 interface UserProfileModalProps {
@@ -29,6 +29,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   );
   const [bio, setBio] = useState<string>(profile?.bio || "");
   const [role, setRole] = useState<string>(profile?.role || (isAdminOrMod ? "admin" : "user"));
+  const [emailNotifications, setEmailNotifications] = useState<boolean>(
+    profile?.email_notifications !== undefined ? Boolean(profile.email_notifications) : true
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -45,6 +48,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       avatar_url: avatarUrl.trim(),
       bio: bio.trim(),
       role: role,
+      email_notifications: emailNotifications,
     };
 
     // Store in localStorage cache for instant persistence across page refreshes
@@ -183,6 +187,26 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               placeholder="Tell the community about your design agency, Print-on-Demand business, or background removal setup..."
               className="w-full px-3.5 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-xs font-sans text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 resize-none"
             />
+          </div>
+
+          {/* Email Notifications Toggle */}
+          <div className="flex items-center justify-between p-3.5 bg-gray-900 border border-gray-800 rounded-xl">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                <Bell className="h-4 w-4" />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-white font-bold">Email Notifications</label>
+                <p className="text-[10px] text-gray-400">Receive email alerts when new blog masterclasses are published</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEmailNotifications(!emailNotifications)}
+              className={`w-11 h-6 rounded-full transition-colors p-1 cursor-pointer flex items-center shrink-0 ${emailNotifications ? "bg-emerald-500 justify-end" : "bg-gray-800 justify-start"}`}
+            >
+              <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
+            </button>
           </div>
 
           {/* Role Selection (For Admin) */}
