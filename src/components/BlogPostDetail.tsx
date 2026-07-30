@@ -30,6 +30,22 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   onOpenEditPost,
   onGoToWorkspace,
 }) => {
+  // Helper to parse Table of Contents from markdown headings (#, ##, ###)
+  const parseToc = (content: string): TocItem[] => {
+    const lines = (content || "").split("\n");
+    const items: TocItem[] = [];
+    lines.forEach((line) => {
+      const match = line.match(/^(#{1,3})\s+(.+)$/);
+      if (match) {
+        const level = match[1].length;
+        const text = match[2].trim();
+        const id = text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
+        items.push({ id, text, level });
+      }
+    });
+    return items;
+  };
+
   // Instant 0ms cache-first state initialization to eliminate skeleton screens
   const [post, setPost] = useState<BlogPost | null>(() => getCachedPostBySlug(slug));
   const [comments, setComments] = useState<BlogComment[]>([]);
@@ -38,7 +54,10 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   const [isUpvoted, setIsUpvoted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(() => !post);
   const [shareModalOpen, setShareModalOpen] = useState<boolean>(false);
-  const [toc, setToc] = useState<TocItem[]>([]);
+  const [toc, setToc] = useState<TocItem[]>(() => {
+    const initialPost = getCachedPostBySlug(slug);
+    return initialPost ? parseToc(initialPost.content) : [];
+  });
 
   // Delete Modals states
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
@@ -49,28 +68,34 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   const isAuthor = user && post && (user.id === post.author_id);
   const canEdit = isAuthor || isAdminOrMod;
 
+  const updateMetaData = (postData: BlogPost) => {
+    document.title = postData.meta_title || `${postData.title} | PixelIsolate Blog`;
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement("meta");
+      metaDesc.setAttribute("name", "description");
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute("content", postData.meta_description || postData.excerpt);
+  };
+
   const loadPostDetails = async () => {
-    // Only set isLoading if we don't already have the post in state
-    if (!post) {
+    // Synchronously ensure state is populated if cached post is available
+    const cached = getCachedPostBySlug(slug);
+    if (cached) {
+      setPost(cached);
+      setToc(parseToc(cached.content));
+      updateMetaData(cached);
+      setIsLoading(false);
+    } else if (!post) {
       setIsLoading(true);
     }
+
     const data = await getPostBySlug(slug);
     if (data) {
       setPost(data);
-
-      // Parse Table of Contents from markdown headings (#, ##, ###)
-      const lines = (data.content || "").split("\n");
-      const items: TocItem[] = [];
-      lines.forEach((line) => {
-        const match = line.match(/^(#{1,3})\s+(.+)$/);
-        if (match) {
-          const level = match[1].length;
-          const text = match[2].trim();
-          const id = text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
-          items.push({ id, text, level });
-        }
-      });
-      setToc(items);
+      setToc(parseToc(data.content));
+      updateMetaData(data);
 
       // Fetch Comments
       const comms = await getPostComments(data.id);
@@ -80,16 +105,6 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
       if (user) {
         setIsUpvoted(hasUserUpvoted(data.id, user.id));
       }
-
-      // Update Document Title & Meta Tags dynamically for SEO
-      document.title = data.meta_title || `${data.title} | PixelIsolate Blog`;
-      let metaDesc = document.querySelector('meta[name="description"]');
-      if (!metaDesc) {
-        metaDesc = document.createElement("meta");
-        metaDesc.setAttribute("name", "description");
-        document.head.appendChild(metaDesc);
-      }
-      metaDesc.setAttribute("content", data.meta_description || data.excerpt);
     }
 
     setIsLoading(false);
@@ -97,6 +112,14 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
 
   const userId = user?.id;
   useEffect(() => {
+    // 0ms instant sync update when slug changes
+    const cached = getCachedPostBySlug(slug);
+    if (cached) {
+      setPost(cached);
+      setToc(parseToc(cached.content));
+      updateMetaData(cached);
+      setIsLoading(false);
+    }
     loadPostDetails();
   }, [slug, userId]);
 

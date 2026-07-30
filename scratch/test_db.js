@@ -1,23 +1,23 @@
-import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
+const { createClient } = require('@supabase/supabase-js');
+const dotenv = require('dotenv');
 dotenv.config();
 
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
+const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
 
-async function testColumns() {
-  const { data, error } = await supabaseAdmin
-    .from("profiles")
-    .select("*")
-    .limit(1);
-
+async function test() {
+  const { data, error } = await supabase.from('posts').select('id, slug, title, cover_image, is_published, content').order('published_at', { ascending: false });
   if (error) {
-    console.error("Error querying profiles:", error);
+    console.error('Error fetching posts:', error);
   } else {
-    console.log("Profiles sample row:", data);
+    console.log('Posts count:', data.length);
+    data.forEach(p => {
+      console.log('---');
+      console.log('ID:', p.id);
+      console.log('Slug:', p.slug);
+      console.log('Title:', p.title);
+      console.log('Cover Image start:', (p.cover_image || '').substring(0, 80));
+      console.log('Content length:', (p.content || '').length);
+    });
   }
 }
-
-testColumns();
+test();

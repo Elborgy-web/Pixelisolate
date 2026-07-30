@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, PenTool, Sparkles, Image as ImageIcon, Send, FileText, Save, Check } from "lucide-react";
+import { X, PenTool, Sparkles, Image as ImageIcon, Send, FileText, Save, Check, AlertCircle, Loader2 } from "lucide-react";
 import { createPost, updatePost, BlogPost } from "../lib/blog";
 
 interface CreatePostModalProps {
@@ -12,6 +12,7 @@ interface CreatePostModalProps {
 }
 
 const CATEGORIES = ["POD Tips", "E-Commerce", "AI Tools", "Tutorials", "Design & Printing"];
+const MAX_COVER_SIZE_BYTES = 2 * 1024 * 1024; // 2MB strict limit
 
 export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   isOpen,
@@ -29,10 +30,13 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const [coverImage, setCoverImage] = useState(postToEdit?.cover_image || "");
   const [content, setContent] = useState(postToEdit?.content || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    setImageError(null);
     if (postToEdit) {
       setTitle(postToEdit.title);
       setCategory(postToEdit.category);
@@ -51,17 +55,67 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    setImageError(null);
+
+    // 1. Enforce strict 2MB limit
+    if (file.size > MAX_COVER_SIZE_BYTES) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      setImageError(`Cover image file size exceeds the 2MB limit (selected file is ${sizeMB}MB). Please select an image under 2MB.`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // 2. Compress and downscale image to max 1200px for instant DB query performance
+    setIsCompressing(true);
     const reader = new FileReader();
     reader.onload = (evt) => {
-      if (evt.target?.result) {
-        setCoverImage(evt.target.result as string);
+      if (!evt.target?.result) {
+        setIsCompressing(false);
+        return;
       }
+
+      const img = new Image();
+      img.src = evt.target.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxDim = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL("image/jpeg", 0.82);
+          setCoverImage(compressed);
+        } else {
+          setCoverImage(evt.target.result as string);
+        }
+        setIsCompressing(false);
+      };
+      img.onerror = () => {
+        setImageError("Failed to load image file. Please try another image.");
+        setIsCompressing(false);
+      };
     };
     reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (imageError || isCompressing) return;
     if (!title.trim() || !excerpt.trim() || !content.trim()) return;
 
     setIsSubmitting(true);
@@ -164,8 +218,19 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
           </div>
 
           {/* Cover Image URL & File Upload */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-mono text-gray-400 uppercase">Cover Image (Browse Local File or URL)</label>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="block text-xs font-mono text-gray-400 uppercase">Cover Image (Strict 2MB Limit)</label>
+              <span className="text-[10px] font-mono text-emerald-400 font-bold">Max size: 2MB • Auto-optimized</span>
+            </div>
+
+            {/* Explicit 2MB Limit Note */}
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-emerald-300 text-xs font-mono flex items-start gap-2">
+              <Sparkles className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+              <span>
+                <strong>Note:</strong> Cover image files must not exceed <strong>2MB</strong>. Files over 2MB will be rejected to ensure fast page loading.
+              </span>
+            </div>
             <input
               type="file"
               ref={fileInputRef}
@@ -176,23 +241,40 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
             <div className="flex gap-2">
               <button
                 type="button"
+                disabled={isCompressing}
                 onClick={() => fileInputRef.current?.click()}
-                className="px-3.5 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 font-mono text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
+                className="px-3.5 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 font-mono text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50"
               >
-                <ImageIcon className="h-4 w-4" />
-                <span>Browse Image</span>
+                {isCompressing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                <span>{isCompressing ? "Processing..." : "Browse Image"}</span>
               </button>
               <input
                 type="text"
                 value={coverImage.startsWith("data:") ? "[Local Image File Selected]" : coverImage}
-                onChange={(e) => setCoverImage(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setImageError(null);
+                  if (val.length > 2800000) {
+                    setImageError("Pasted image data exceeds 2MB limit. Please select a smaller file.");
+                    return;
+                  }
+                  setCoverImage(val);
+                }}
                 placeholder="or paste Image URL..."
                 className="flex-1 px-3.5 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-xs font-mono text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 truncate"
               />
             </div>
 
+            {/* Image Upload Error Alert */}
+            {imageError && (
+              <div className="mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono font-medium flex items-center gap-2 animate-fade-in">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{imageError}</span>
+              </div>
+            )}
+
             {/* Live Cover Preview */}
-            {coverImage && (
+            {coverImage && !imageError && (
               <div className="mt-2 relative w-full h-32 rounded-xl overflow-hidden border border-gray-800 bg-gray-900">
                 <img src={coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
                 <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-gray-950/80 text-[10px] font-mono text-emerald-400 font-bold">Cover Preview</span>
