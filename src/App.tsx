@@ -14,13 +14,21 @@ import ErrorBoundary from "./components/ErrorBoundary";
 
 // Helper to auto-retry dynamic imports when new builds are deployed (prevents chunk load white screens)
 const lazyWithRetry = <T extends React.ComponentType<any>>(
-  componentImport: () => Promise<{ default: T }>
+  componentImport: () => Promise<any>
 ) =>
   React.lazy(async () => {
     const pageHasBeenRefreshed = sessionStorage.getItem("page_refreshed_for_new_build");
 
     try {
-      return await componentImport();
+      const mod = await componentImport();
+      if (mod && mod.default) return { default: mod.default };
+      if (mod) {
+        const firstExport = Object.values(mod).find(
+          (v) => typeof v === "function" || (typeof v === "object" && v !== null && "$$typeof" in v)
+        );
+        if (firstExport) return { default: firstExport as T };
+      }
+      return mod;
     } catch (error) {
       console.warn("[LazyRetry] Dynamic chunk import failed (stale build deployment hash).", error);
       if (!pageHasBeenRefreshed) {
@@ -43,10 +51,11 @@ const SubscriptionManager = lazyWithRetry(() => import("./components/Subscriptio
 const HowToGuide = lazyWithRetry(() => import("./components/HowToGuide"));
 const CreatePostModal = lazyWithRetry(() => import("./components/CreatePostModal"));
 const UserProfileModal = lazyWithRetry(() => import("./components/UserProfileModal"));
+const UpscalerWorkspace = lazyWithRetry(() => import("./components/UpscalerWorkspace"));
 
 const LoadingFallback = () => (
-  <div className="flex flex-col items-center justify-center min-h-[300px] gap-3 p-8 font-mono text-xs text-gray-400">
-    <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+  <div className="flex items-center justify-center p-12 text-gray-500 font-mono text-xs gap-2">
+    <div className="h-4 w-4 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
     <span>Loading Workspace Component...</span>
   </div>
 );
@@ -60,7 +69,9 @@ import {
   Sliders,
   CreditCard,
   HelpCircle,
-  BookOpen
+  BookOpen,
+  Maximize2,
+  Home
 } from "lucide-react";
 
 // Helper: Dynamically crop blank/transparent padding edges from the logo PNG on the client side
@@ -126,7 +137,7 @@ function cropImageTransparentEdges(imgElement: HTMLImageElement): string {
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [currentTab, setCurrentTab] = useState<"editor" | "history" | "billing" | "howto" | "blog">(() => {
+  const [currentTab, setCurrentTab] = useState<"editor" | "upscaler" | "history" | "billing" | "howto" | "blog">(() => {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/blog")) {
       return "blog";
     }
@@ -394,9 +405,31 @@ export default function App() {
                     : "text-gray-400 hover:text-gray-200"
                 }`}
               >
-                <Sliders className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
-                <span>Editor Workspace</span>
+                {user ? (
+                  <Sliders className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                ) : (
+                  <Home className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
+                )}
+                <span>{user ? "Background Remover" : "Home"}</span>
               </button>
+
+              {user && (
+                <button
+                  onClick={() => {
+                    window.history.pushState({}, "", "/");
+                    setCurrentTab("upscaler");
+                    setSelectedBlogSlug(null);
+                  }}
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
+                    currentTab === "upscaler"
+                      ? "bg-gray-850 text-white"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  <Maximize2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
+                  <span>AI Upscaler (4K/8K)</span>
+                </button>
+              )}
 
               <button
                 onClick={() => {
@@ -584,6 +617,16 @@ export default function App() {
             />
           </div>
           
+          <div style={{ display: currentTab === "upscaler" ? "block" : "none" }}>
+            <UpscalerWorkspace
+              user={user}
+              profile={profile}
+              isPro={profile?.is_pro ?? false}
+              onOpenPricing={() => setPricingModalOpen(true)}
+              onOpenAuth={() => setAuthModalOpen(true)}
+            />
+          </div>
+
           <div style={{ display: currentTab === "editor" ? "block" : "none" }}>
             {user ? (
               <ChromaKeyer 

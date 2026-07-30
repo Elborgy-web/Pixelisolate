@@ -62,6 +62,12 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
       icon: Layers,
       color: "text-blue-400 bg-blue-500/10 border-blue-500/20",
     },
+    {
+      id: "ai-upscaler",
+      title: "4K/8K AI Image Upscaler",
+      icon: Maximize2,
+      color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    },
   ];
 
   return (
@@ -399,6 +405,68 @@ export default function HowToGuide({ onGoToEditor, isLoggedIn }: HowToGuideProps
               </h3>
               <p className="text-[11px] text-purple-300/80 leading-relaxed">
                 Free Tier accounts include **1 free trial export** of solid color backgrounds. Credit bundle accounts include **3 solid background trial exports**. After trials are used up, exporting custom backdrops requires upgrading to the **Pro Tier**. Standard transparent PNG downloads are always free.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeSection === "ai-upscaler" && (
+          <div className="flex flex-col gap-6 animate-slide-up">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                <Maximize2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white tracking-tight">4K & 8K AI Image Upscaling Engine</h2>
+                <p className="text-xs font-mono text-gray-500 uppercase tracking-wider mt-0.5">Category Auto-Detection & Print-Prep</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed max-w-3xl">
+              The AI Upscaler expands low-resolution assets to <code className="text-amber-400 font-mono font-bold bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-900/30">4K (3840px+)</code> and <code className="text-amber-400 font-mono font-bold bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-900/30">8K (7680px+)</code> print targets with zero quality loss. It automatically classifies images into **Graphic**, **Product**, or **Portrait** categories to apply custom sharpening kernels.
+            </p>
+
+            <hr className="border-gray-900" />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-gray-950/60 p-4.5 rounded-2xl border border-gray-900 flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-400 font-mono uppercase tracking-wide">
+                  <CheckCircle className="h-4 w-4 text-amber-400" />
+                  <span>Graphic / Apparel</span>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Subpixel contour sharpening and anti-aliased edge smoothing for T-shirt logos, vector artwork, and typography graphics.
+                </p>
+              </div>
+
+              <div className="bg-gray-950/60 p-4.5 rounded-2xl border border-gray-900 flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-400 font-mono uppercase tracking-wide">
+                  <CheckCircle className="h-4 w-4 text-amber-400" />
+                  <span>Product Photography</span>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Micro-contrast enhancement and specular highlight sharpening while preserving delicate surface textures (fabric, wood, metal).
+                </p>
+              </div>
+
+              <div className="bg-gray-950/60 p-4.5 rounded-2xl border border-gray-900 flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-400 font-mono uppercase tracking-wide">
+                  <CheckCircle className="h-4 w-4 text-amber-400" />
+                  <span>Portrait & Face</span>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Skin tone smoothing combined with eye, hair, and lip detail enhancement without plastic AI artifacts.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 bg-amber-950/20 border border-amber-900/30 p-4 rounded-2xl">
+              <h3 className="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase font-mono">
+                <HelpCircle className="h-4 w-4 shrink-0" />
+                <span>Access Control & Free Trial</span>
+              </h3>
+              <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                Pro Subscribers enjoy **unlimited 4K & 8K AI Upscaling**. Free users get **1 Free Trial execution** to test the super-resolution engine on any image.
               </p>
             </div>
           </div>

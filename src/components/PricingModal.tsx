@@ -148,6 +148,10 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               <ul className="flex flex-col gap-3.5 text-xs text-gray-300 border-t border-gray-900 pt-5 mb-8">
                 <li className="flex items-center gap-2.5">
                   <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span><strong>4K & 8K AI Image Upscaler</strong> (Graphic, Product, Portrait tuning)</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="h-4 w-4 text-emerald-400 shrink-0" />
                   <span><strong>Unlimited</strong> background isolations</span>
                 </li>
                 <li className="flex items-center gap-2.5">
