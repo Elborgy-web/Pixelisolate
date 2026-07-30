@@ -100,9 +100,15 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
   const [bulkItems, setBulkItems] = useState<BulkUpscaleItem[]>([]);
   const [bulkProcessingActive, setBulkProcessingActive] = useState<boolean>(false);
 
+  const trialStorageKey = user?.id ? `pixelisolate_upscale_trial_used_${user.id}` : "pixelisolate_upscale_trial_used_guest";
+
   const [freeTrialUsed, setFreeTrialUsed] = useState<boolean>(() => {
-    return localStorage.getItem("pixelisolate_upscale_trial_used") === "true";
+    return localStorage.getItem(trialStorageKey) === "true";
   });
+
+  useEffect(() => {
+    setFreeTrialUsed(localStorage.getItem(trialStorageKey) === "true");
+  }, [trialStorageKey]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
@@ -198,7 +204,7 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
       setUpscaleResult(result);
 
       if (!isPro) {
-        localStorage.setItem("pixelisolate_upscale_trial_used", "true");
+        localStorage.setItem(trialStorageKey, "true");
         setFreeTrialUsed(true);
       }
     } catch (err) {
