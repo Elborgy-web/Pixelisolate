@@ -79,8 +79,16 @@ export async function processSuperResolution(
   else if (target === "4k") scaleFactor = 4;
   else if (target === "8k") scaleFactor = 8;
 
-  const targetW = Math.round(origW * scaleFactor);
-  const targetH = Math.round(origH * scaleFactor);
+  let targetW = Math.round(origW * scaleFactor);
+  let targetH = Math.round(origH * scaleFactor);
+
+  // Cap max single dimension to 8192px (8K print max standard) to prevent browser canvas memory overflow
+  const MAX_CANVAS_DIM = 8192;
+  if (targetW > MAX_CANVAS_DIM || targetH > MAX_CANVAS_DIM) {
+    const scaleRatio = Math.min(MAX_CANVAS_DIM / targetW, MAX_CANVAS_DIM / targetH);
+    targetW = Math.round(targetW * scaleRatio);
+    targetH = Math.round(targetH * scaleRatio);
+  }
 
   let finalDataUrl = "";
   let finalBlob: Blob | null = null;
@@ -288,9 +296,27 @@ async function canvasToBlobAndDataUrl(canvas: HTMLCanvasElement): Promise<{ blob
     } catch (e) {}
   }
 
-  if (!blob) {
-    blob = new Blob([], { type: "image/png" });
+  // Safeguard: If canvas allocation returned a 0-byte Blob due to browser memory bounds, auto-downsample safely
+  if (!blob || blob.size === 0) {
+    console.warn("Canvas returned 0-byte Blob. Scaling down to safe memory bounds...");
+    try {
+      const safeCanvas = document.createElement("canvas");
+      const maxDim = 4096;
+      const ratio = Math.min(maxDim / canvas.width, maxDim / canvas.height);
+      safeCanvas.width = Math.round(canvas.width * (ratio || 0.5));
+      safeCanvas.height = Math.round(canvas.height * (ratio || 0.5));
+
+      const safeCtx = safeCanvas.getContext("2d")!;
+      safeCtx.imageSmoothingEnabled = true;
+      safeCtx.imageSmoothingQuality = "high";
+      safeCtx.drawImage(canvas, 0, 0, safeCanvas.width, safeCanvas.height);
+
+      dataUrl = safeCanvas.toDataURL("image/png", 0.95);
+      blob = await new Promise<Blob>((resolve) => safeCanvas.toBlob((b) => resolve(b || new Blob([])), "image/png", 0.95));
+    } catch (e) {
+      console.error("Safe canvas downsample error:", e);
+    }
   }
 
-  return { blob, dataUrl };
+  return { blob: blob || new Blob([]), dataUrl };
 }
