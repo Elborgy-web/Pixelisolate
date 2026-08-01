@@ -1852,6 +1852,22 @@ export default function ChromaKeyer({
     }
   };
 
+  const canvasToBlobUrl = async (canvas: HTMLCanvasElement): Promise<string> => {
+    return new Promise((resolve) => {
+      try {
+        canvas.toBlob((blob) => {
+          if (blob && blob.size > 0) {
+            resolve(URL.createObjectURL(blob));
+          } else {
+            resolve(canvas.toDataURL("image/png"));
+          }
+        }, "image/png");
+      } catch (e) {
+        resolve(canvas.toDataURL("image/png"));
+      }
+    });
+  };
+
   const addBulkFiles = (files: File[]) => {
     const imageFiles = files.filter(f => f.type.startsWith("image/"));
     if (imageFiles.length === 0) return;
@@ -1863,34 +1879,23 @@ export default function ChromaKeyer({
       }
     }
 
-    const newItems: BulkImageItem[] = [];
-    let loadedCount = 0;
-
-    imageFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          newItems.push({
-            id: Math.random().toString(36).substring(2, 9),
-            fileName: file.name,
-            sourceUri: event.target.result as string,
-            greenScreenUri: null,
-            isolatedUri: null,
-            status: "queued",
-            progress: 0,
-            segmentationMode: "ai",
-            detectedColorHex: "#ffffff",
-            detectedColorRgb: { r: 255, g: 255, b: 255 },
-          });
-
-          loadedCount++;
-          if (loadedCount === imageFiles.length) {
-            setBulkItems((prev) => [...prev, ...newItems]);
-          }
-        }
+    const newItems: BulkImageItem[] = imageFiles.map((file) => {
+      const sourceUri = URL.createObjectURL(file);
+      return {
+        id: Math.random().toString(36).substring(2, 9),
+        fileName: file.name,
+        sourceUri,
+        greenScreenUri: null,
+        isolatedUri: null,
+        status: "queued",
+        progress: 0,
+        segmentationMode: "ai",
+        detectedColorHex: "#ffffff",
+        detectedColorRgb: { r: 255, g: 255, b: 255 },
       };
-      reader.readAsDataURL(file);
     });
+
+    setBulkItems((prev) => [...prev, ...newItems]);
   };
 
   // Sequential Asynchronous Bulk Processing Queue
@@ -2126,7 +2131,7 @@ export default function ChromaKeyer({
             }
           }
           ctxGreen.putImageData(greenData, 0, 0);
-          greenScreenUri = canvasGreen.toDataURL("image/png");
+          greenScreenUri = await canvasToBlobUrl(canvasGreen);
 
           // Apply Step 3: Alpha Isolation
           const canvasIsolated = document.createElement("canvas");
@@ -2155,7 +2160,7 @@ export default function ChromaKeyer({
             decontaminateWithField(isolatedData, processedAlpha, bgFieldBulk, 1);
           }
           ctxIsolated.putImageData(isolatedData, 0, 0);
-          isolatedUri = canvasIsolated.toDataURL("image/png");
+          isolatedUri = await canvasToBlobUrl(canvasIsolated);
         } else {
           // Standard Chroma Key Mode
           const canvasGreen = document.createElement("canvas");
@@ -2211,8 +2216,8 @@ export default function ChromaKeyer({
 
           ctxIsolated.putImageData(isolatedData, 0, 0);
 
-          isolatedUri = canvasIsolated.toDataURL("image/png");
-          greenScreenUri = canvasGreen.toDataURL("image/png");
+          isolatedUri = await canvasToBlobUrl(canvasIsolated);
+          greenScreenUri = await canvasToBlobUrl(canvasGreen);
         }
 
         setBulkItems((prev) =>
@@ -2260,6 +2265,9 @@ export default function ChromaKeyer({
           )
         );
       }
+
+      // Yield control to browser event loop to allow V8 Garbage Collector to clean canvas memory
+      await new Promise((r) => setTimeout(r, 60));
     };
 
     processItem();
@@ -2352,13 +2360,25 @@ export default function ChromaKeyer({
     if (isPro) {
       try {
         const zip = new JSZip();
-        completedItems.forEach((item) => {
-          if (!item.isolatedUri) return;
+        for (let idx = 0; idx < completedItems.length; idx++) {
+          const item = completedItems[idx];
+          if (!item.isolatedUri) continue;
           const filename = `isolated_${item.fileName.replace(/\.[^/.]+$/, "")}.png`;
-          const splitIdx = item.isolatedUri.indexOf(",");
-          const base64Data = splitIdx === -1 ? item.isolatedUri : item.isolatedUri.substring(splitIdx + 1);
-          zip.file(filename, base64Data, { base64: true });
-        });
+
+          try {
+            if (item.isolatedUri.startsWith("blob:") || item.isolatedUri.startsWith("http")) {
+              const resp = await fetch(item.isolatedUri);
+              const buf = await resp.arrayBuffer();
+              zip.file(filename, buf);
+            } else if (item.isolatedUri.startsWith("data:")) {
+              const splitIdx = item.isolatedUri.indexOf(",");
+              const base64Data = splitIdx === -1 ? item.isolatedUri : item.isolatedUri.substring(splitIdx + 1);
+              zip.file(filename, base64Data, { base64: true });
+            }
+          } catch (err) {
+            console.error("Error adding file to batch zip:", item.fileName, err);
+          }
+        }
 
         // 1. Generate ZIP & trigger browser file download INSTANTLY (0ms delay for user!)
         const zipBlob = await zip.generateAsync({ type: "blob" });

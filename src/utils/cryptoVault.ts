@@ -177,8 +177,19 @@ export async function encryptDataUri(dataUri: string, userId: string): Promise<s
   if (!dataUri || !userId) return dataUri;
 
   try {
+    let textToEncrypt = dataUri;
+    if (dataUri.startsWith("blob:") || dataUri.startsWith("http")) {
+      const resp = await fetch(dataUri);
+      const blob = await resp.blob();
+      textToEncrypt = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+    }
+
     const encoder = new TextEncoder();
-    const encodedData = encoder.encode(dataUri);
+    const encodedData = encoder.encode(textToEncrypt);
     const combined = await encryptBinaryBuffer(encodedData, userId);
 
     let binary = "";
