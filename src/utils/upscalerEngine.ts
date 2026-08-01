@@ -133,8 +133,9 @@ export async function processSuperResolution(
   if (!finalDataUrl || !finalBlob) {
     onProgress?.("Executing 4KAgent Progressive Pipeline...", 35);
     const resultCanvas = await process4KAgentPipeline(sourceImage, targetW, targetH, scaleFactor, category, onProgress);
-    finalBlob = await new Promise<Blob>((res) => resultCanvas.toBlob((b) => res(b!), "image/png", 1.0));
-    finalDataUrl = URL.createObjectURL(finalBlob);
+    const { blob, dataUrl } = await canvasToBlobAndDataUrl(resultCanvas);
+    finalBlob = blob;
+    finalDataUrl = dataUrl;
     actualW = resultCanvas.width;
     actualH = resultCanvas.height;
   }
@@ -244,4 +245,52 @@ function applyUnsharpSharpen(canvas: HTMLCanvasElement): HTMLCanvasElement {
   outCtx.drawImage(canvas, 0, 0);
 
   return outCanvas;
+}
+
+/**
+ * Safely converts Canvas to Blob & Data URL without null exceptions
+ */
+async function canvasToBlobAndDataUrl(canvas: HTMLCanvasElement): Promise<{ blob: Blob; dataUrl: string }> {
+  let dataUrl = "";
+  try {
+    dataUrl = canvas.toDataURL("image/png", 1.0);
+  } catch (e) {
+    console.warn("toDataURL failed:", e);
+  }
+
+  let blob: Blob | null = await new Promise<Blob | null>((resolve) => {
+    try {
+      canvas.toBlob((b) => resolve(b), "image/png", 1.0);
+    } catch (e) {
+      resolve(null);
+    }
+  });
+
+  if (!blob && dataUrl && dataUrl.startsWith("data:")) {
+    try {
+      const parts = dataUrl.split(",");
+      const mime = parts[0].match(/:(.*?);/)?.[1] || "image/png";
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      blob = new Blob([u8arr], { type: mime });
+    } catch (e) {
+      console.warn("Data URL to Blob conversion fallback notice:", e);
+    }
+  }
+
+  if (!dataUrl && blob && blob.size > 0) {
+    try {
+      dataUrl = URL.createObjectURL(blob);
+    } catch (e) {}
+  }
+
+  if (!blob) {
+    blob = new Blob([], { type: "image/png" });
+  }
+
+  return { blob, dataUrl };
 }

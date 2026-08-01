@@ -321,9 +321,14 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
   const handleDownloadItem = (item: BulkUpscaleItem) => {
     if (!item.result) return;
     let url = "";
-    if (item.result.blob) {
-      url = URL.createObjectURL(item.result.blob);
-    } else if (item.result.dataUrl) {
+    let createdObjUrl = false;
+    if (item.result.blob && item.result.blob instanceof Blob && item.result.blob.size > 0) {
+      try {
+        url = URL.createObjectURL(item.result.blob);
+        createdObjUrl = true;
+      } catch (e) {}
+    }
+    if (!url && item.result.dataUrl) {
       url = item.result.dataUrl;
     }
     if (!url) return;
@@ -334,19 +339,31 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    if (item.result.blob) URL.revokeObjectURL(url);
+    if (createdObjUrl) URL.revokeObjectURL(url);
   };
 
   const handleDownload = () => {
-    if (!upscaleResult || !upscaleResult.blob) return;
-    const url = URL.createObjectURL(upscaleResult.blob);
+    if (!upscaleResult) return;
+    let url = "";
+    let createdObjUrl = false;
+    if (upscaleResult.blob && upscaleResult.blob instanceof Blob && upscaleResult.blob.size > 0) {
+      try {
+        url = URL.createObjectURL(upscaleResult.blob);
+        createdObjUrl = true;
+      } catch (e) {}
+    }
+    if (!url && upscaleResult.dataUrl) {
+      url = upscaleResult.dataUrl;
+    }
+    if (!url) return;
+
     const a = document.createElement("a");
     a.href = url;
     a.download = `upscaled-${selectedTarget}-${upscaleResult.upscaledWidth}x${upscaleResult.upscaledHeight}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (createdObjUrl) URL.revokeObjectURL(url);
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
