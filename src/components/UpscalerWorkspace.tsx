@@ -256,7 +256,7 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
             );
           },
           isPro,
-          5120 // Bulk Mode Max Cap: 5120px prevents Chrome Tab Heap OOM
+          8192 // Full 8K Resolution Cap (8192px) matches Single Image 8K Mode 1:1
         );
 
         // Memory optimization: Create lightweight Blob URL instead of storing 50MB Base64 string in React state
