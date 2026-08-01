@@ -227,18 +227,23 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
 
     setBulkProcessingActive(true);
 
-    for (let i = 0; i < bulkItems.length; i++) {
-      const item = bulkItems[i];
-      if (item.status === "complete") continue;
+    // Get snapshot of pending/processing items
+    const itemsToProcess = bulkItems.filter((it) => it.status !== "complete");
+
+    for (let i = 0; i < itemsToProcess.length; i++) {
+      const item = itemsToProcess[i];
 
       setBulkItems((prev) =>
-        prev.map((it) => (it.id === item.id ? { ...it, status: "processing", progressPct: 10, progressMsg: "Upscaling..." } : it))
+        prev.map((it) => (it.id === item.id ? { ...it, status: "processing", progressPct: 15, progressMsg: "Upscaling..." } : it))
       );
 
       try {
         const img = new Image();
         img.src = item.previewUrl;
-        await new Promise((res) => (img.onload = res));
+        await new Promise((res, rej) => {
+          img.onload = res;
+          img.onerror = rej;
+        });
 
         const result = await processSuperResolution(
           img,
@@ -247,16 +252,20 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
           "neural",
           (msg, pct) => {
             setBulkItems((prev) =>
-              prev.map((it) => (it.id === item.id ? { ...it, progressPct: pct, progressMsg: msg } : it))
+              prev.map((it) => (it.id === item.id ? { ...it, progressPct: Math.max(15, pct), progressMsg: msg } : it))
             );
           },
           isPro
         );
 
         setBulkItems((prev) =>
-          prev.map((it) => (it.id === item.id ? { ...it, status: "complete", progressPct: 100, result } : it))
+          prev.map((it) => (it.id === item.id ? { ...it, status: "complete", progressPct: 100, progressMsg: "Complete", result } : it))
         );
-      } catch (err) {
+      } catch (err: any) {
+        console.error(`Bulk upscaling error for item ${item.file.name}:`, err);
+        setBulkItems((prev) =>
+          prev.map((it) => (it.id === item.id ? { ...it, status: "error", progressPct: 100, progressMsg: err?.message || "Upscale failed" } : it))
+        );
       }
     }
 
@@ -270,17 +279,33 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
 
   // ZIP Bulk Download
   const downloadBulkZip = async () => {
-    const completedItems = bulkItems.filter((i) => i.status === "complete" && i.result?.dataUrl);
+    const completedItems = bulkItems.filter((i) => i.status === "complete" && i.result);
     if (completedItems.length === 0) return;
 
     const zip = new JSZip();
-    completedItems.forEach((item, idx) => {
-      if (!item.result?.dataUrl) return;
+
+    for (let idx = 0; idx < completedItems.length; idx++) {
+      const item = completedItems[idx];
+      if (!item.result) continue;
       const cleanName = item.file.name.replace(/\.[^/.]+$/, "");
       const filename = `${cleanName}_upscaled_${selectedTarget}.png`;
-      const base64Data = item.result.dataUrl.replace(/^data:image\/\w+;base64,/, "");
-      zip.file(filename, base64Data, { base64: true });
-    });
+
+      try {
+        if (item.result.blob) {
+          const arrayBuffer = await item.result.blob.arrayBuffer();
+          zip.file(filename, arrayBuffer);
+        } else if (item.result.dataUrl.startsWith("data:")) {
+          const base64Data = item.result.dataUrl.replace(/^data:image\/\w+;base64,/, "");
+          zip.file(filename, base64Data, { base64: true });
+        } else if (item.result.dataUrl.startsWith("blob:") || item.result.dataUrl.startsWith("http")) {
+          const resp = await fetch(item.result.dataUrl);
+          const buf = await resp.arrayBuffer();
+          zip.file(filename, buf);
+        }
+      } catch (err) {
+        console.error("Error adding file to zip:", item.file.name, err);
+      }
+    }
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(zipBlob);
@@ -294,15 +319,22 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
   };
 
   const handleDownloadItem = (item: BulkUpscaleItem) => {
-    if (!item.result?.blob) return;
-    const url = URL.createObjectURL(item.result.blob);
+    if (!item.result) return;
+    let url = "";
+    if (item.result.blob) {
+      url = URL.createObjectURL(item.result.blob);
+    } else if (item.result.dataUrl) {
+      url = item.result.dataUrl;
+    }
+    if (!url) return;
+
     const a = document.createElement("a");
     a.href = url;
     a.download = `upscaled-${selectedTarget}-${item.file.name}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (item.result.blob) URL.revokeObjectURL(url);
   };
 
   const handleDownload = () => {
@@ -1086,16 +1118,24 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
                           <Crown className="h-3.5 w-3.5 shrink-0 text-white" />
                           <span>UPGRADE TO PRO TO DOWNLOAD</span>
                         </button>
-                      ) : item.result?.dataUrl ? (
+                      ) : item.status === "complete" && item.result ? (
                         <button
                           onClick={() => handleDownloadItem(item)}
-                          className="w-full py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                          className="w-full py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
                         >
                           <Download className="h-3.5 w-3.5" />
-                          <span>Download</span>
+                          <span>Download PNG</span>
                         </button>
+                      ) : item.status === "processing" ? (
+                        <span className="text-[10px] font-mono text-amber-400 font-semibold animate-pulse">
+                          Upscaling ({item.progressPct}%)...
+                        </span>
+                      ) : item.status === "error" ? (
+                        <span className="text-[10px] font-mono text-rose-400 font-semibold">
+                          Failed: {item.progressMsg}
+                        </span>
                       ) : (
-                        <span className="text-[10px] font-mono text-gray-600">Waiting in queue</span>
+                        <span className="text-[10px] font-mono text-gray-500">Waiting in queue</span>
                       )}
 
                       {isPro && (

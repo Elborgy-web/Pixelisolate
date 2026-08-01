@@ -101,6 +101,9 @@ app.use(
  * Matches Upscayl output 1:1 with 100% precision.
  */
 app.post("/api/upscale", async (req, res) => {
+  req.setTimeout(120000);
+  res.setTimeout(120000);
+
   let inputPath = "";
   let outputPath = "";
   try {
