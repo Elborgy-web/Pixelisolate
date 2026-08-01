@@ -67,7 +67,8 @@ export async function processSuperResolution(
   categoryOverride?: ImageCategory,
   engineMode: UpscaleEngineMode = "neural",
   onProgress?: (msg: string, pct: number) => void,
-  isPro: boolean = false
+  isPro: boolean = false,
+  maxDimensionCap: number = 8192
 ): Promise<UpscaleResult> {
   const t0 = performance.now();
   const category = categoryOverride || detectImageCategory(sourceImage);
@@ -82,8 +83,8 @@ export async function processSuperResolution(
   let targetW = Math.round(origW * scaleFactor);
   let targetH = Math.round(origH * scaleFactor);
 
-  // Cap max single dimension to 8192px (8K print max standard) to prevent browser canvas memory overflow
-  const MAX_CANVAS_DIM = 8192;
+  // Cap max single dimension to maxDimensionCap (8192px single mode, 5120px bulk mode)
+  const MAX_CANVAS_DIM = maxDimensionCap || 8192;
   if (targetW > MAX_CANVAS_DIM || targetH > MAX_CANVAS_DIM) {
     const scaleRatio = Math.min(MAX_CANVAS_DIM / targetW, MAX_CANVAS_DIM / targetH);
     targetW = Math.round(targetW * scaleRatio);

@@ -255,11 +255,29 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
               prev.map((it) => (it.id === item.id ? { ...it, progressPct: Math.max(15, pct), progressMsg: msg } : it))
             );
           },
-          isPro
+          isPro,
+          5120 // Bulk Mode Max Cap: 5120px prevents Chrome Tab Heap OOM
         );
 
+        // Memory optimization: Create lightweight Blob URL instead of storing 50MB Base64 string in React state
+        let optimizedDataUrl = "";
+        if (result.blob && result.blob instanceof Blob && result.blob.size > 0) {
+          try {
+            optimizedDataUrl = URL.createObjectURL(result.blob);
+          } catch (e) {
+            optimizedDataUrl = result.dataUrl;
+          }
+        } else {
+          optimizedDataUrl = result.dataUrl;
+        }
+
+        const optimizedResult: UpscaleResult = {
+          ...result,
+          dataUrl: optimizedDataUrl,
+        };
+
         setBulkItems((prev) =>
-          prev.map((it) => (it.id === item.id ? { ...it, status: "complete", progressPct: 100, progressMsg: "Complete", result } : it))
+          prev.map((it) => (it.id === item.id ? { ...it, status: "complete", progressPct: 100, progressMsg: "Complete", result: optimizedResult } : it))
         );
       } catch (err: any) {
         console.error(`Bulk upscaling error for item ${item.file.name}:`, err);
@@ -267,6 +285,9 @@ export const UpscalerWorkspace: React.FC<UpscalerWorkspaceProps> = ({
           prev.map((it) => (it.id === item.id ? { ...it, status: "error", progressPct: 100, progressMsg: err?.message || "Upscale failed" } : it))
         );
       }
+
+      // Yield control to browser event loop to allow V8 Garbage Collector to clean GPU texture memory
+      await new Promise((r) => setTimeout(r, 60));
     }
 
     if (!isPro) {
