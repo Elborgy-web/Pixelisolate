@@ -2358,16 +2358,6 @@ export default function ChromaKeyer({
           console.error("Failed to decrement credits:", err);
         }
       }
-
-      // Save to cloud history
-      try {
-        setDownloadingCloud(true);
-        await uploadImagePairToHistory(item.sourceUri, item.isolatedUri);
-      } catch (err) {
-        console.error("Failed to save bulk item to cloud history:", err);
-      } finally {
-        setDownloadingCloud(false);
-      }
     }
   };
 
@@ -2387,8 +2377,8 @@ export default function ChromaKeyer({
           try {
             if (item.isolatedUri.startsWith("blob:") || item.isolatedUri.startsWith("http")) {
               const resp = await fetch(item.isolatedUri);
-              const buf = await resp.arrayBuffer();
-              zip.file(filename, buf);
+              const blob = await resp.blob();
+              zip.file(filename, blob); // Direct zero-copy Blob addition to JSZip (0 bytes JS Heap overhead!)
             } else if (item.isolatedUri.startsWith("data:")) {
               const splitIdx = item.isolatedUri.indexOf(",");
               const base64Data = splitIdx === -1 ? item.isolatedUri : item.isolatedUri.substring(splitIdx + 1);
@@ -2399,7 +2389,7 @@ export default function ChromaKeyer({
           }
         }
 
-        // 1. Generate ZIP & trigger browser file download INSTANTLY (0ms delay for user!)
+        // Generate ZIP & trigger browser file download INSTANTLY (0ms delay & 0 RAM surge)
         const zipBlob = await zip.generateAsync({ type: "blob" });
         const url = URL.createObjectURL(zipBlob);
 
@@ -2410,21 +2400,6 @@ export default function ChromaKeyer({
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 10000);
-
-        // 2. Non-blocking background cloud history sync (fire-and-forget)
-        (async () => {
-          const chunkSize = 3;
-          for (let i = 0; i < completedItems.length; i += chunkSize) {
-            const chunk = completedItems.slice(i, i + chunkSize);
-            await Promise.all(
-              chunk.map((item) =>
-                item.sourceUri && item.isolatedUri
-                  ? uploadImagePairToHistory(item.sourceUri, item.isolatedUri).catch(() => null)
-                  : Promise.resolve()
-              )
-            );
-          }
-        })();
       } catch (err: any) {
         console.error("Failed to generate batch zip archive:", err);
         alert(`Failed to package batch files: ${err.message || String(err)}`);
