@@ -122,14 +122,24 @@ export async function removeBackgroundRMBG(
     maskData[idx + 3] = 255;
   }
 
-  // 7. Resize mask to original image dimensions using RawImage bilinear resize
+  // Cap target dimensions to 4096px max bounds to prevent 8K WASM memory spikes
+  const MAX_ALPHA_DIM = 4096;
+  let targetW = origW;
+  let targetH = origH;
+  if (targetW > MAX_ALPHA_DIM || targetH > MAX_ALPHA_DIM) {
+    const ratio = Math.min(MAX_ALPHA_DIM / targetW, MAX_ALPHA_DIM / targetH);
+    targetW = Math.round(targetW * ratio);
+    targetH = Math.round(targetH * ratio);
+  }
+
+  // 7. Resize mask to target image dimensions using RawImage bilinear resize
   const rawMask = new RawImage(maskData, maskW, maskH, 4);
-  const resizedMask = await rawMask.resize(origW, origH);
+  const resizedMask = await rawMask.resize(targetW, targetH);
 
   // 8. Extract single-channel Uint8Array alpha mask
-  const finalAlpha = new Uint8Array(origW * origH);
+  const finalAlpha = new Uint8Array(targetW * targetH);
   const resizedData = resizedMask.data as Uint8ClampedArray;
-  for (let i = 0; i < origW * origH; i++) {
+  for (let i = 0; i < targetW * targetH; i++) {
     finalAlpha[i] = resizedData[i * 4];
   }
 

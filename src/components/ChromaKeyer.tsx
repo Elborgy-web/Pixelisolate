@@ -1916,6 +1916,10 @@ export default function ChromaKeyer({
         prev.map((i) => (i.id === item.id ? { ...i, status: "analyzing" as const, progress: 20 } : i))
       );
 
+      let canvasSrc: HTMLCanvasElement | null = null;
+      let canvasGreen: HTMLCanvasElement | null = null;
+      let canvasIsolated: HTMLCanvasElement | null = null;
+
       try {
         const img = new Image();
         img.src = item.sourceUri;
@@ -1925,10 +1929,18 @@ export default function ChromaKeyer({
           img.onerror = reject;
         });
 
-        const w = img.naturalWidth || 800;
-        const h = img.naturalHeight || 600;
+        let w = img.naturalWidth || 800;
+        let h = img.naturalHeight || 600;
 
-        const canvasSrc = document.createElement("canvas");
+        // Cap max canvas bounds to 4096px for bulk 8K background removal (drops RAM usage by 75%)
+        const MAX_ISOLATE_DIM = 4096;
+        if (w > MAX_ISOLATE_DIM || h > MAX_ISOLATE_DIM) {
+          const ratio = Math.min(MAX_ISOLATE_DIM / w, MAX_ISOLATE_DIM / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+
+        canvasSrc = document.createElement("canvas");
         canvasSrc.width = w;
         canvasSrc.height = h;
         const ctxSrc = canvasSrc.getContext("2d");
@@ -2106,7 +2118,7 @@ export default function ChromaKeyer({
 
 
           // Apply Step 2: Safety Backdrop Transform
-          const canvasGreen = document.createElement("canvas");
+          canvasGreen = document.createElement("canvas");
           canvasGreen.width = w;
           canvasGreen.height = h;
           const ctxGreen = canvasGreen.getContext("2d");
@@ -2134,7 +2146,7 @@ export default function ChromaKeyer({
           greenScreenUri = await canvasToBlobUrl(canvasGreen);
 
           // Apply Step 3: Alpha Isolation
-          const canvasIsolated = document.createElement("canvas");
+          canvasIsolated = document.createElement("canvas");
           canvasIsolated.width = w;
           canvasIsolated.height = h;
           const ctxIsolated = canvasIsolated.getContext("2d");
@@ -2163,7 +2175,7 @@ export default function ChromaKeyer({
           isolatedUri = await canvasToBlobUrl(canvasIsolated);
         } else {
           // Standard Chroma Key Mode
-          const canvasGreen = document.createElement("canvas");
+          canvasGreen = document.createElement("canvas");
           canvasGreen.width = w;
           canvasGreen.height = h;
           const ctxGreen = canvasGreen.getContext("2d");
@@ -2180,7 +2192,7 @@ export default function ChromaKeyer({
           );
           ctxGreen.putImageData(greenData, 0, 0);
 
-          const canvasIsolated = document.createElement("canvas");
+          canvasIsolated = document.createElement("canvas");
           canvasIsolated.width = w;
           canvasIsolated.height = h;
           const ctxIsolated = canvasIsolated.getContext("2d");
@@ -2264,10 +2276,17 @@ export default function ChromaKeyer({
               : i
           )
         );
+      } finally {
+        // Explicit GPU VRAM & Canvas Memory Release
+        try {
+          if (canvasSrc) { canvasSrc.width = 0; canvasSrc.height = 0; }
+          if (canvasGreen) { canvasGreen.width = 0; canvasGreen.height = 0; }
+          if (canvasIsolated) { canvasIsolated.width = 0; canvasIsolated.height = 0; }
+        } catch (e) {}
       }
 
       // Yield control to browser event loop to allow V8 Garbage Collector to clean canvas memory
-      await new Promise((r) => setTimeout(r, 60));
+      await new Promise((r) => setTimeout(r, 80));
     };
 
     processItem();
