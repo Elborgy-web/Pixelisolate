@@ -12,6 +12,7 @@
 
 const DB_NAME = "pixel_crypto_vault_db";
 const STORE_NAME = "keys";
+const BLOB_STORE_NAME = "decrypted_blobs";
 const KEY_STORAGE_PREFIX = "pixel_vault_key_";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -19,11 +20,14 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 function openKeyDB(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, 2);
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
+      }
+      if (!db.objectStoreNames.contains(BLOB_STORE_NAME)) {
+        db.createObjectStore(BLOB_STORE_NAME);
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -59,6 +63,36 @@ async function saveKeyToIDB(userId: string, key: CryptoKey): Promise<void> {
     });
   } catch (err) {
     console.warn("Failed to save CryptoKey to IndexedDB:", err);
+  }
+}
+
+export async function getCachedDecryptedBlob(urlKey: string): Promise<Blob | null> {
+  try {
+    const db = await openKeyDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(BLOB_STORE_NAME, "readonly");
+      const store = tx.objectStore(BLOB_STORE_NAME);
+      const req = store.get(urlKey);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function setCachedDecryptedBlob(urlKey: string, blob: Blob): Promise<void> {
+  try {
+    const db = await openKeyDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(BLOB_STORE_NAME, "readwrite");
+      const store = tx.objectStore(BLOB_STORE_NAME);
+      const req = store.put(blob, urlKey);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch (err) {
+    console.warn("Failed to cache decrypted blob to IDB:", err);
   }
 }
 

@@ -34,6 +34,7 @@ import { buildBackgroundField, decontaminateWithField } from "../utils/backgroun
 import PythonScript from "./PythonScript";
 import { removeBackgroundRMBG, preloadRMBGModel } from "../utils/rmbgRemoval";
 import { encryptDataUri } from "../utils/cryptoVault";
+import { yieldToMainThread } from "../utils/yield";
 import { supabase } from "../utils/supabaseClient";
 import JSZip from "jszip";
 
@@ -2093,29 +2094,29 @@ export default function ChromaKeyer({
           // Match the single-image pipeline: smartMode refinement for bulk
           if (mode === "ai") {
             if (itemSmartMode === "graphic") {
+              await yieldToMainThread();
               processedAlpha = floodFillRemoveBackground(processedAlpha, srcData, 15);
             }
-            // PORTRAIT / PRODUCT: RMBG-1.4 outputs clean sub-pixel soft alpha.
-            // No sharpAlphaThreshold or guidedAlphaMatting needed.
           }
 
-
           if (erSize > 0) {
+            await yieldToMainThread();
             processedAlpha = erodeAlpha(processedAlpha, w, h, erSize);
           }
           if (dilSize > 0) {
+            await yieldToMainThread();
             processedAlpha = dilateAlpha(processedAlpha, w, h, dilSize);
           }
           if (fRadius > 0) {
+            await yieldToMainThread();
             processedAlpha = blurAlpha(processedAlpha, w, h, fRadius);
           }
 
+          await yieldToMainThread();
           const bgFieldBulk =
             mode === "ai" && itemSmartMode !== "graphic"
               ? buildBackgroundField(srcData, processedAlpha, 30)
               : null;
-
-
 
           // Apply Step 2: Safety Backdrop Transform
           canvasGreen = document.createElement("canvas");
@@ -2143,6 +2144,7 @@ export default function ChromaKeyer({
             }
           }
           ctxGreen.putImageData(greenData, 0, 0);
+          await yieldToMainThread();
           greenScreenUri = await canvasToBlobUrl(canvasGreen);
 
           // Apply Step 3: Alpha Isolation
@@ -2169,9 +2171,11 @@ export default function ChromaKeyer({
             }
           }
           if (bgFieldBulk) {
+            await yieldToMainThread();
             decontaminateWithField(isolatedData, processedAlpha, bgFieldBulk, 1);
           }
           ctxIsolated.putImageData(isolatedData, 0, 0);
+          await yieldToMainThread();
           isolatedUri = await canvasToBlobUrl(canvasIsolated);
         } else {
           // Standard Chroma Key Mode
@@ -2200,6 +2204,7 @@ export default function ChromaKeyer({
           
           const activeHairMattingBulk = itemSmartMode === "portrait" && enableHairMatting;
 
+          await yieldToMainThread();
           const isolatedData = isolateSubjectFromChroma(
             greenData,
             currentChroma.hueRange.min,
@@ -2218,6 +2223,7 @@ export default function ChromaKeyer({
           );
 
           if (activeHairMattingBulk) {
+            await yieldToMainThread();
             const alphaMask = new Uint8Array(w * h);
             for (let i = 0; i < w * h; i++) {
               alphaMask[i] = isolatedData.data[i * 4 + 3];
@@ -2227,6 +2233,7 @@ export default function ChromaKeyer({
           }
 
           ctxIsolated.putImageData(isolatedData, 0, 0);
+          await yieldToMainThread();
 
           isolatedUri = await canvasToBlobUrl(canvasIsolated);
           greenScreenUri = await canvasToBlobUrl(canvasGreen);

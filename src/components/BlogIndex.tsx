@@ -238,10 +238,16 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
                     {/* Cover Image */}
                     <div className="relative w-full h-48 rounded-xl overflow-hidden bg-gray-900 border border-gray-800">
                       <img
-                        src={post.cover_image}
+                        src={post.cover_image || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80"}
                         alt={post.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        decoding="async"
                         loading="lazy"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.onerror = null;
+                          target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80";
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-gray-950/90 backdrop-blur-md border border-gray-800 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider">
                         {post.category}
@@ -252,8 +258,15 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
                     <div className="flex items-center justify-between text-[11px] font-mono text-gray-500">
                       <div className="flex items-center gap-2 truncate">
                         <img
-                          src={post.author_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${post.author_name}`}
+                          src={post.author_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(post.author_name || "PixelIsolate")}`}
                           alt={post.author_name}
+                          decoding="async"
+                          loading="lazy"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            target.onerror = null;
+                            target.src = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(post.author_name || "PixelIsolate")}`;
+                          }}
                           className="w-5 h-5 rounded-full object-cover border border-gray-800 shrink-0"
                         />
                         <span className="text-gray-300 truncate max-w-[110px]">{post.author_name}</span>
