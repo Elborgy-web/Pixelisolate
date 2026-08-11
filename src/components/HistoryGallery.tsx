@@ -64,7 +64,7 @@ const HistoryCardItem: React.FC<{
   const [procUrl, setProcUrl] = useState<string>(item.processed_url);
   const [isDecrypting, setIsDecrypting] = useState<boolean>(true);
 
-  // 1. Viewport IntersectionObserver
+  // 1. Viewport IntersectionObserver + Immediate Fallback
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
@@ -78,18 +78,25 @@ const HistoryCardItem: React.FC<{
       return;
     }
 
+    // Force inView = true fallback after 100ms so images always load instantly
+    const timer = setTimeout(() => setInView(true), 100);
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
           setInView(true);
+          clearTimeout(timer);
           observer.disconnect();
         }
       },
-      { rootMargin: "200px" } // Preload 200px before scrolling into view
+      { rootMargin: "300px" } // Preload 300px before scrolling into view
     );
 
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
   }, [item.id]);
 
   // 2. Progressive Decryption Task when in Viewport
@@ -104,7 +111,7 @@ const HistoryCardItem: React.FC<{
 
       try {
         // Fetch & Decrypt Original Image
-        if (item.original_url && !item.original_url.startsWith("data:") && !item.original_url.startsWith("blob:")) {
+        if (item.original_url && !item.original_url.startsWith("data:image/") && !item.original_url.startsWith("blob:")) {
           const cachedOrigBlob = await getCachedDecryptedBlob(`orig_${item.id}`);
           if (cachedOrigBlob) {
             finalOrig = URL.createObjectURL(cachedOrigBlob);
@@ -113,20 +120,22 @@ const HistoryCardItem: React.FC<{
             if (res.ok) {
               const buf = await res.arrayBuffer();
               const dec = await decryptStorageBuffer(buf, userId);
-              if (dec && dec.startsWith("blob:")) {
+              if (dec) {
                 finalOrig = dec;
-                const blobRes = await fetch(dec);
-                if (blobRes.ok) {
-                  const b = await blobRes.blob();
-                  await setCachedDecryptedBlob(`orig_${item.id}`, b);
-                }
+                try {
+                  const blobRes = await fetch(dec);
+                  if (blobRes.ok) {
+                    const b = await blobRes.blob();
+                    await setCachedDecryptedBlob(`orig_${item.id}`, b);
+                  }
+                } catch (e) {}
               }
             }
           }
         }
 
         // Fetch & Decrypt Processed Image
-        if (item.processed_url && !item.processed_url.startsWith("data:") && !item.processed_url.startsWith("blob:")) {
+        if (item.processed_url && !item.processed_url.startsWith("data:image/") && !item.processed_url.startsWith("blob:")) {
           const cachedProcBlob = await getCachedDecryptedBlob(`proc_${item.id}`);
           if (cachedProcBlob) {
             finalProc = URL.createObjectURL(cachedProcBlob);
@@ -135,13 +144,15 @@ const HistoryCardItem: React.FC<{
             if (res.ok) {
               const buf = await res.arrayBuffer();
               const dec = await decryptStorageBuffer(buf, userId);
-              if (dec && dec.startsWith("blob:")) {
+              if (dec) {
                 finalProc = dec;
-                const blobRes = await fetch(dec);
-                if (blobRes.ok) {
-                  const b = await blobRes.blob();
-                  await setCachedDecryptedBlob(`proc_${item.id}`, b);
-                }
+                try {
+                  const blobRes = await fetch(dec);
+                  if (blobRes.ok) {
+                    const b = await blobRes.blob();
+                    await setCachedDecryptedBlob(`proc_${item.id}`, b);
+                  }
+                } catch (e) {}
               }
             }
           }
