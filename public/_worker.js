@@ -126,6 +126,7 @@ export default {
           status: 200,
           headers: {
             "content-type": "text/html; charset=UTF-8",
+            "x-robots-tag": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
             "cache-control": "public, max-age=60, s-maxage=3600"
           }
         });
@@ -149,7 +150,8 @@ export default {
       return new Response(indexRes.body, {
         status: 200,
         headers: {
-          "content-type": "text/html; charset=UTF-8"
+          "content-type": "text/html; charset=UTF-8",
+          "x-robots-tag": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
         }
       });
     }

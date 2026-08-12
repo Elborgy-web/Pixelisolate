@@ -40,6 +40,9 @@ app.get("/api/diagnostics/logs", (req, res) => {
 
 // Enable Cross-Origin Resource Sharing (CORS), Security Headers & Canonical Redirects
 app.use((req, res, next) => {
+  // Enforce X-Robots-Tag header for SEO audit compliance & crawlers
+  res.setHeader("X-Robots-Tag", "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1");
+
   // Enforce HSTS (Strict-Transport-Security) for HTTPS security
   res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
   res.setHeader("Last-Modified", new Date("2026-07-25T12:00:00Z").toUTCString());
