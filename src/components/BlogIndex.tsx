@@ -288,7 +288,16 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
                     {/* Title & Excerpt */}
                     <div className="space-y-2">
                       <h2 className="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors line-clamp-2 leading-snug">
-                        {post.title}
+                        <a
+                          href={`/blog/${post.slug}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onSelectPost(post.slug);
+                          }}
+                          className="hover:underline"
+                        >
+                          {post.title}
+                        </a>
                       </h2>
                       <p className="text-xs text-gray-400 line-clamp-3 leading-relaxed">
                         {post.excerpt}
@@ -306,7 +315,7 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
                         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer ${
                           isUpvoted
                             ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold"
-                            : "bg-gray-900 hover:bg-gray-850 text-gray-400 hover:text-white border-gray-800"
+                            : "bg-gray-900 hover:bg-gray-850 text-gray-400 hover:text-white border-gray-850"
                         }`}
                       >
                         <ThumbsUp className={`h-3.5 w-3.5 ${isUpvoted ? "fill-current text-emerald-400" : ""}`} />
@@ -358,10 +367,17 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
                         </div>
                       )}
 
-                      <span className="text-emerald-400 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                      <a
+                        href={`/blog/${post.slug}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onSelectPost(post.slug);
+                        }}
+                        className="text-emerald-400 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform"
+                      >
                         <span>Read</span>
                         <ArrowRight className="h-3.5 w-3.5" />
-                      </span>
+                      </a>
                     </div>
                   </div>
                 </article>

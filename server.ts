@@ -207,18 +207,22 @@ app.post("/api/upscale", async (req, res) => {
 
 // Automated XML Sitemap Route
 app.get("/sitemap.xml", async (req, res) => {
-  res.setHeader("Content-Type", "application/xml");
+  res.setHeader("Content-Type", "application/xml; charset=utf-8");
+  res.setHeader("X-Robots-Tag", "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1");
   const baseUrl = "https://pixelisolate.online";
 
-  let slugs: string[] = [];
+  let slugs: { slug: string; lastmod: string }[] = [];
 
   try {
     const { data } = await supabaseAdmin
       .from("posts")
-      .select("slug")
+      .select("slug, published_at, updated_at")
       .eq("is_published", true);
     if (data && data.length > 0) {
-      slugs = data.map((item: any) => item.slug);
+      slugs = data.map((item: any) => ({
+        slug: item.slug,
+        lastmod: (item.updated_at || item.published_at || new Date().toISOString()).split("T")[0],
+      }));
     }
   } catch (err) {
     console.warn("[Sitemap] Failed to query posts from DB, using fallbacks:", err);
@@ -228,9 +232,9 @@ app.get("/sitemap.xml", async (req, res) => {
 
   const blogUrls = slugs
     .map(
-      (slug) => `  <url>
-    <loc>${baseUrl}/blog/${slug}</loc>
-    <lastmod>${today}</lastmod>
+      (item) => `  <url>
+    <loc>${baseUrl}/blog/${item.slug}</loc>
+    <lastmod>${item.lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>`
@@ -238,7 +242,10 @@ app.get("/sitemap.xml", async (req, res) => {
     .join("\n");
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
   <url>
     <loc>${baseUrl}/</loc>
     <lastmod>${today}</lastmod>
@@ -250,6 +257,24 @@ app.get("/sitemap.xml", async (req, res) => {
     <lastmod>${today}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/privacy</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/terms</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/refund</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url>
 ${blogUrls}
 </urlset>`;

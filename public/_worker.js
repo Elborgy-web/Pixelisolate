@@ -25,6 +25,91 @@ export default {
     const SUPABASE_URL = "https://nyiwicwbwzjkijamqqsl.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aXdpY3did3pqa2lqYW1xcXNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDUwODgsImV4cCI6MjA5OTc4MTA4OH0.Y34FVIh9iv6tobH238qAszhN6W3waL4Ko2lkjEqsUd4";
 
+    // Dynamic /sitemap.xml Generation for Search Engine Crawlers
+    if (pathname === '/sitemap.xml') {
+      const baseUrl = "https://pixelisolate.online";
+      const today = new Date().toISOString().split("T")[0];
+      let slugs = [];
+
+      try {
+        const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/posts?is_published=eq.true&select=slug,published_at,updated_at`, {
+          headers: {
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+        if (dbRes.ok) {
+          const posts = await dbRes.json();
+          if (Array.isArray(posts)) {
+            slugs = posts.map(p => ({
+              slug: p.slug,
+              lastmod: (p.updated_at || p.published_at || today).split("T")[0]
+            }));
+          }
+        }
+      } catch (e) {
+        console.warn("Sitemap DB query notice:", e);
+      }
+
+      const blogUrls = slugs
+        .map(
+          item => `  <url>
+    <loc>${baseUrl}/blog/${item.slug}</loc>
+    <lastmod>${item.lastmod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`
+        )
+        .join("\n");
+
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/blog</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/privacy</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/terms</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/refund</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+${blogUrls}
+</urlset>`;
+
+      return new Response(xml, {
+        status: 200,
+        headers: {
+          "content-type": "application/xml; charset=utf-8",
+          "x-robots-tag": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+          "cache-control": "public, max-age=3600, s-maxage=86400"
+        }
+      });
+    }
+
     // Intercept /blog and /blog/* routes for dynamic OpenGraph SSR with HTTP 200 OK
     if (pathname === '/blog' || pathname.startsWith('/blog/')) {
       const rawSlug = pathname.replace('/blog/', '').replace('/blog', '').replace(/\/$/, '').trim();
