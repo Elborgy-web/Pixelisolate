@@ -20,15 +20,25 @@ import {
 interface LandingPageProps {
   onOpenAuth: () => void;
   onOpenEmbedBadge?: () => void;
+  onGoToUpscaler?: () => void;
+  onGoToEditor?: () => void;
+  intent?: "general" | "background-remover" | "image-upscaler" | "pod-background-remover" | "bulk-background-remover" | "remove-white-background" | "transparent-png-maker";
 }
 
-export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPageProps) {
+export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscaler, onGoToEditor, intent = "general" }: LandingPageProps) {
   // Simulator State
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
   const [simulatedBgType, setSimulatedBgType] = useState<"solid" | "transparent">("solid");
   const [simulatedBgColor, setSimulatedBgColor] = useState<"#00FF00" | "#FF00FF" | "#00FFFF">("#00FF00");
   const [simulatedErosion, setSimulatedErosion] = useState<number>(0);
   const [simulatedBlur, setSimulatedBlur] = useState<number>(0);
+
+  // Hero Proof Widget State
+  const [proofTab, setProofTab] = useState<"pod" | "hair" | "upscale">(
+    intent === "image-upscaler" ? "upscale" : intent === "pod-background-remover" || intent === "remove-white-background" ? "pod" : "pod"
+  );
+  const [sliderPos, setSliderPos] = useState<number>(50);
+  const [isHoveringProof, setIsHoveringProof] = useState<boolean>(false);
 
   // AI Magic Simulator State
   const [magicPreset, setMagicPreset] = useState<"model" | "sneaker">("model");
@@ -98,39 +108,331 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
   // Mock Ingestion Preset
   const [selectedPreset, setSelectedPreset] = useState<"badge" | "sneaker">("badge");
 
+  // Dynamic Intent Headers
+  const getHeroContent = () => {
+    switch (intent) {
+      case "image-upscaler":
+        return {
+          badge: "8K AI Super-Resolution Engine",
+          h1: "Upscale Images to 8K with Razor-Sharp Print Detail",
+          p: "Transform low-resolution graphics and product photos into 300 DPI print-ready masterpieces. Powered by Real-ESRGAN Vulkan neural upscaling with alpha transparency preservation.",
+          primaryCta: "Upscale Image to 8K Free",
+          secondaryCta: "Remove Backgrounds"
+        };
+      case "pod-background-remover":
+      case "remove-white-background":
+        return {
+          badge: "Print-on-Demand Specialist Engine",
+          h1: "Eliminate White Halos on Dark Apparel & Merchandise",
+          p: "Subpixel edge feathering and erosion tools specifically engineered for POD designers. Remove white backgrounds and export clean transparent PNGs ready for Direct-to-Garment (DTG) printing.",
+          primaryCta: "Remove Background for POD",
+          secondaryCta: "Upscale for 300 DPI Print"
+        };
+      case "bulk-background-remover":
+        return {
+          badge: "High-Volume Batch Processing",
+          h1: "Remove Backgrounds from 50+ Images Simultaneously",
+          p: "Drop bulk product catalogs, sticker packs, and merchandise graphics for fast parallel client-side processing. Download cleanly structured ZIP archives with zero wait queues.",
+          primaryCta: "Start Bulk Batch Free",
+          secondaryCta: "Explore Pro Features"
+        };
+      case "transparent-png-maker":
+        return {
+          badge: "Instant Transparent PNG Creator",
+          h1: "Create Crystal-Clear Transparent PNGs in Seconds",
+          p: "Extract isolated subjects with lossless alpha channels directly inside your browser. 100% on-device WebAssembly privacy with zero cloud image harvesting.",
+          primaryCta: "Make PNG Transparent Free",
+          secondaryCta: "8K AI Upscaler"
+        };
+      default:
+        return {
+          badge: "Privacy-First AI & Subpixel Engine",
+          h1: "Remove backgrounds. Upscale to 8K. Keep every detail.",
+          p: "Privacy-first image tools for POD designers, e-commerce sellers, and creators — with fast browser processing, white halo elimination, and 300 DPI transparent PNG exports.",
+          primaryCta: "Remove Background Free",
+          secondaryCta: "Upscale an Image"
+        };
+    }
+  };
+
+  const heroContent = getHeroContent();
+
   return (
     <div className="min-h-screen bg-[#07080a] text-gray-100 font-sans selection:bg-emerald-500/30 selection:text-white">
-      {/* 1. Hero Section */}
-      <section className="relative overflow-hidden pt-20 pb-20 border-b border-gray-900 bg-gradient-to-b from-[#0a0c14] to-[#07080a]">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
-        <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest mb-6">
-            <Sparkles className="h-3 w-3 animate-pulse" />
-            Workspace Version 2.0 Active
-          </span>
-          
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight max-w-4xl mx-auto mb-6">
-            Pixel Isolate Background Remover for <span className="bg-gradient-to-r from-emerald-400 to-teal-500 bg-clip-text text-transparent">High-Volume</span> Digital Creators
-          </h1>
-          
-          <p className="text-sm md:text-base text-gray-400 max-w-3xl mx-auto mb-8 leading-relaxed font-light">
-            The advanced pixel isolate background remover built for print-on-demand designers, e-commerce stores, and digital artists. Extract clean alpha masks at subpixel speeds directly in your browser.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button
-              onClick={onOpenAuth}
-              className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:shadow-lg hover:shadow-emerald-500/15 active:scale-[0.99] transition duration-200 flex items-center gap-2 cursor-pointer"
+      {/* 1. Benefit-First Hero Section with Above-the-Fold Proof */}
+      <section className="relative overflow-hidden pt-16 pb-20 border-b border-gray-900 bg-gradient-to-b from-[#0a0c14] via-[#080910] to-[#07080a]">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent pointer-events-none" />
+        
+        <div className="max-w-6xl mx-auto px-6 relative z-10">
+          <div className="text-center max-w-4xl mx-auto mb-10">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest mb-5 shadow-sm">
+              <Sparkles className="h-3 w-3 animate-pulse" />
+              {heroContent.badge}
+            </span>
+            
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.15] mb-5">
+              {heroContent.h1.includes("Remove backgrounds.") ? (
+                <>
+                  Remove backgrounds. Upscale to 8K. <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">Keep every detail.</span>
+                </>
+              ) : (
+                heroContent.h1
+              )}
+            </h1>
+            
+            <p className="text-sm sm:text-base text-gray-300 max-w-3xl mx-auto mb-8 leading-relaxed font-normal">
+              {heroContent.p}
+            </p>
+            
+            {/* Primary & Secondary CTAs with Microcopy */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-3">
+              <button
+                onClick={() => {
+                  if (onGoToEditor) onGoToEditor();
+                  else onOpenAuth();
+                }}
+                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-white font-bold text-sm hover:shadow-xl hover:shadow-emerald-500/20 active:scale-[0.99] transition duration-200 flex items-center justify-center gap-2 cursor-pointer group"
+              >
+                <Zap className="h-4 w-4 fill-current text-white group-hover:scale-110 transition-transform" />
+                <span>{heroContent.primaryCta}</span>
+                <ArrowRight className="h-4 w-4 text-white/80 group-hover:translate-x-1 transition-transform" />
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (onGoToUpscaler) onGoToUpscaler();
+                  else onOpenAuth();
+                }}
+                className="w-full sm:w-auto px-6 py-4 rounded-xl bg-gray-950/90 hover:bg-gray-850 border border-gray-800 hover:border-gray-700 text-gray-300 hover:text-white font-semibold text-sm transition duration-200 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Sparkles className="h-4 w-4 text-emerald-400" />
+                <span>{heroContent.secondaryCta}</span>
+              </button>
+            </div>
+
+            <p className="text-xs font-mono text-gray-400 flex items-center justify-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 text-emerald-400">
+                <CheckCircle className="h-3.5 w-3.5" /> 10 Free Credits on Signup
+              </span>
+              <span>•</span>
+              <span>No Credit Card Required</span>
+              <span>•</span>
+              <span>Zero-Knowledge Browser Privacy</span>
+            </p>
+          </div>
+
+          {/* Above-The-Fold Visual Proof Interactive Showcase */}
+          <div className="mt-8 max-w-4xl mx-auto rounded-3xl bg-gray-950/80 border border-gray-850/90 p-4 sm:p-6 shadow-2xl backdrop-blur-md">
+            {/* Proof Scenario Selector Tabs */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 border-b border-gray-850/80">
+              <div className="flex items-center gap-1.5 font-mono text-xs text-gray-400">
+                <Sliders className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="font-bold text-white uppercase text-[11px] tracking-wider">Live Proof Showcase</span>
+              </div>
+              <div className="flex bg-gray-900/90 p-1 rounded-xl border border-gray-800 text-[11px] font-mono">
+                <button
+                  onClick={() => setProofTab("pod")}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+                    proofTab === "pod" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  <span>👕 POD White Halo Fix</span>
+                </button>
+                <button
+                  onClick={() => setProofTab("hair")}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+                    proofTab === "hair" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  <span>✂️ Fine Hair Extraction</span>
+                </button>
+                <button
+                  onClick={() => setProofTab("upscale")}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+                    proofTab === "upscale" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  <span>⚡ 8K AI Upscale (300 DPI)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Split Visual Comparison Area */}
+            <div 
+              className="relative w-full h-64 sm:h-80 md:h-96 rounded-2xl overflow-hidden bg-gray-900 border border-gray-800 select-none cursor-ew-resize group"
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+                setSliderPos(Math.round((x / rect.width) * 100));
+              }}
+              onTouchMove={(e) => {
+                if (e.touches[0]) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = Math.max(0, Math.min(e.touches[0].clientX - rect.left, rect.width));
+                  setSliderPos(Math.round((x / rect.width) * 100));
+                }
+              }}
+              onMouseEnter={() => setIsHoveringProof(true)}
+              onMouseLeave={() => setIsHoveringProof(false)}
             >
-              <Zap className="h-4 w-4 fill-current text-white" />
-              <span>Initialize 10 Free Credits</span>
-            </button>
-            <a
-              href="#pricing"
-              className="px-6 py-3.5 rounded-xl bg-gray-950 hover:bg-gray-850 border border-gray-850 text-gray-300 font-semibold text-sm transition duration-200 cursor-pointer"
-            >
-              View Pricing Tiers
-            </a>
+              {/* Tab 1: POD White Halo Removal */}
+              {proofTab === "pod" && (
+                <>
+                  {/* Left Side: Original Image with White Fringe (Simulated on Dark Shirt) */}
+                  <div className="absolute inset-0 bg-gray-950 flex items-center justify-center p-6">
+                    <div className="relative text-center">
+                      <div className="inline-block p-8 rounded-2xl bg-[#11131a] border-4 border-white/60 shadow-2xl">
+                        <div className="text-4xl sm:text-5xl font-extrabold text-amber-300 font-mono tracking-wider drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">
+                          VINTAGE SKULL
+                        </div>
+                        <p className="text-xs font-mono text-red-400 mt-2 font-bold uppercase bg-red-950/60 px-2 py-1 rounded border border-red-500/40">
+                          ⚠️ White Halo / Edge Fringe on Dark Fabric
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Side: Clean Subpixel Feathered Cutout (Clipped by Slider) */}
+                  <div 
+                    className="absolute inset-0 bg-[#050608] flex items-center justify-center p-6 overflow-hidden"
+                    style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
+                  >
+                    <div className="relative text-center">
+                      <div className="inline-block p-8 rounded-2xl bg-[#090b10] border border-emerald-500/40 shadow-2xl">
+                        <div className="text-4xl sm:text-5xl font-extrabold text-emerald-400 font-mono tracking-wider">
+                          VINTAGE SKULL
+                        </div>
+                        <p className="text-xs font-mono text-emerald-300 mt-2 font-bold uppercase bg-emerald-950/60 px-2 py-1 rounded border border-emerald-500/40">
+                          ✓ 100% Zero-Halo Alpha Transparent PNG
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Tab 2: Fine Hair Details */}
+              {proofTab === "hair" && (
+                <>
+                  <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                    <img 
+                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80"
+                      alt="Raw Portrait Studio Background"
+                      className="w-full h-full object-cover opacity-60"
+                    />
+                    <span className="absolute top-4 left-4 px-2.5 py-1 rounded bg-black/80 font-mono text-[10px] text-gray-300 border border-gray-800">
+                      Original Studio Background
+                    </span>
+                  </div>
+                  <div 
+                    className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] bg-[#090d16] flex items-center justify-center overflow-hidden"
+                    style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
+                  >
+                    <img 
+                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80"
+                      alt="Extracted Portrait with Preserved Hair Details"
+                      className="w-full h-full object-cover"
+                    />
+                    <span className="absolute top-4 right-4 px-2.5 py-1 rounded bg-emerald-950/90 font-mono text-[10px] text-emerald-300 border border-emerald-500/40 font-bold">
+                      Subpixel Feathered Hair Alpha Mask
+                    </span>
+                  </div>
+                </>
+              )}
+
+              {/* Tab 3: 8K AI Image Upscaler */}
+              {proofTab === "upscale" && (
+                <>
+                  <div className="absolute inset-0 bg-gray-950 flex items-center justify-center p-6">
+                    <div className="text-center">
+                      <div className="text-3xl sm:text-4xl font-extrabold text-gray-400 font-mono filter blur-[2px]">
+                        PRINT DESIGN (1000px Low-Res)
+                      </div>
+                      <p className="text-xs font-mono text-red-400 mt-3 font-bold bg-red-950/60 px-2 py-1 rounded border border-red-500/40 inline-block">
+                        ⚠️ 72 DPI Pixelated Artifacts
+                      </p>
+                    </div>
+                  </div>
+                  <div 
+                    className="absolute inset-0 bg-[#06080e] flex items-center justify-center p-6 overflow-hidden"
+                    style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
+                  >
+                    <div className="text-center">
+                      <div className="text-3xl sm:text-4xl font-extrabold text-emerald-400 font-mono tracking-wide">
+                        PRINT DESIGN (8192px 8K)
+                      </div>
+                      <p className="text-xs font-mono text-emerald-300 mt-3 font-bold bg-emerald-950/60 px-2 py-1 rounded border border-emerald-500/40 inline-block">
+                        ✓ 300 DPI Ultra-Sharp Vector & Line Precision
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Draggable Divider Line */}
+              <div 
+                className="absolute top-0 bottom-0 w-1 bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)] z-20 pointer-events-none"
+                style={{ left: `${sliderPos}%` }}
+              >
+                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-emerald-500 text-gray-950 flex items-center justify-center shadow-lg font-bold text-xs border-2 border-white">
+                  ↔
+                </div>
+              </div>
+
+              {/* Interactive Help Hint */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gray-950/80 border border-gray-800 text-[10px] font-mono text-gray-400 pointer-events-none backdrop-blur-sm">
+                Drag or hover across to compare Before vs. After ({sliderPos}%)
+              </div>
+            </div>
+
+            {/* 3 Trust Points Directly Under Hero */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-850/80 font-mono text-xs text-gray-400">
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-gray-900/40 border border-gray-850">
+                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
+                  <CheckCircle className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-[11px] mb-0.5">Zero-Knowledge Privacy</h4>
+                  <p className="text-[10px] text-gray-400 leading-relaxed">Runs 100% locally in your browser WASM sandbox. Photos are never uploaded or stored.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-gray-900/40 border border-gray-850">
+                <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400 shrink-0">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-[11px] mb-0.5">300 DPI Print-Ready</h4>
+                  <p className="text-[10px] text-gray-400 leading-relaxed">Subpixel edge feathering eliminates white halo bleed on black t-shirts and apparel.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-gray-900/40 border border-gray-850">
+                <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 shrink-0">
+                  <FolderArchive className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-[11px] mb-0.5">Built for Batch POD</h4>
+                  <p className="text-[10px] text-gray-400 leading-relaxed">Queue 50+ designs simultaneously with instant ZIP archive folder exports.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Privacy Architecture Flow Diagram */}
+            <div className="mt-4 p-4 rounded-xl bg-[#090b12] border border-gray-850/90 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left font-mono text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                <span className="text-gray-300 font-bold">Privacy Flow Architecture:</span>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-gray-400 flex-wrap justify-center">
+                <span className="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-gray-300">1. Client Device</span>
+                <span>→</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-bold">2. Local Browser WASM / Neural Net</span>
+                <span>→</span>
+                <span className="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-gray-300">3. Instant PNG Export</span>
+              </div>
+              <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">🔒 0% Cloud Harvesting</span>
+            </div>
           </div>
         </div>
       </section>
@@ -915,38 +1217,41 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
               </button>
             </div>
 
-            {/* 100 Credit Bundle Card */}
+            {/* Free Tier Card */}
             <div className="bg-gray-950/40 border border-gray-850 rounded-2xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden">
               <div>
-                <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block mb-2">Pay-As-You-Go</span>
-                <h3 className="text-xl font-bold text-white">100 Credit Bundle</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest">Decision: Try & Test</span>
+                  <span className="px-2 py-0.5 rounded bg-gray-900 text-gray-400 text-[8px] font-mono border border-gray-800">FREE FOREVER</span>
+                </div>
+                <h3 className="text-xl font-bold text-white">Free Plan</h3>
                 <div className="my-4 flex items-baseline gap-1">
-                  <span className="text-3xl font-extrabold text-white">$5</span>
-                  <span className="text-gray-500 text-xs font-mono">one-time</span>
+                  <span className="text-3xl font-extrabold text-white">$0</span>
+                  <span className="text-gray-500 text-xs font-mono">/ no card needed</span>
                 </div>
                 <p className="text-xs text-gray-400 mb-6 leading-relaxed">
-                  Perfect for casual users who only need high-resolution asset downloads occasionally.
+                  Test the client-side WASM keyer, refine transparency masks, and preview output quality.
                 </p>
                 <ul className="space-y-3 font-mono text-[10px] text-gray-300 mb-8">
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>100 Credits added to account</span>
+                    <span><strong>10 Free trial credits</strong> on account setup</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>HD / Full-Resolution exports</span>
+                    <span>Standard resolution preview downloads (500px)</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span><strong>Real-ESRGAN 4K & 8K AI Upscaling</strong></span>
+                    <span><strong>3 HD / Full-Resolution</strong> trial exports</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>Credits never expire</span>
+                    <span>2X / 4K Real-ESRGAN AI upscaler trial</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>Single subject isolation mode only</span>
+                    <span>Single asset mode (1 image at a time)</span>
                   </li>
                 </ul>
               </div>
@@ -954,49 +1259,97 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                 onClick={onOpenAuth}
                 className="w-full py-3 bg-gray-900 border border-gray-850 hover:bg-gray-800 text-white rounded-xl text-xs font-semibold active:scale-[0.99] transition duration-150 cursor-pointer"
               >
-                Purchase Credits
+                Start Free Trial
+              </button>
+            </div>
+
+            {/* 100 Credit Bundle Card */}
+            <div className="bg-gray-950/40 border border-gray-850 rounded-2xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] font-mono text-teal-400 uppercase tracking-widest">Decision: Occasional Use</span>
+                  <span className="px-2 py-0.5 rounded bg-teal-950/40 text-teal-300 text-[8px] font-mono border border-teal-500/30">$0.05 / ASSET</span>
+                </div>
+                <h3 className="text-xl font-bold text-white">100 Credit Bundle</h3>
+                <div className="my-4 flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold text-white">$5</span>
+                  <span className="text-gray-500 text-xs font-mono">one-time payment</span>
+                </div>
+                <p className="text-xs text-gray-400 mb-6 leading-relaxed">
+                  Best for creators and stores who need high-resolution downloads without a recurring monthly charge.
+                </p>
+                <ul className="space-y-3 font-mono text-[10px] text-gray-300 mb-8">
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span><strong>100 Full-Resolution Credits</strong></span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span><strong>Credits NEVER expire</strong> (Use anytime)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>1 credit = 1 Full HD export or 4K/8K upscale</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>Real-ESRGAN 4K & 8K AI Super-Resolution</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>Single file workflow mode</span>
+                  </li>
+                </ul>
+              </div>
+              <button
+                onClick={onOpenAuth}
+                className="w-full py-3 bg-gray-900 border border-gray-850 hover:bg-gray-800 text-white rounded-xl text-xs font-semibold active:scale-[0.99] transition duration-150 cursor-pointer"
+              >
+                Buy 100 Credits ($5)
               </button>
             </div>
 
             {/* Pro Tier Card */}
             <div className="bg-gray-950/60 border border-emerald-500/30 rounded-2xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-[8px] font-mono font-bold text-white uppercase tracking-wider rounded-bl-lg shadow">
-                MOST POPULAR
+                BEST FOR POD & AGENCIES
               </div>
               <div>
-                <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest block mb-2">Mass production</span>
-                <h3 className="text-xl font-bold text-white">Pro Tier Plan</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest">Decision: High-Volume / Power Users</span>
+                </div>
+                <h3 className="text-xl font-bold text-white">Pro Plan</h3>
                 <div className="my-4 flex items-baseline gap-1">
                   <span className="text-3xl font-extrabold text-white">$7.99</span>
-                  <span className="text-gray-500 text-xs font-mono">/ monthly</span>
+                  <span className="text-gray-500 text-xs font-mono">/ month</span>
                 </div>
                 <p className="text-xs text-gray-400 mb-6 leading-relaxed">
-                  Optimized for digital agencies, high-volume e-commerce stores, and active content creators.
+                  Unlimited power for print-on-demand sellers, creative agencies, and e-commerce catalogs.
                 </p>
                 <ul className="space-y-3 font-mono text-[10px] text-gray-300 mb-8">
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span><strong>Unlimited</strong> keying workflows</span>
+                    <span><strong>UNLIMITED</strong> background removals (No caps)</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span><strong>Unlimited Real-ESRGAN 4K & 8K AI Super-Resolution</strong></span>
+                    <span><strong>UNLIMITED 4K & 8K AI Super-Resolution</strong></span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span><strong>Full Original Resolution</strong> exports</span>
+                    <span><strong>50+ File Batch Processing</strong> with ZIP download</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span><strong>Bulk Queue Processing & 8K Batch</strong> (50+ files)</span>
+                    <span>Full original resolution exports (up to 8192×8192)</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>Persistent secure History Gallery</span>
+                    <span>Encrypted History Gallery (Re-download anytime)</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>ZIP structured folder packaging</span>
+                    <span>Cancel anytime with 1 click via billing portal</span>
                   </li>
                 </ul>
               </div>
@@ -1004,80 +1357,69 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
                 onClick={onOpenAuth}
                 className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl text-xs font-bold hover:shadow-lg active:scale-[0.99] transition duration-150 cursor-pointer"
               >
-                Upgrade to Pro Engine
+                Subscribe to Pro ($7.99/mo)
               </button>
             </div>
           </div>
 
           {/* Comparison Matrix Table */}
           <div className="border border-gray-850 rounded-2xl bg-gray-950/20 backdrop-blur-md overflow-hidden">
-            <div className="p-4 border-b border-gray-850 bg-gray-950/40 font-mono text-[10px] text-gray-500">
-              [ CAPABILITY COMPARISON VECTOR MATRIX ]
+            <div className="p-4 border-b border-gray-850 bg-gray-950/40 font-mono text-[10px] text-gray-500 flex justify-between items-center">
+              <span>[ TRANSPARENT CAPABILITY COMPARISON MATRIX ]</span>
+              <span className="text-emerald-400 text-[9px]">100% Transparent Limits</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left font-mono text-[11px] text-gray-400 border-collapse">
                 <thead>
                   <tr className="border-b border-gray-900 bg-gray-950/50 text-gray-500">
-                    <th className="p-4 font-semibold uppercase">Capability Vector</th>
-                    <th className="p-4 font-semibold uppercase">Free Tier Plan</th>
+                    <th className="p-4 font-semibold uppercase">Feature / Feature Limit</th>
+                    <th className="p-4 font-semibold uppercase">Free Trial</th>
                     <th className="p-4 font-semibold uppercase">100 Credit Bundle</th>
-                    <th className="p-4 font-semibold uppercase">Pro Tier Plan</th>
+                    <th className="p-4 font-semibold uppercase">Pro Subscription</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-900">
                   <tr className="hover:bg-gray-900/20 transition">
-                    <td className="p-4 font-bold text-gray-300">Initial Allotted Credits</td>
+                    <td className="p-4 font-bold text-gray-300">Intended User</td>
+                    <td className="p-4 text-gray-400">Testing & Casual Preview</td>
+                    <td className="p-4 text-teal-300">Occasional Projects</td>
+                    <td className="p-4 text-emerald-400 font-bold">High-Volume POD & Creators</td>
+                  </tr>
+                  <tr className="hover:bg-gray-900/20 transition">
+                    <td className="p-4 font-bold text-gray-300">Background Isolation Capacity</td>
                     <td className="p-4">10 Trial Credits</td>
-                    <td className="p-4">100 Credits</td>
-                    <td className="p-4 text-emerald-400 font-bold">Unlimited Access</td>
+                    <td className="p-4">100 HD Credits</td>
+                    <td className="p-4 text-emerald-400 font-bold">Unlimited Without Caps</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
-                    <td className="p-4 font-bold text-gray-300">Real-ESRGAN AI Upscaling</td>
-                    <td className="p-4 font-semibold text-amber-400">2X / 4K Trial Engine</td>
-                    <td className="p-4">Full 4K & 8K Upscaling</td>
-                    <td className="p-4 text-emerald-400 font-bold">Unlimited 4K & 8K (Progressive 2-Pass GPU)</td>
+                    <td className="p-4 font-bold text-gray-300">4K & 8K AI Image Upscaling</td>
+                    <td className="p-4 font-semibold text-amber-400">2X / 4K Trial Pass</td>
+                    <td className="p-4">1 Credit per 4K/8K Upscale</td>
+                    <td className="p-4 text-emerald-400 font-bold">Unlimited 4K & 8K Neural Passes</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
-                    <td className="p-4 font-bold text-gray-300">Max Download Resolution</td>
-                    <td className="p-4">Standard Resolution (500px)</td>
-                    <td className="p-4">Full Original HD / Ultra-HD (4K/8K)</td>
-                    <td className="p-4 text-emerald-400 font-bold">Full 8K Print Output (8192×8192)</td>
+                    <td className="p-4 font-bold text-gray-300">Max Export Resolution</td>
+                    <td className="p-4">500px (3 HD Trials)</td>
+                    <td className="p-4">Original HD / Ultra-HD</td>
+                    <td className="p-4 text-emerald-400 font-bold">Up to 8192×8192 (300 DPI Print)</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
-                    <td className="p-4 font-bold text-gray-300">HD / Full-Res Exports</td>
-                    <td className="p-4">3 Trial Exports</td>
-                    <td className="p-4 text-amber-400 font-semibold">Unlimited (per credit)</td>
-                    <td className="p-4 text-emerald-400 font-bold">Unlimited Access</td>
+                    <td className="p-4 font-bold text-gray-300">Batch Processing (50+ Files)</td>
+                    <td className="p-4 text-gray-600">—</td>
+                    <td className="p-4 text-gray-600">—</td>
+                    <td className="p-4 text-emerald-400 font-bold">Included with Structured ZIP</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
-                    <td className="p-4 font-bold text-gray-300">Solid BG Backdrops</td>
-                    <td className="p-4">1 Trial Export</td>
-                    <td className="p-4">3 Trial Exports</td>
-                    <td className="p-4 text-emerald-400 font-bold">Unlimited Access (Custom Hex)</td>
+                    <td className="p-4 font-bold text-gray-300">Credit Expiry Date</td>
+                    <td className="p-4">Never</td>
+                    <td className="p-4 text-emerald-400 font-bold">Never Expire</td>
+                    <td className="p-4">Active Subscription</td>
                   </tr>
                   <tr className="hover:bg-gray-900/20 transition">
-                    <td className="p-4 font-bold text-gray-300">Ingestion Capacity</td>
-                    <td className="p-4">Single File Processing</td>
-                    <td className="p-4">Single File Processing</td>
-                    <td className="p-4 text-emerald-400 font-bold">Parallel Mass Bulk (50+ Files)</td>
-                  </tr>
-                  <tr className="hover:bg-gray-900/20 transition">
-                    <td className="p-4 font-bold text-gray-300">Mask Customization Tools</td>
-                    <td className="p-4">Included</td>
-                    <td className="p-4">Included</td>
-                    <td className="p-4">Included</td>
-                  </tr>
-                  <tr className="hover:bg-gray-900/20 transition">
-                    <td className="p-4 font-bold text-gray-300">Cloud Archive Storage</td>
-                    <td className="p-4">Standard (Restricted)</td>
-                    <td className="p-4">Standard (Restricted)</td>
-                    <td className="p-4 text-emerald-400 font-bold">Extended Lifecycle</td>
-                  </tr>
-                  <tr className="hover:bg-gray-900/20 transition">
-                    <td className="p-4 font-bold text-gray-300">Export Formats</td>
-                    <td className="p-4">Raw PNG</td>
-                    <td className="p-4">Raw PNG</td>
-                    <td className="p-4 text-emerald-400 font-bold">Structured ZIP Archive</td>
+                    <td className="p-4 font-bold text-gray-300">Commercial Usage Rights</td>
+                    <td className="p-4">Yes</td>
+                    <td className="p-4">Yes</td>
+                    <td className="p-4 text-emerald-400 font-bold">100% Commercial License</td>
                   </tr>
                 </tbody>
               </table>
@@ -1086,19 +1428,19 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
         </div>
       </section>
 
-      {/* 5.5. Technical Methodology Section (GEO Optimized) */}
+      {/* 5.5. Technical Methodology Section (GEO & Intent Optimized) */}
       <section id="features" className="py-20 border-t border-b border-gray-900 bg-[#07080a]">
         <div className="max-w-4xl mx-auto px-6">
           <div className="border border-gray-850 rounded-2xl bg-gray-950/40 p-8 relative overflow-hidden">
             <div className="absolute -top-32 -right-32 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
             <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest block mb-3">
-              [ ENGINE SPECIFICATION PROTOCOL ]
+              [ TECHNICAL ARCHITECTURE & PRIVACY ]
             </span>
             <h3 className="text-xl font-bold text-white tracking-tight mb-4">
-              Core Extraction & Real-ESRGAN AI Upscaling Methodology
+              Deterministic Edge Keying & Progressive 2-Pass 8K AI Super-Resolution
             </h3>
             <p className="text-xs text-gray-400 leading-relaxed font-mono">
-              The Pixel Isolate Background Remover utilizes WebAssembly (WASM) to execute hardware-accelerated morphological edge operations directly in the browser's sandbox. In addition, our backend integrates a hardware-accelerated Real-ESRGAN NCNN Vulkan AI Super-Resolution engine. For 4K upscaling requests, native 4x deep neural networks enhance vector lines and micro-textures. For 8K upscaling requests, a progressive 2-pass engine runs a 4x model pass followed by a native 2x model pass (realesr-animevideov3-x2), scaling resolution up to 8192×8192 while preserving raw alpha transparency channels.
+              PixelIsolate combines client-side WebAssembly (WASM) for zero-latency, private background extraction with a hardware-accelerated Real-ESRGAN Vulkan neural upscaler. For 4K upscales, native 4x deep neural networks enhance vector lines and micro-textures. For 8K upscales, our progressive 2-pass engine executes a 4x deep neural pass followed by an anime-optimized 2x refinement pass, scaling artwork up to 8192×8192 while preserving raw alpha transparency channels and zero white edge halos.
             </p>
           </div>
         </div>
@@ -1129,7 +1471,7 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
             <div className="p-5 rounded-2xl bg-gray-950/60 border border-gray-850">
               <span className="text-emerald-400 font-bold block mb-2">✉️ Publisher Support</span>
               <p className="text-gray-400 text-[10px] leading-relaxed">
-                Managed by Pixel Isolate Engine Team. Contact <a href="mailto:contact@pixelisolate.online" className="text-emerald-400 underline">contact@pixelisolate.online</a> for technical inquiries.
+                Managed by PixelIsolate Team. Contact <a href="mailto:contact@pixelisolate.online" className="text-emerald-400 underline">contact@pixelisolate.online</a> for technical inquiries.
               </p>
             </div>
             <div className="p-5 rounded-2xl bg-gray-950/60 border border-gray-850">
@@ -1150,44 +1492,50 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge }: LandingPag
         </div>
       </section>
 
-      {/* 5.7. Frequently Asked Questions (FAQ) */}
+      {/* 5.7. Comprehensive Frequently Asked Questions (FAQ) */}
       <section id="faq" className="py-20 border-b border-gray-900 bg-[#07080a]">
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-12">
             <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">[ KNOWLEDGE BASE ]</span>
             <h2 className="text-2xl font-bold text-white tracking-tight mt-1">Frequently Asked Questions</h2>
-            <p className="text-xs text-gray-500 font-mono mt-1">Everything you need to know about keying workflows, AI upscaling, and export options</p>
+            <p className="text-xs text-gray-500 font-mono mt-1">Clear answers regarding credit calculation, resolution limits, refunds, and privacy</p>
           </div>
 
           <div className="space-y-4 font-mono text-xs">
             <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
-              <h3 className="font-bold text-white mb-2">How does the Real-ESRGAN 4K & 8K AI Upscaler work?</h3>
+              <h3 className="font-bold text-white mb-2">What counts as a credit?</h3>
               <p className="text-gray-400 leading-relaxed text-[11px]">
-                Our AI upscaler powered by Real-ESRGAN NCNN Vulkan enhances images up to 4K ($4096 \times 4096$) and 8K ($8192 \times 8192$). It uses progressive 2-pass neural processing to sharpen edges, restore lost detail, and eliminate pixelation without introducing blurry artifacts.
+                1 credit allows 1 full-resolution HD background isolation export or 1 high-resolution 4K/8K AI upscale pass. Standard 500px preview exports and on-screen threshold tuning do not consume paid credits.
               </p>
             </div>
             <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
-              <h3 className="font-bold text-white mb-2">Does 8K AI upscaling preserve transparent PNG backgrounds?</h3>
+              <h3 className="font-bold text-white mb-2">Do purchased credits expire?</h3>
               <p className="text-gray-400 leading-relaxed text-[11px]">
-                Yes! Unlike generic upscaling tools that fill transparent areas with black or white boxes, our progressive 2-pass pipeline processes alpha channel masks explicitly, maintaining crisp, isolated transparent PNG cutouts ready for print-on-demand.
+                No. Credits purchased through the 100 Credit Bundle never expire. They remain in your account until you decide to use them.
               </p>
             </div>
             <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
-              <h3 className="font-bold text-white mb-2">What makes Pixel Isolate different from cloud background removers?</h3>
+              <h3 className="font-bold text-white mb-2">How does PixelIsolate eliminate white halos on print-on-demand designs?</h3>
               <p className="text-gray-400 leading-relaxed text-[11px]">
-                Pixel Isolate computes background isolation locally inside your browser using WebAssembly. Your photos never leave your device, ensuring total data privacy, zero server queues, and instant processing speeds.
+                Traditional background removers leave a 1–2 pixel light fringe around cutouts, which looks messy when printed on black t-shirts. PixelIsolate includes subpixel erosion, alpha threshold tuning, and Gaussian edge feathering that completely eliminates white edge fringing.
               </p>
             </div>
             <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
-              <h3 className="font-bold text-white mb-2">Can I export cutouts with solid color backdrops?</h3>
+              <h3 className="font-bold text-white mb-2">Can I cancel my Pro subscription anytime?</h3>
               <p className="text-gray-400 leading-relaxed text-[11px]">
-                Yes. You can switch between transparent PNG cutouts, pure White backdrops, deep Black backdrops, or pick any custom Hex color swatch.
+                Yes, absolutely. You can cancel your subscription with a single click at any time inside your Billing & Subscription dashboard or via the Paddle customer portal. You will retain Pro access until the end of your billing cycle.
               </p>
             </div>
             <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
-              <h3 className="font-bold text-white mb-2">What image resolutions are supported for export?</h3>
+              <h3 className="font-bold text-white mb-2">Are my uploaded images kept private?</h3>
               <p className="text-gray-400 leading-relaxed text-[11px]">
-                Free Tier accounts support up to 500px standard preview exports and 3 Full-HD trial downloads. Pro Tier subscribers unlock 100% original full-resolution HD & 4K extractions plus unlimited 8K AI Super-Resolution upscales.
+                Yes. Background isolation is executed 100% on your device inside your browser's WebAssembly sandbox. Your images are never sent to external servers, harvested, or used for AI model training datasets.
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-gray-950/40 border border-gray-850">
+              <h3 className="font-bold text-white mb-2">What is your refund policy?</h3>
+              <p className="text-gray-400 leading-relaxed text-[11px]">
+                We offer a 14-day refund policy for unused credit bundles and subscription billing concerns. If you encounter any technical difficulty, simply contact our support at contact@pixelisolate.online.
               </p>
             </div>
           </div>

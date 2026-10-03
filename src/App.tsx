@@ -225,6 +225,10 @@ export default function App() {
     message: "",
   });
 
+  const [landingIntent, setLandingIntent] = useState<
+    "general" | "background-remover" | "image-upscaler" | "pod-background-remover" | "bulk-background-remover" | "remove-white-background" | "transparent-png-maker"
+  >("general");
+
   useEffect(() => {
     // 1. Initial session load
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -255,7 +259,7 @@ export default function App() {
       });
     };
 
-    // 4. Initial URL Path Routing for /blog and /blog/:slug (with ?redirect= handling)
+    // 4. Initial URL Path Routing for /blog, /blog/:slug, /image-upscaler, and specialized search intent routes
     const urlParams = new URLSearchParams(window.location.search);
     const redirectParam = urlParams.get("redirect");
     let initPath = redirectParam ? decodeURIComponent(redirectParam) : window.location.pathname;
@@ -271,6 +275,18 @@ export default function App() {
       setSelectedBlogSlug(slugPart || null);
     } else if (initPath.startsWith("/unsubscribe")) {
       setCurrentTab("unsubscribe");
+    } else if (initPath.startsWith("/image-upscaler")) {
+      setLandingIntent("image-upscaler");
+    } else if (initPath.startsWith("/pod-background-remover")) {
+      setLandingIntent("pod-background-remover");
+    } else if (initPath.startsWith("/bulk-background-remover")) {
+      setLandingIntent("bulk-background-remover");
+    } else if (initPath.startsWith("/remove-white-background")) {
+      setLandingIntent("remove-white-background");
+    } else if (initPath.startsWith("/transparent-png-maker")) {
+      setLandingIntent("transparent-png-maker");
+    } else if (initPath.startsWith("/background-remover")) {
+      setLandingIntent("background-remover");
     }
 
     const handlePopState = () => {
@@ -283,8 +299,21 @@ export default function App() {
       } else if (currentPath.startsWith("/unsubscribe")) {
         setCurrentTab("unsubscribe");
         setSelectedBlogSlug(null);
+      } else if (currentPath.startsWith("/image-upscaler")) {
+        setLandingIntent("image-upscaler");
+      } else if (currentPath.startsWith("/pod-background-remover")) {
+        setLandingIntent("pod-background-remover");
+      } else if (currentPath.startsWith("/bulk-background-remover")) {
+        setLandingIntent("bulk-background-remover");
+      } else if (currentPath.startsWith("/remove-white-background")) {
+        setLandingIntent("remove-white-background");
+      } else if (currentPath.startsWith("/transparent-png-maker")) {
+        setLandingIntent("transparent-png-maker");
+      } else if (currentPath.startsWith("/background-remover")) {
+        setLandingIntent("background-remover");
       } else {
         setSelectedBlogSlug(null);
+        setLandingIntent("general");
       }
     };
 
@@ -647,6 +676,17 @@ export default function App() {
               <LandingPage
                 onOpenAuth={() => setAuthModalOpen(true)}
                 onOpenEmbedBadge={() => setEmbedBadgeModalOpen(true)}
+                onGoToUpscaler={() => {
+                  window.history.pushState({}, "", "/image-upscaler");
+                  setCurrentTab("upscaler");
+                  setSelectedBlogSlug(null);
+                }}
+                onGoToEditor={() => {
+                  window.history.pushState({}, "", "/");
+                  setCurrentTab("editor");
+                  setSelectedBlogSlug(null);
+                }}
+                intent={landingIntent}
               />
             )}
           </div>
