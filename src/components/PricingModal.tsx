@@ -25,17 +25,55 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
     "pri_01kxzs3cntjbews1fkk8w1fveb"
   ).trim().replace(/['"]/g, "");
 
-  const [promoCode, setPromoCode] = React.useState("");
+  const [promoCode, setPromoCode] = React.useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("promo") || params.get("discount") || params.get("code") || params.get("coupon") || "";
+      return code.trim().toUpperCase();
+    }
+    return "";
+  });
 
   // Valid promo code definitions
   const cleanCode = promoCode.trim().toUpperCase();
-  const PRO_PROMO_CODES = ["PHILIP30", "DETOUR30", "RJ30", "STARTUP30", "PRODUCTHUNT", "SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"];
-  const CREDIT_PROMO_CODES = ["PHILIP30", "DETOUR30", "RJ30", "SAVE20", "PROMO20", "PIXEL20", "ISOLATE20", "OFF20"];
+  const PRO_PROMO_CODES = [
+    "APPZ20",
+    "APPZ30",
+    "APP20",
+    "PHILIP30",
+    "DETOUR30",
+    "RJ30",
+    "STARTUP30",
+    "PRODUCTHUNT",
+    "SAVE20",
+    "PROMO20",
+    "PIXEL20",
+    "ISOLATE20",
+    "OFF20",
+  ];
+  const CREDIT_PROMO_CODES = [
+    "APPZ20",
+    "APPZ30",
+    "APP20",
+    "PHILIP30",
+    "DETOUR30",
+    "RJ30",
+    "SAVE20",
+    "PROMO20",
+    "PIXEL20",
+    "ISOLATE20",
+    "OFF20",
+  ];
 
   const isProDiscountValid = PRO_PROMO_CODES.includes(cleanCode);
   const isCreditDiscountValid = CREDIT_PROMO_CODES.includes(cleanCode);
 
-  const is30PercentCode = cleanCode === "STARTUP30" || cleanCode === "RJ30" || cleanCode === "PHILIP30" || cleanCode === "DETOUR30";
+  const is30PercentCode =
+    cleanCode === "STARTUP30" ||
+    cleanCode === "RJ30" ||
+    cleanCode === "PHILIP30" ||
+    cleanCode === "DETOUR30" ||
+    cleanCode === "APPZ30";
   const proDiscountPrice = is30PercentCode ? "$5.59" : "$6.39";
   const proDiscountBadgeLabel = is30PercentCode ? "30% OFF" : "20% OFF";
 
