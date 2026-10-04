@@ -188,8 +188,13 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscal
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-3">
               <button
                 onClick={() => {
-                  if (onGoToEditor) onGoToEditor();
-                  else onOpenAuth();
+                  if (intent === "image-upscaler") {
+                    if (onGoToUpscaler) onGoToUpscaler();
+                    else onOpenAuth();
+                  } else {
+                    if (onGoToEditor) onGoToEditor();
+                    else onOpenAuth();
+                  }
                 }}
                 className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-white font-bold text-sm hover:shadow-xl hover:shadow-emerald-500/20 active:scale-[0.99] transition duration-200 flex items-center justify-center gap-2 cursor-pointer group"
               >
@@ -200,8 +205,13 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscal
               
               <button
                 onClick={() => {
-                  if (onGoToUpscaler) onGoToUpscaler();
-                  else onOpenAuth();
+                  if (intent === "image-upscaler") {
+                    if (onGoToEditor) onGoToEditor();
+                    else onOpenAuth();
+                  } else {
+                    if (onGoToUpscaler) onGoToUpscaler();
+                    else onOpenAuth();
+                  }
                 }}
                 className="w-full sm:w-auto px-6 py-4 rounded-xl bg-gray-950/90 hover:bg-gray-850 border border-gray-800 hover:border-gray-700 text-gray-300 hover:text-white font-semibold text-sm transition duration-200 cursor-pointer flex items-center justify-center gap-2"
               >
@@ -629,7 +639,10 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscal
                   </button>
                 ) : (
                   <button
-                    onClick={onOpenAuth}
+                    onClick={() => {
+                      if (onGoToEditor) onGoToEditor();
+                      else onOpenAuth();
+                    }}
                     className="flex items-center gap-1.5 font-mono text-[10px] text-emerald-400 hover:text-emerald-300 font-bold transition cursor-pointer"
                   >
                     <span>Try with your own images</span>
@@ -848,7 +861,10 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscal
               <div className="pt-4 border-t border-gray-850/60 flex justify-between items-center font-mono text-[9px] text-gray-600">
                 <span>[ Neural Node: Connected ]</span>
                 <button
-                  onClick={onOpenAuth}
+                  onClick={() => {
+                    if (onGoToEditor) onGoToEditor();
+                    else onOpenAuth();
+                  }}
                   className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-bold transition cursor-pointer"
                 >
                   Test AI Magic Live <ArrowRight className="h-3 w-3" />
@@ -1209,7 +1225,10 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscal
                 </ul>
               </div>
               <button
-                onClick={onOpenAuth}
+                onClick={() => {
+                  if (onGoToEditor) onGoToEditor();
+                  else onOpenAuth();
+                }}
                 className="w-full py-3 bg-gray-900 border border-gray-850 hover:bg-gray-800 text-white rounded-xl text-xs font-semibold active:scale-[0.99] transition duration-150 cursor-pointer"
               >
                 Start Free Trial

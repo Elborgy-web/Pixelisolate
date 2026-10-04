@@ -2911,6 +2911,24 @@ export default function ChromaKeyer({
 
   return (
     <div className="flex flex-col gap-6 w-full">
+      {/* Guest Trial Alert Banner */}
+      {!user && (
+        <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left backdrop-blur-sm shadow-xl max-w-4xl mx-auto w-full">
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
+            <span className="text-xs text-gray-200 font-mono">
+              <strong className="text-emerald-400">Guest Trial Mode:</strong> Enjoy 1 free instant background removal export with zero-knowledge browser privacy.
+            </span>
+          </div>
+          <button
+            onClick={onOpenAuth}
+            className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold rounded-xl transition shadow-md shadow-emerald-500/20 whitespace-nowrap cursor-pointer shrink-0"
+          >
+            Claim 10 Free Credits
+          </button>
+        </div>
+      )}
+
       {/* Premium Work Mode Switcher */}
       <div className="flex justify-center mb-2">
         <div className="bg-gray-900/80 backdrop-blur-md border border-gray-800/80 p-1.5 rounded-2xl flex gap-2 max-w-md w-full shadow-2xl relative overflow-hidden group">

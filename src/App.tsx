@@ -138,12 +138,15 @@ function cropImageTransparentEdges(imgElement: HTMLImageElement): string {
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [currentTab, setCurrentTab] = useState<"editor" | "upscaler" | "history" | "billing" | "howto" | "blog" | "unsubscribe">(() => {
+  const [currentTab, setCurrentTab] = useState<"landing" | "editor" | "upscaler" | "history" | "billing" | "howto" | "blog" | "unsubscribe">(() => {
     if (typeof window !== "undefined") {
       if (window.location.pathname.startsWith("/blog")) return "blog";
       if (window.location.pathname.startsWith("/unsubscribe")) return "unsubscribe";
+      if (window.location.pathname.startsWith("/image-upscaler")) return "upscaler";
+      if (window.location.pathname.startsWith("/remove-background")) return "editor";
+      if (window.location.pathname.startsWith("/how-it-works")) return "howto";
     }
-    return "editor";
+    return "landing";
   });
 
   const [selectedBlogSlug, setSelectedBlogSlug] = useState<string | null>(() => {
@@ -236,6 +239,7 @@ export default function App() {
       setUser(activeUser);
       if (activeUser) {
         fetchProfile(activeUser.id, activeUser.email || "");
+        setCurrentTab((prev) => (prev === "landing" ? "editor" : prev));
       }
     });
 
@@ -245,6 +249,7 @@ export default function App() {
       setUser(activeUser);
       if (activeUser) {
         fetchProfile(activeUser.id, activeUser.email || "");
+        setCurrentTab((prev) => (prev === "landing" ? "editor" : prev));
       } else {
         setProfile(null);
       }
@@ -275,7 +280,12 @@ export default function App() {
       setSelectedBlogSlug(slugPart || null);
     } else if (initPath.startsWith("/unsubscribe")) {
       setCurrentTab("unsubscribe");
+    } else if (initPath.startsWith("/remove-background")) {
+      setCurrentTab("editor");
+    } else if (initPath.startsWith("/how-it-works")) {
+      setCurrentTab("howto");
     } else if (initPath.startsWith("/image-upscaler")) {
+      setCurrentTab("upscaler");
       setLandingIntent("image-upscaler");
     } else if (initPath.startsWith("/pod-background-remover")) {
       setLandingIntent("pod-background-remover");
@@ -299,7 +309,14 @@ export default function App() {
       } else if (currentPath.startsWith("/unsubscribe")) {
         setCurrentTab("unsubscribe");
         setSelectedBlogSlug(null);
+      } else if (currentPath.startsWith("/remove-background")) {
+        setCurrentTab("editor");
+        setSelectedBlogSlug(null);
+      } else if (currentPath.startsWith("/how-it-works")) {
+        setCurrentTab("howto");
+        setSelectedBlogSlug(null);
       } else if (currentPath.startsWith("/image-upscaler")) {
+        setCurrentTab("upscaler");
         setLandingIntent("image-upscaler");
       } else if (currentPath.startsWith("/pod-background-remover")) {
         setLandingIntent("pod-background-remover");
@@ -314,6 +331,7 @@ export default function App() {
       } else {
         setSelectedBlogSlug(null);
         setLandingIntent("general");
+        setCurrentTab(user ? "editor" : "landing");
       }
     };
 
@@ -413,7 +431,7 @@ export default function App() {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
-    setCurrentTab("editor");
+    setCurrentTab("landing");
   };
 
   return (
@@ -422,49 +440,106 @@ export default function App() {
       <header className="border-b border-gray-900 bg-gray-950/40 backdrop-blur-md sticky top-0 z-40 px-3 sm:px-6 py-2.5 md:py-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-2.5 md:gap-4 justify-between items-start md:items-center">
           <div className="flex items-center justify-between w-full md:w-auto">
-            <img src={logoSrc} alt="Pixel-Level Image Isolation Workspace" className="h-8 sm:h-10 md:h-13 w-auto object-contain" />
+            <button
+              onClick={() => {
+                window.history.pushState({}, "", "/");
+                setCurrentTab(user ? "editor" : "landing");
+                setSelectedBlogSlug(null);
+              }}
+              className="cursor-pointer flex items-center focus:outline-none"
+            >
+              <img src={logoSrc} alt="Pixel-Level Image Isolation Workspace" className="h-8 sm:h-10 md:h-13 w-auto object-contain" />
+            </button>
           </div>
 
           {/* Navigation Controls and User Account Block */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full md:w-auto justify-between sm:justify-start">
             {/* View Tabs */}
             <div className="flex bg-gray-950 p-0.5 sm:p-1 rounded-xl border border-gray-850 overflow-x-auto max-w-full">
-              <button
-                onClick={() => {
-                  window.history.pushState({}, "", "/");
-                  setCurrentTab("editor");
-                  setSelectedBlogSlug(null);
-                }}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
-                  currentTab === "editor"
-                    ? "bg-gray-850 text-white"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
-              >
-                {user ? (
-                  <Sliders className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
-                ) : (
-                  <Home className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
-                )}
-                <span>{user ? "Background Remover" : "Home"}</span>
-              </button>
+              {!user ? (
+                <>
+                  <button
+                    onClick={() => {
+                      window.history.pushState({}, "", "/");
+                      setCurrentTab("landing");
+                      setSelectedBlogSlug(null);
+                    }}
+                    className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
+                      currentTab === "landing"
+                        ? "bg-gray-850 text-white"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <Home className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
+                    <span>Home</span>
+                  </button>
 
-              {user && (
-                <button
-                  onClick={() => {
-                    window.history.pushState({}, "", "/");
-                    setCurrentTab("upscaler");
-                    setSelectedBlogSlug(null);
-                  }}
-                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
-                    currentTab === "upscaler"
-                      ? "bg-gray-850 text-white"
-                      : "text-gray-400 hover:text-gray-200"
-                  }`}
-                >
-                  <Maximize2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
-                  <span>AI Upscaler (4K/8K)</span>
-                </button>
+                  <button
+                    onClick={() => {
+                      window.history.pushState({}, "", "/remove-background");
+                      setCurrentTab("editor");
+                      setSelectedBlogSlug(null);
+                    }}
+                    className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
+                      currentTab === "editor"
+                        ? "bg-gray-850 text-white"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <Sliders className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
+                    <span>Background Remover</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      window.history.pushState({}, "", "/image-upscaler");
+                      setCurrentTab("upscaler");
+                      setSelectedBlogSlug(null);
+                    }}
+                    className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
+                      currentTab === "upscaler"
+                        ? "bg-gray-850 text-white"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <Maximize2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
+                    <span>AI Upscaler (4K/8K)</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      window.history.pushState({}, "", "/");
+                      setCurrentTab("editor");
+                      setSelectedBlogSlug(null);
+                    }}
+                    className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
+                      currentTab === "editor"
+                        ? "bg-gray-850 text-white"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <Sliders className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                    <span>Background Remover</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      window.history.pushState({}, "", "/image-upscaler");
+                      setCurrentTab("upscaler");
+                      setSelectedBlogSlug(null);
+                    }}
+                    className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
+                      currentTab === "upscaler"
+                        ? "bg-gray-850 text-white"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <Maximize2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
+                    <span>AI Upscaler (4K/8K)</span>
+                  </button>
+                </>
               )}
 
               <button
@@ -485,7 +560,7 @@ export default function App() {
 
               <button
                 onClick={() => {
-                  window.history.pushState({}, "", "/");
+                  window.history.pushState({}, "", "/how-it-works");
                   setCurrentTab("howto");
                   setSelectedBlogSlug(null);
                 }}
@@ -663,36 +738,34 @@ export default function App() {
             />
           </div>
 
-          <div style={{ display: currentTab === "editor" ? "block" : "none" }}>
-            {user ? (
-              <ChromaKeyer 
-                user={user} 
-                profile={profile} 
-                onRefreshProfile={() => user && fetchProfile(user.id, user.email || "")} 
-                onOpenPricing={() => setPricingModalOpen(true)}
-                onOpenAuth={() => setAuthModalOpen(true)}
-              />
-            ) : (
-              <LandingPage
-                onOpenAuth={() => setAuthModalOpen(true)}
-                onOpenEmbedBadge={() => setEmbedBadgeModalOpen(true)}
-                onGoToUpscaler={() => {
-                  window.history.pushState({}, "", "/image-upscaler");
-                  setCurrentTab("upscaler");
-                  setSelectedBlogSlug(null);
-                }}
-                onGoToEditor={() => {
-                  if (user) {
-                    window.history.pushState({}, "", "/");
-                    setCurrentTab("editor");
-                    setSelectedBlogSlug(null);
-                  } else {
-                    setAuthModalOpen(true);
-                  }
-                }}
-                intent={landingIntent}
-              />
-            )}
+          {/* Landing Page (Home View for unauthenticated guests) */}
+          <div style={{ display: !user && currentTab === "landing" ? "block" : "none" }}>
+            <LandingPage
+              onOpenAuth={() => setAuthModalOpen(true)}
+              onOpenEmbedBadge={() => setEmbedBadgeModalOpen(true)}
+              onGoToUpscaler={() => {
+                window.history.pushState({}, "", "/image-upscaler");
+                setCurrentTab("upscaler");
+                setSelectedBlogSlug(null);
+              }}
+              onGoToEditor={() => {
+                window.history.pushState({}, "", "/remove-background");
+                setCurrentTab("editor");
+                setSelectedBlogSlug(null);
+              }}
+              intent={landingIntent}
+            />
+          </div>
+
+          {/* Background Remover Workspace (ChromaKeyer) - active for logged-in users & guests with 1 free trial */}
+          <div style={{ display: currentTab === "editor" || (user && currentTab === "landing") ? "block" : "none" }}>
+            <ChromaKeyer 
+              user={user} 
+              profile={profile} 
+              onRefreshProfile={() => user && fetchProfile(user.id, user.email || "")} 
+              onOpenPricing={() => setPricingModalOpen(true)}
+              onOpenAuth={() => setAuthModalOpen(true)}
+            />
           </div>
 
           {user && (
