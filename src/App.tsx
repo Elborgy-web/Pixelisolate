@@ -69,6 +69,7 @@ import {
   History, 
   Sliders,
   CreditCard,
+  Tag,
   HelpCircle,
   BookOpen,
   Maximize2,
@@ -299,6 +300,14 @@ export default function App() {
       setLandingIntent("background-remover");
     }
 
+    if (window.location.hash) {
+      const hashId = window.location.hash.replace("#", "");
+      setTimeout(() => {
+        const el = document.getElementById(hashId);
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 350);
+    }
+
     const handlePopState = () => {
       const currentPath = window.location.pathname;
       if (currentPath.startsWith("/blog")) {
@@ -332,6 +341,14 @@ export default function App() {
         setSelectedBlogSlug(null);
         setLandingIntent("general");
         setCurrentTab(user ? "editor" : "landing");
+      }
+
+      if (window.location.hash) {
+        const hashId = window.location.hash.replace("#", "");
+        setTimeout(() => {
+          const el = document.getElementById(hashId);
+          if (el) el.scrollIntoView({ behavior: "smooth" });
+        }, 150);
       }
     };
 
@@ -434,6 +451,30 @@ export default function App() {
     setCurrentTab("landing");
   };
 
+  const scrollToSection = (sectionId: string) => {
+    setSelectedBlogSlug(null);
+    if (!user && currentTab !== "landing") {
+      setCurrentTab("landing");
+      window.history.pushState({}, "", `/#${sectionId}`);
+      setTimeout(() => {
+        const el = document.getElementById(sectionId);
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } else if (user) {
+      if (sectionId === "pricing") {
+        setPricingModalOpen(true);
+      } else {
+        window.history.pushState({}, "", `/#${sectionId}`);
+        const el = document.getElementById(sectionId);
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }
+    } else {
+      window.history.pushState({}, "", `/#${sectionId}`);
+      const el = document.getElementById(sectionId);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <div id="app-container" className="min-h-screen bg-[#0a0b0d] text-gray-100 flex flex-col antialiased selection:bg-emerald-500/30 selection:text-white">
       {/* Upper Navigation / Editorial Header */}
@@ -505,6 +546,30 @@ export default function App() {
                     <Maximize2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
                     <span>AI Upscaler (4K/8K)</span>
                   </button>
+
+                  <a
+                    href="/#pricing"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      scrollToSection("pricing");
+                    }}
+                    className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap text-gray-400 hover:text-gray-200"
+                  >
+                    <Tag className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
+                    <span>Pricing</span>
+                  </a>
+
+                  <a
+                    href="/#faq"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      scrollToSection("faq");
+                    }}
+                    className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap text-gray-400 hover:text-gray-200"
+                  >
+                    <HelpCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
+                    <span>F&A</span>
+                  </a>
                 </>
               ) : (
                 <>
@@ -539,6 +604,18 @@ export default function App() {
                     <Maximize2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
                     <span>AI Upscaler (4K/8K)</span>
                   </button>
+
+                  <a
+                    href="/#faq"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      scrollToSection("faq");
+                    }}
+                    className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap text-gray-400 hover:text-gray-200"
+                  >
+                    <HelpCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
+                    <span>F&A</span>
+                  </a>
                 </>
               )}
 
@@ -570,7 +647,7 @@ export default function App() {
                     : "text-gray-400 hover:text-gray-200"
                 }`}
               >
-                <HelpCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                <FileCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                 <span>How It Works</span>
               </button>
 

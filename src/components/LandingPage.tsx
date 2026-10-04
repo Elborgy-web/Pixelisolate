@@ -1565,8 +1565,8 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscal
               <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1206327&theme=dark" alt="Pixel Isolate | Product Hunt" width="250" height="54" loading="lazy" referrerPolicy="no-referrer" className="h-[54px] w-auto object-contain block" />
             </a>
 
-            <a href="https://launchit.fast" target="_blank" rel="noopener noreferrer" className="inline-block transition-transform duration-200 hover:scale-[1.03]">
-              <img src="https://launchit.fast/img/launching.svg" alt="Featured on LaunchIt" height="54" loading="lazy" referrerPolicy="no-referrer" className="h-[54px] w-auto object-contain block" />
+            <a href="https://launchit.fast/tools/pixel-isolate" target="_blank" rel="noopener noreferrer" className="inline-block transition-transform duration-200 hover:scale-[1.03]">
+              <img src="https://launchit.fast/img/live.svg" alt="Live now on LaunchIt" width="180" height="54" loading="lazy" referrerPolicy="no-referrer" className="h-[54px] w-auto object-contain block" />
             </a>
           </div>
         </div>
