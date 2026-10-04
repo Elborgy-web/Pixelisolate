@@ -25,6 +25,7 @@ import {
   Search,
   User,
   Package,
+  Lock,
 } from "lucide-react";
 import { SubjectAnalysis, ProcessingSettings, BulkImageItem } from "../types";
 import { rgbToHsv, createChromaGreenTransform, isolateSubjectFromChroma, detectBackgroundColorFromCorners, detectDualBackgroundColorsFromCorners, detectSafestChromaColor, CHROMA_OPTIONS, erodeAlpha, dilateAlpha, blurAlpha, guidedAlphaMatting, decontaminateFringeColor, sharpAlphaThreshold, floodFillRemoveBackground, detectImageSmartMode } from "../utils/imageProc";
@@ -116,6 +117,20 @@ export default function ChromaKeyer({
   // File metadata
   const [fileName, setFileName] = useState<string>("");
   const [fileDimensions, setFileDimensions] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+
+  // Guest trial tracking
+  const [guestTrialUsed, setGuestTrialUsed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("guest_trial_used") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setGuestTrialUsed(localStorage.getItem("guest_trial_used") === "true");
+    }
+  }, [user]);
 
   // Master Work Mode: single image isolator vs bulk background remover
   const [workMode, setWorkMode] = useState<"single" | "bulk">("single");
@@ -632,6 +647,11 @@ export default function ChromaKeyer({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    if (!user && (guestTrialUsed || localStorage.getItem("guest_trial_used") === "true")) {
+      alert("You have already used your 1 free guest background removal trial. Please create a free account to claim 10 credits!");
+      onOpenAuth();
+      return;
+    }
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       if (files.length > 1 && profile?.is_pro !== true) {
@@ -643,6 +663,11 @@ export default function ChromaKeyer({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user && (guestTrialUsed || localStorage.getItem("guest_trial_used") === "true")) {
+      alert("You have already used your 1 free guest background removal trial. Please create a free account to claim 10 credits!");
+      onOpenAuth();
+      return;
+    }
     const files = e.target.files;
     if (files && files.length > 0) {
       loadImageFile(files[0]);
@@ -650,6 +675,11 @@ export default function ChromaKeyer({
   };
 
   const loadImageFile = (file: File) => {
+    if (!user && (guestTrialUsed || localStorage.getItem("guest_trial_used") === "true")) {
+      alert("You have already used your 1 free guest background removal trial. Please create a free account to claim 10 credits!");
+      onOpenAuth();
+      return;
+    }
     if (!file.type.startsWith("image/")) {
       setErrorMessage("Unsupported file format. Please upload an image file (PNG, JPG, WEBP).");
       return;
@@ -1755,8 +1785,8 @@ export default function ChromaKeyer({
 
     if (!user) {
       // Guest mode
-      const guestTrialUsed = localStorage.getItem("guest_trial_used");
-      if (guestTrialUsed === "true") {
+      const isUsed = guestTrialUsed || localStorage.getItem("guest_trial_used") === "true";
+      if (isUsed) {
         alert("You have already used your 1 free guest trial. Please sign up to get 10 free credits!");
         onOpenAuth();
         return;
@@ -1793,7 +1823,9 @@ export default function ChromaKeyer({
     // 4. Consume credit & upload to history
     if (!user) {
       localStorage.setItem("guest_trial_used", "true");
+      setGuestTrialUsed(true);
       alert("Guest trial used! Sign up for free to get 10 more credits.");
+      onOpenAuth();
     } else {
       // Logged in user
       if (!isPro) {
@@ -1870,6 +1902,11 @@ export default function ChromaKeyer({
   };
 
   const addBulkFiles = (files: File[]) => {
+    if (!user && (guestTrialUsed || localStorage.getItem("guest_trial_used") === "true")) {
+      alert("You have already used your 1 free guest trial. Please sign up to get 10 free credits!");
+      onOpenAuth();
+      return;
+    }
     const imageFiles = files.filter(f => f.type.startsWith("image/"));
     if (imageFiles.length === 0) return;
 
@@ -2309,8 +2346,8 @@ export default function ChromaKeyer({
 
     if (!user) {
       // Guest mode
-      const guestTrialUsed = localStorage.getItem("guest_trial_used");
-      if (guestTrialUsed === "true") {
+      const isUsed = guestTrialUsed || localStorage.getItem("guest_trial_used") === "true";
+      if (isUsed) {
         alert("You have already used your 1 free guest trial. Please sign up to get 10 free credits!");
         onOpenAuth();
         return;
@@ -2340,7 +2377,9 @@ export default function ChromaKeyer({
     // 4. Consume credit & upload to history
     if (!user) {
       localStorage.setItem("guest_trial_used", "true");
+      setGuestTrialUsed(true);
       alert("Guest trial used! Sign up for free to get 10 more credits.");
+      onOpenAuth();
     } else {
       // Logged in user
       if (!isPro) {
@@ -2913,16 +2952,32 @@ export default function ChromaKeyer({
     <div className="flex flex-col gap-6 w-full">
       {/* Guest Trial Alert Banner */}
       {!user && (
-        <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left backdrop-blur-sm shadow-xl max-w-4xl mx-auto w-full">
+        <div className={`border rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left backdrop-blur-sm shadow-xl max-w-4xl mx-auto w-full ${
+          guestTrialUsed 
+            ? "bg-amber-950/40 border-amber-500/40 text-amber-200"
+            : "bg-emerald-950/40 border-emerald-500/30 text-gray-200"
+        }`}>
           <div className="flex items-center gap-2.5">
-            <Sparkles className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
-            <span className="text-xs text-gray-200 font-mono">
-              <strong className="text-emerald-400">Guest Trial Mode:</strong> Enjoy 1 free instant background removal export with zero-knowledge browser privacy.
+            {guestTrialUsed ? (
+              <Lock className="h-4 w-4 text-amber-400 shrink-0" />
+            ) : (
+              <Sparkles className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
+            )}
+            <span className="text-xs font-mono">
+              {guestTrialUsed ? (
+                <>
+                  <strong className="text-amber-400">1 Free Guest Trial Used:</strong> Create your free account now to claim <span className="text-white font-bold">10 Free HD Credits</span> and unlock unlimited editing.
+                </>
+              ) : (
+                <>
+                  <strong className="text-emerald-400">Guest Trial Mode:</strong> Enjoy 1 free instant background removal export with zero-knowledge browser privacy.
+                </>
+              )}
             </span>
           </div>
           <button
             onClick={onOpenAuth}
-            className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold rounded-xl transition shadow-md shadow-emerald-500/20 whitespace-nowrap cursor-pointer shrink-0"
+            className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold rounded-xl transition shadow-md shadow-emerald-500/20 whitespace-nowrap cursor-pointer shrink-0"
           >
             Claim 10 Free Credits
           </button>
@@ -3016,20 +3071,39 @@ export default function ChromaKeyer({
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
                     className="border-2 border-dashed border-gray-800 hover:border-emerald-500/50 bg-gray-950/40 rounded-xl p-8 text-center transition flex flex-col items-center justify-center cursor-pointer group"
-                    onClick={() => document.getElementById("file-upload")?.click()}
+                    onClick={() => {
+                      if (!user && (guestTrialUsed || localStorage.getItem("guest_trial_used") === "true")) {
+                        alert("You have already used your 1 free guest background removal trial. Please create a free account to claim 10 credits!");
+                        onOpenAuth();
+                        return;
+                      }
+                      document.getElementById("file-upload")?.click();
+                    }}
                   >
                     <div className="p-4 rounded-full bg-gray-900 border border-gray-800 group-hover:scale-110 transition duration-300 text-gray-400 group-hover:text-emerald-400 mb-4">
-                      <Upload className="h-6 w-6" />
+                      {!user && guestTrialUsed ? (
+                        <Lock className="h-6 w-6 text-amber-400" />
+                      ) : (
+                        <Upload className="h-6 w-6" />
+                      )}
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-200">Drag & Drop Image</h3>
+                    <h3 className="text-sm font-semibold text-gray-200">
+                      {!user && guestTrialUsed ? "Guest Trial Used — Sign Up to Continue" : "Drag & Drop Image"}
+                    </h3>
                     <p className="text-xs text-gray-500 mt-1.5 max-w-xs">
-                      Supports PNG, JPG, or WEBP. High-resolution photos deliver superior mask pixel borders.
+                      {!user && guestTrialUsed
+                        ? "You've used your 1 free trial. Claim 10 free full-resolution credits on signup."
+                        : "Supports PNG, JPG, or WEBP. High-resolution photos deliver superior mask pixel borders."}
                     </p>
                     <button
                       type="button"
-                      className="mt-5 px-4 py-2 bg-gray-900 hover:bg-gray-850 border border-gray-800 rounded-lg text-xs font-medium text-gray-300 transition"
+                      className={`mt-5 px-4 py-2 rounded-lg text-xs font-medium transition ${
+                        !user && guestTrialUsed
+                          ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold shadow-lg shadow-emerald-950/40"
+                          : "bg-gray-900 hover:bg-gray-850 border border-gray-800 text-gray-300"
+                      }`}
                     >
-                      Browse Files
+                      {!user && guestTrialUsed ? "Claim 10 Free Credits" : "Browse Files"}
                     </button>
                     <input
                       id="file-upload"
@@ -3057,6 +3131,11 @@ export default function ChromaKeyer({
                       </div>
                       <button
                         onClick={() => {
+                          if (!user && (guestTrialUsed || localStorage.getItem("guest_trial_used") === "true")) {
+                            alert("You have already used your 1 free guest background removal trial. Please create a free account to claim 10 credits!");
+                            onOpenAuth();
+                            return;
+                          }
                           setSourceImageUri(null);
                           setGreenScreenImageUri(null);
                           setIsolatedImageUri(null);
@@ -3858,13 +3937,23 @@ export default function ChromaKeyer({
 
                     <div className="flex items-center gap-2">
                       {activeTab === "greenscreen" && (
-                        <button
-                          onClick={() => downloadAsset("greenscreen")}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs font-medium"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          <span>Save Green Mask</span>
-                        </button>
+                        !user && guestTrialUsed ? (
+                          <button
+                            onClick={onOpenAuth}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white transition text-xs font-bold shadow-lg shadow-emerald-900/20 cursor-pointer animate-pulse"
+                          >
+                            <Lock className="h-3.5 w-3.5" />
+                            <span>Sign Up to Save (10 Credits)</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => downloadAsset("greenscreen")}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs font-medium cursor-pointer"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            <span>Save Green Mask</span>
+                          </button>
+                        )
                       )}
                       {activeTab === "isolated" && (
                         <div className="flex flex-wrap items-center gap-3">
@@ -3960,13 +4049,23 @@ export default function ChromaKeyer({
                           )}
 
                           {/* Save Isolated Asset Button */}
-                          <button
-                            onClick={() => downloadAsset("isolated")}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-xs font-medium shadow-lg shadow-blue-900/10 cursor-pointer"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            <span>Save Isolated Asset</span>
-                          </button>
+                          {!user && guestTrialUsed ? (
+                            <button
+                              onClick={onOpenAuth}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white transition text-xs font-bold shadow-lg shadow-emerald-900/20 cursor-pointer animate-pulse"
+                            >
+                              <Lock className="h-3.5 w-3.5" />
+                              <span>Sign Up to Save (10 Free Credits)</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => downloadAsset("isolated")}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-xs font-medium shadow-lg shadow-blue-900/10 cursor-pointer"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              <span>Save Isolated Asset</span>
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
