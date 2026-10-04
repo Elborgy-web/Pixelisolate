@@ -1173,53 +1173,6 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscal
             {/* Free Tier Card */}
             <div className="bg-gray-950/40 border border-gray-850 rounded-2xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden">
               <div>
-                <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block mb-2">Configuration trial</span>
-                <h3 className="text-xl font-bold text-white">Free Tier Plan</h3>
-                <div className="my-4 flex items-baseline gap-1">
-                  <span className="text-3xl font-extrabold text-white">$0</span>
-                  <span className="text-gray-500 text-xs font-mono">/ forever</span>
-                </div>
-                <p className="text-xs text-gray-400 mb-6 leading-relaxed">
-                  Excellent option to test the WASM keyer, refine templates, and explore threshold settings.
-                </p>
-                <ul className="space-y-3 font-mono text-[10px] text-gray-300 mb-8">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>10 Free initial credits</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>Single subject isolation mode</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>Max export: 500px resolution</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>3 HD / Full-Resolution trial exports</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span><strong>2X / 4K Real-ESRGAN AI Upscaling Trial</strong></span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>Full refinement settings access</span>
-                  </li>
-                </ul>
-              </div>
-              <button
-                onClick={onOpenAuth}
-                className="w-full py-3 bg-gray-900 border border-gray-850 hover:bg-gray-800 text-white rounded-xl text-xs font-semibold active:scale-[0.99] transition duration-150 cursor-pointer"
-              >
-                Start Isolating Free
-              </button>
-            </div>
-
-            {/* Free Tier Card */}
-            <div className="bg-gray-950/40 border border-gray-850 rounded-2xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden">
-              <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest">Decision: Try & Test</span>
                   <span className="px-2 py-0.5 rounded bg-gray-900 text-gray-400 text-[8px] font-mono border border-gray-800">FREE FOREVER</span>
