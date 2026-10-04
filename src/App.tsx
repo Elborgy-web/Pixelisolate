@@ -682,9 +682,13 @@ export default function App() {
                   setSelectedBlogSlug(null);
                 }}
                 onGoToEditor={() => {
-                  window.history.pushState({}, "", "/");
-                  setCurrentTab("editor");
-                  setSelectedBlogSlug(null);
+                  if (user) {
+                    window.history.pushState({}, "", "/");
+                    setCurrentTab("editor");
+                    setSelectedBlogSlug(null);
+                  } else {
+                    setAuthModalOpen(true);
+                  }
                 }}
                 intent={landingIntent}
               />
