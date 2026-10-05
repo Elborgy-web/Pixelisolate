@@ -604,18 +604,6 @@ export default function App() {
                     <Maximize2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
                     <span>AI Upscaler (4K/8K)</span>
                   </button>
-
-                  <a
-                    href="/#faq"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      scrollToSection("faq");
-                    }}
-                    className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap text-gray-400 hover:text-gray-200"
-                  >
-                    <HelpCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
-                    <span>F&A</span>
-                  </a>
                 </>
               )}
 
