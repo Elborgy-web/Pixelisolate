@@ -6,6 +6,7 @@ import { createServer as createViteServer } from "vite";
 import crypto from "crypto";
 import https from "https";
 import { createClient } from "@supabase/supabase-js";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 dotenv.config();
 
@@ -13,6 +14,25 @@ const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL || "",
   process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 );
+
+// Cloudflare R2 Client (S3-compatible, 10 GB Free, $0 Egress Bandwidth)
+const hasR2Config = Boolean(
+  process.env.R2_ACCOUNT_ID &&
+  process.env.R2_ACCESS_KEY_ID &&
+  process.env.R2_SECRET_ACCESS_KEY &&
+  process.env.R2_BUCKET_NAME
+);
+
+const r2Client = hasR2Config
+  ? new S3Client({
+      region: "auto",
+      endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
+      },
+    })
+  : null;
 
 const serverLogs: string[] = [];
 const logInfo = (msg: string) => {
@@ -1067,41 +1087,81 @@ app.post("/api/vault", async (req, res) => {
 
     console.log(`[History] Uploading for user ${safeUserId}, paths: ${origPath}, ${procPath}`);
 
-    // 1. Upload original using admin client
-    const { error: origError } = await supabaseAdmin.storage
-      .from("history_images")
-      .upload(origPath, origBuffer, {
-        contentType: origContentType,
-        upsert: true,
-      });
-    if (origError) {
-      console.error("[History] Original upload error:", JSON.stringify(origError));
-      throw origError;
-    }
+    let origPublicUrl = "";
+    let procPublicUrl = "";
 
-    // 2. Upload isolated using admin client
-    const { error: procError } = await supabaseAdmin.storage
-      .from("history_images")
-      .upload(procPath, procBuffer, {
-        contentType: procContentType,
-        upsert: true,
-      });
-    if (procError) {
-      console.error("[History] Isolated upload error:", JSON.stringify(procError));
-      throw procError;
-    }
+    // 1 & 2. Upload to Cloudflare R2 if configured, otherwise fallback to Supabase Storage
+    if (r2Client && process.env.R2_BUCKET_NAME) {
+      const bucket = process.env.R2_BUCKET_NAME;
+      const r2Domain = (process.env.R2_PUBLIC_DOMAIN || "").replace(/\/+$/, "");
 
-    // 3. Get public URLs
-    const { data: origUrlData } = supabaseAdmin.storage.from("history_images").getPublicUrl(origPath);
-    const { data: procUrlData } = supabaseAdmin.storage.from("history_images").getPublicUrl(procPath);
+      await r2Client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: origPath,
+          Body: origBuffer,
+          ContentType: origContentType,
+        })
+      );
+
+      await r2Client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: procPath,
+          Body: procBuffer,
+          ContentType: procContentType,
+        })
+      );
+
+      origPublicUrl = r2Domain
+        ? `${r2Domain}/${origPath}`
+        : `https://${bucket}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${origPath}`;
+      procPublicUrl = r2Domain
+        ? `${r2Domain}/${procPath}`
+        : `https://${bucket}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${procPath}`;
+
+      logInfo(`[History] Uploaded to Cloudflare R2: ${origPath}`);
+    } else {
+      // 1. Upload original using admin client
+      const { error: origError } = await supabaseAdmin.storage
+        .from("history_images")
+        .upload(origPath, origBuffer, {
+          contentType: origContentType,
+          upsert: true,
+        });
+      if (origError) {
+        console.error("[History] Original upload error:", JSON.stringify(origError));
+        throw origError;
+      }
+
+      // 2. Upload isolated using admin client
+      const { error: procError } = await supabaseAdmin.storage
+        .from("history_images")
+        .upload(procPath, procBuffer, {
+          contentType: procContentType,
+          upsert: true,
+        });
+      if (procError) {
+        console.error("[History] Isolated upload error:", JSON.stringify(procError));
+        throw procError;
+      }
+
+      // 3. Get public URLs
+      const { data: origUrlData } = supabaseAdmin.storage.from("history_images").getPublicUrl(origPath);
+      const { data: procUrlData } = supabaseAdmin.storage.from("history_images").getPublicUrl(procPath);
+      origPublicUrl = origUrlData.publicUrl;
+      procPublicUrl = procUrlData.publicUrl;
+
+      logInfo(`[History] Uploaded to Supabase Storage: ${origPath}`);
+    }
 
     // 4. Save to history table
     const { data: inserted, error: dbError } = await supabaseAdmin
       .from("history")
       .insert({
         user_id: targetUuid,
-        original_url: origUrlData.publicUrl,
-        processed_url: procUrlData.publicUrl,
+        original_url: origPublicUrl,
+        processed_url: procPublicUrl,
       })
       .select();
 
@@ -1154,7 +1214,33 @@ app.delete("/api/vault/:id", async (req, res) => {
 
     if (dbError) throw dbError;
 
-    // Parse storage paths
+    // 1. Delete from Cloudflare R2 if configured
+    if (r2Client && process.env.R2_BUCKET_NAME) {
+      const getR2KeyFromUrl = (url: string) => {
+        if (!url) return null;
+        try {
+          const u = new URL(url);
+          return u.pathname.replace(/^\/+/, "");
+        } catch {
+          return null;
+        }
+      };
+
+      const origKey = getR2KeyFromUrl(item.original_url);
+      const procKey = getR2KeyFromUrl(item.processed_url);
+      if (origKey) {
+        await r2Client.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: origKey })).catch((e) => {
+          console.warn("[History] R2 delete original warning:", e);
+        });
+      }
+      if (procKey) {
+        await r2Client.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: procKey })).catch((e) => {
+          console.warn("[History] R2 delete processed warning:", e);
+        });
+      }
+    }
+
+    // 2. Also clean up Supabase storage in case of legacy items
     const getStoragePathFromUrl = (url: string) => {
       const parts = url.split("/history_images/");
       return parts.length > 1 ? parts[1] : null;
@@ -1167,7 +1253,9 @@ app.delete("/api/vault/:id", async (req, res) => {
     if (procPath) filesToDelete.push(procPath);
 
     if (filesToDelete.length > 0) {
-      await supabaseAdmin.storage.from("history_images").remove(filesToDelete);
+      await supabaseAdmin.storage.from("history_images").remove(filesToDelete).catch((e) => {
+        console.warn("[History] Supabase storage delete warning:", e);
+      });
     }
 
     res.status(200).json({ success: true });
