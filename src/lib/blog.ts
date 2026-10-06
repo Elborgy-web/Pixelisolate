@@ -480,10 +480,9 @@ export async function getPublishedPosts(category?: string, search?: string, incl
     } else {
       // Direct REST API Fallback with 2.5s timeout
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500);
-        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aXdpY3did3pqa2lqYW1xcXNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDUwODgsImV4cCI6MjA5OTc4MTA4OH0.Y34FVIh9iv6tobH238qAszhN6W3waL4Ko2lkjEqsUd4";
-        const anonRes = await fetch("https://nyiwicwbwzjkijamqqsl.supabase.co/rest/v1/posts?select=*&order=published_at.desc", {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://wnzgwwtidscjwfnapleb.supabase.co";
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Induemd3d3RpZHNjandmbmFwbGViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMzYzODIsImV4cCI6MjEwNjgxMjM4Mn0.c6EmEUjhhv0-aEtS3BRbfqJ_F23CgUIWUu7NOCcHXt8";
+        const anonRes = await fetch(`${supabaseUrl}/rest/v1/posts?select=*&order=published_at.desc`, {
           headers: {
             "apikey": anonKey,
             "Authorization": `Bearer ${anonKey}`

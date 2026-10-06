@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 const resendApiKey = process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY || '';
 const resend = new Resend(resendApiKey || 're_placeholder_key');
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://nyiwicwbwzjkijamqqsl.supabase.co';
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wnzgwwtidscjwfnapleb.supabase.co';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, serviceKey);
 
