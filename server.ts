@@ -16,7 +16,11 @@ const supabaseAdmin = createClient(
 );
 
 // Cloudflare R2 Client (S3-compatible, 10 GB Free, $0 Egress Bandwidth)
-const r2AccountId = (process.env.R2_ACCOUNT_ID || "").trim().replace(/['"]/g, "");
+let r2AccountId = (process.env.R2_ACCOUNT_ID || "").trim().replace(/['"]/g, "");
+// Auto-correct typo between 0 and 6 in Cloudflare account ID if present
+if (r2AccountId === "f710e9176e0bf246d6228c4e720bbe53") {
+  r2AccountId = "f710e9176e6bf246d6228c4e720bbe53";
+}
 const r2AccessKeyId = (process.env.R2_ACCESS_KEY_ID || "").trim().replace(/['"]/g, "");
 const r2SecretAccessKey = (process.env.R2_SECRET_ACCESS_KEY || "").trim().replace(/['"]/g, "");
 const r2BucketName = (process.env.R2_BUCKET_NAME || "").trim().replace(/['"]/g, "");
@@ -1136,10 +1140,10 @@ app.post("/api/vault", async (req, res) => {
 
       origPublicUrl = r2Domain
         ? `${r2Domain}/${origPath}`
-        : `https://${bucket}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${origPath}`;
+        : `https://${bucket}.${r2AccountId}.r2.cloudflarestorage.com/${origPath}`;
       procPublicUrl = r2Domain
         ? `${r2Domain}/${procPath}`
-        : `https://${bucket}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${procPath}`;
+        : `https://${bucket}.${r2AccountId}.r2.cloudflarestorage.com/${procPath}`;
 
       logInfo(`[History] Uploaded to Cloudflare R2: ${origPath}`);
     } else {
