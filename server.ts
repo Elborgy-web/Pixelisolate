@@ -16,20 +16,25 @@ const supabaseAdmin = createClient(
 );
 
 // Cloudflare R2 Client (S3-compatible, 10 GB Free, $0 Egress Bandwidth)
+const r2AccountId = (process.env.R2_ACCOUNT_ID || "").trim().replace(/['"]/g, "");
+const r2AccessKeyId = (process.env.R2_ACCESS_KEY_ID || "").trim().replace(/['"]/g, "");
+const r2SecretAccessKey = (process.env.R2_SECRET_ACCESS_KEY || "").trim().replace(/['"]/g, "");
+const r2BucketName = (process.env.R2_BUCKET_NAME || "").trim().replace(/['"]/g, "");
+
 const hasR2Config = Boolean(
-  process.env.R2_ACCOUNT_ID &&
-  process.env.R2_ACCESS_KEY_ID &&
-  process.env.R2_SECRET_ACCESS_KEY &&
-  process.env.R2_BUCKET_NAME
+  r2AccountId &&
+  r2AccessKeyId &&
+  r2SecretAccessKey &&
+  r2BucketName
 );
 
 const r2Client = hasR2Config
   ? new S3Client({
       region: "auto",
-      endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
       credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
+        accessKeyId: r2AccessKeyId,
+        secretAccessKey: r2SecretAccessKey,
       },
     })
   : null;
@@ -56,6 +61,22 @@ const PORT = 3000;
 app.get("/api/diagnostics/logs", (req, res) => {
   res.setHeader("Content-Type", "text/plain");
   res.send(serverLogs.join("\n"));
+});
+
+app.get("/api/diagnostics/r2-config", (req, res) => {
+  res.json({
+    hasR2Config: Boolean(
+      process.env.R2_ACCOUNT_ID &&
+      process.env.R2_ACCESS_KEY_ID &&
+      process.env.R2_SECRET_ACCESS_KEY &&
+      process.env.R2_BUCKET_NAME
+    ),
+    accountId: process.env.R2_ACCOUNT_ID || null,
+    bucket: process.env.R2_BUCKET_NAME || null,
+    hasAccessKey: Boolean(process.env.R2_ACCESS_KEY_ID),
+    hasSecretKey: Boolean(process.env.R2_SECRET_ACCESS_KEY),
+    supabaseUrl: process.env.VITE_SUPABASE_URL || null,
+  });
 });
 
 // Enable Cross-Origin Resource Sharing (CORS), Security Headers & Canonical Redirects
