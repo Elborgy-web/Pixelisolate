@@ -1174,6 +1174,7 @@ app.post("/api/vault", async (req, res) => {
     res.status(200).json({ success: true, data: inserted });
   } catch (err: any) {
     console.error("Failed to save history via backend API:", err);
+    logError("Failed to save history via backend API:", err);
     let errMsg = "Failed to save history.";
     if (err) {
       errMsg = err.message || err.error_description || (typeof err === "object" ? JSON.stringify(err) : String(err));
