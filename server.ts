@@ -70,16 +70,18 @@ app.get("/api/diagnostics/logs", (req, res) => {
 app.get("/api/diagnostics/r2-config", (req, res) => {
   res.json({
     hasR2Config: Boolean(
-      process.env.R2_ACCOUNT_ID &&
-      process.env.R2_ACCESS_KEY_ID &&
-      process.env.R2_SECRET_ACCESS_KEY &&
-      process.env.R2_BUCKET_NAME
+      r2AccountId &&
+      r2AccessKeyId &&
+      r2SecretAccessKey &&
+      r2BucketName
     ),
-    accountId: process.env.R2_ACCOUNT_ID || null,
-    bucket: process.env.R2_BUCKET_NAME || null,
-    hasAccessKey: Boolean(process.env.R2_ACCESS_KEY_ID),
-    hasSecretKey: Boolean(process.env.R2_SECRET_ACCESS_KEY),
+    accountIdEnv: process.env.R2_ACCOUNT_ID || null,
+    effectiveAccountId: r2AccountId,
+    bucket: r2BucketName || null,
+    hasAccessKey: Boolean(r2AccessKeyId),
+    hasSecretKey: Boolean(r2SecretAccessKey),
     supabaseUrl: process.env.VITE_SUPABASE_URL || null,
+    buildTime: "2026-10-06T02:38:00Z"
   });
 });
 
