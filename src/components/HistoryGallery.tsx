@@ -47,6 +47,37 @@ class ConcurrencyQueue {
 
 const decryptQueue = new ConcurrencyQueue();
 
+const apiBase = (import.meta.env.VITE_API_URL || "").trim();
+
+async function fetchVaultBuffer(url: string): Promise<ArrayBuffer | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (res.ok) {
+      return await res.arrayBuffer();
+    }
+  } catch (e) {}
+
+  // Fallback: If direct R2 access returned 401 or network blocked, stream via backend proxy
+  try {
+    const getVaultKey = (u: string) => {
+      try {
+        const parsed = new URL(u);
+        return parsed.pathname.replace(/^\/+/, "");
+      } catch {
+        return u;
+      }
+    };
+    const key = getVaultKey(url);
+    const proxyRes = await fetch(`${apiBase}/api/vault/file/${key}`);
+    if (proxyRes.ok) {
+      return await proxyRes.arrayBuffer();
+    }
+  } catch (e) {}
+
+  return null;
+}
+
 /**
  * Individual History Card component with Viewport Intersection Decryption
  */
@@ -116,9 +147,8 @@ const HistoryCardItem: React.FC<{
           if (cachedOrigBlob) {
             finalOrig = URL.createObjectURL(cachedOrigBlob);
           } else {
-            const res = await fetch(item.original_url);
-            if (res.ok) {
-              const buf = await res.arrayBuffer();
+            const buf = await fetchVaultBuffer(item.original_url);
+            if (buf) {
               const dec = await decryptStorageBuffer(buf, userId);
               if (dec) {
                 finalOrig = dec;
@@ -140,9 +170,8 @@ const HistoryCardItem: React.FC<{
           if (cachedProcBlob) {
             finalProc = URL.createObjectURL(cachedProcBlob);
           } else {
-            const res = await fetch(item.processed_url);
-            if (res.ok) {
-              const buf = await res.arrayBuffer();
+            const buf = await fetchVaultBuffer(item.processed_url);
+            if (buf) {
               const dec = await decryptStorageBuffer(buf, userId);
               if (dec) {
                 finalProc = dec;
@@ -327,16 +356,32 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
 
   const handleDownload = async (url: string, filename: string) => {
     try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
+      if (url.startsWith("blob:") || url.startsWith("data:")) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      // If it's a remote URL, fetch via vault buffer (with backend proxy fallback) and decrypt
+      const buf = await fetchVaultBuffer(url);
+      if (buf && userId) {
+        const dec = await decryptStorageBuffer(buf, userId);
+        if (dec) {
+          const link = document.createElement("a");
+          link.href = dec;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          return;
+        }
+      }
+
+      window.open(url, "_blank");
     } catch (err) {
       console.error("Download failed:", err);
       window.open(url, "_blank");

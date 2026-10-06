@@ -6,7 +6,7 @@ import { createServer as createViteServer } from "vite";
 import crypto from "crypto";
 import https from "https";
 import { createClient } from "@supabase/supabase-js";
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 
 dotenv.config();
 
@@ -1207,6 +1207,42 @@ app.post("/api/vault", async (req, res) => {
       errMsg = err.message || err.error_description || (typeof err === "object" ? JSON.stringify(err) : String(err));
     }
     res.status(500).json({ error: errMsg });
+  }
+});
+
+// API Endpoint: Proxy/stream image from R2 vault if direct public URL is restricted or fails
+app.get("/api/vault/file/*", async (req, res) => {
+  try {
+    const rawPath = req.params[0];
+    if (!rawPath) {
+      res.status(400).send("Missing file path");
+      return;
+    }
+    if (!r2Client || !r2BucketName) {
+      res.status(404).send("R2 storage not configured");
+      return;
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: r2BucketName,
+      Key: rawPath,
+    });
+
+    const s3Res = await r2Client.send(command);
+    if (!s3Res.Body) {
+      res.status(404).send("File not found");
+      return;
+    }
+
+    res.setHeader("Content-Type", s3Res.ContentType || "application/octet-stream");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+
+    const stream = s3Res.Body as any;
+    stream.pipe(res);
+  } catch (err: any) {
+    console.warn("[Vault Proxy] Failed to stream file:", err?.message || err);
+    res.status(err?.$metadata?.httpStatusCode || 500).send("Failed to retrieve file");
   }
 });
 
