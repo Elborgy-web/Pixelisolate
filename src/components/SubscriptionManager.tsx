@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
+import { API_BASE_URL } from "../utils/apiConfig";
 import { CreditCard, Zap, Coins, ArrowUpRight, Loader2, Sparkles, AlertCircle, ExternalLink } from "lucide-react";
 
 interface SubscriptionManagerProps {
@@ -41,8 +42,7 @@ export default function SubscriptionManager({ userId, credits, hdCredits, isPro,
     setPortalLoading(true);
     setPortalError(null);
     try {
-      const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-      const res = await fetch(`${apiBase}/api/billing/portal?userId=${userId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/billing/portal?userId=${userId}`, {
         method: "GET",
         redirect: "manual",  // intercept the redirect
       });
@@ -50,7 +50,7 @@ export default function SubscriptionManager({ userId, credits, hdCredits, isPro,
       // A successful redirect (status 0 = opaque redirect, or 3xx) means we got a portal URL
       if (res.type === "opaqueredirect" || res.status === 0 || (res.status >= 300 && res.status < 400)) {
         // Can't get URL from opaque redirect — navigate directly
-        window.open(`${apiBase}/api/billing/portal?userId=${userId}`, "_blank");
+        window.open(`${API_BASE_URL}/api/billing/portal?userId=${userId}`, "_blank");
         return;
       }
 
@@ -60,7 +60,7 @@ export default function SubscriptionManager({ userId, credits, hdCredits, isPro,
       }
 
       // Shouldn't reach here normally (redirect intercepted)
-      window.open(`${apiBase}/api/billing/portal?userId=${userId}`, "_blank");
+      window.open(`${API_BASE_URL}/api/billing/portal?userId=${userId}`, "_blank");
     } catch (err: any) {
       console.error("Portal error:", err);
       setPortalError("Could not open the billing portal. If you subscribed during a test period, please contact support to transfer your account.");

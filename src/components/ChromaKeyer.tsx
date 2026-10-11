@@ -37,6 +37,7 @@ import { removeBackgroundRMBG, preloadRMBGModel } from "../utils/rmbgRemoval";
 import { encryptDataUri } from "../utils/cryptoVault";
 import { yieldToMainThread } from "../utils/yield";
 import { supabase } from "../utils/supabaseClient";
+import { API_BASE_URL } from "../utils/apiConfig";
 import JSZip from "jszip";
 
 function autoRecoverForeground(
@@ -244,16 +245,15 @@ export default function ChromaKeyer({
       const encOrig = await encryptDataUri(originalBase64, activeUserId);
       const encProc = await encryptDataUri(isolatedBase64, activeUserId);
 
-      const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-      let response: Response;
       const payloadStr = JSON.stringify({
         userId: activeUserId,
         originalBase64: encOrig,
         processedBase64: encProc,
       });
 
+      let response: Response;
       try {
-        response = await fetch(`${apiBase}/api/vault`, {
+        response = await fetch(`${API_BASE_URL}/api/vault`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -261,18 +261,14 @@ export default function ChromaKeyer({
           body: payloadStr,
         });
       } catch (fetchErr) {
-        if (!apiBase) {
-          console.warn("[History] Primary fetch failed, trying direct server fallback...", fetchErr);
-          response = await fetch("http://localhost:3000/api/vault", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: payloadStr,
-          });
-        } else {
-          throw fetchErr;
-        }
+        console.warn("[History] Primary fetch failed, trying local fallback...", fetchErr);
+        response = await fetch("http://localhost:3000/api/vault", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: payloadStr,
+        });
       }
 
       if (!response.ok) {
@@ -785,8 +781,7 @@ export default function ChromaKeyer({
     if (!analysisTarget) return;
     setIsAnalyzing(true);
     try {
-      const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-      const res = await fetch(`${apiBase}/api/analyze`, {
+      const res = await fetch(`${API_BASE_URL}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2037,8 +2032,7 @@ export default function ChromaKeyer({
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout for fast bulk processing
-          const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-          const res = await fetch(`${apiBase}/api/analyze`, {
+          const res = await fetch(`${API_BASE_URL}/api/analyze`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

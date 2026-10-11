@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../utils/supabaseClient";
 import { Download, Trash2, Loader2, Sparkles, Image as ImageIcon, Lock } from "lucide-react";
 import { decryptStorageBuffer, getCachedDecryptedBlob, setCachedDecryptedBlob } from "../utils/cryptoVault";
+import { API_BASE_URL, getVaultProxyUrl } from "../utils/apiConfig";
 
 interface HistoryItem {
   id: string;
@@ -47,31 +48,25 @@ class ConcurrencyQueue {
 
 const decryptQueue = new ConcurrencyQueue();
 
-const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-
 async function fetchVaultBuffer(url: string): Promise<ArrayBuffer | null> {
   if (!url) return null;
+
+  // 1. Vault proxy stream (avoids direct R2 401 Unauthorized errors)
+  const proxyUrl = getVaultProxyUrl(url);
+  try {
+    const proxyRes = await fetch(proxyUrl);
+    if (proxyRes.ok) {
+      return await proxyRes.arrayBuffer();
+    }
+  } catch (e) {
+    console.warn("[Vault] Proxy fetch error:", e);
+  }
+
+  // 2. Direct fetch fallback only if proxy failed
   try {
     const res = await fetch(url);
     if (res.ok) {
       return await res.arrayBuffer();
-    }
-  } catch (e) {}
-
-  // Fallback: If direct R2 access returned 401 or network blocked, stream via backend proxy
-  try {
-    const getVaultKey = (u: string) => {
-      try {
-        const parsed = new URL(u);
-        return parsed.pathname.replace(/^\/+/, "");
-      } catch {
-        return u;
-      }
-    };
-    const key = getVaultKey(url);
-    const proxyRes = await fetch(`${apiBase}/api/vault/file/${key}`);
-    if (proxyRes.ok) {
-      return await proxyRes.arrayBuffer();
     }
   } catch (e) {}
 
@@ -91,9 +86,18 @@ const HistoryCardItem: React.FC<{
 }> = ({ item, userId, deletingId, onDelete, onDownload }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
-  const [origUrl, setOrigUrl] = useState<string>(item.original_url);
-  const [procUrl, setProcUrl] = useState<string>(item.processed_url);
+  const [origUrl, setOrigUrl] = useState<string>(() => {
+    if (memoryBlobUrlCache.has(item.id)) return memoryBlobUrlCache.get(item.id)!.origUrl;
+    return getVaultProxyUrl(item.original_url);
+  });
+  const [procUrl, setProcUrl] = useState<string>(() => {
+    if (memoryBlobUrlCache.has(item.id)) return memoryBlobUrlCache.get(item.id)!.procUrl;
+    return getVaultProxyUrl(item.processed_url);
+  });
+  const [origError, setOrigError] = useState(false);
+  const [procError, setProcError] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState<boolean>(true);
+  const isLegacy = item.processed_url?.includes("nyiwicwbwzjkijamqqsl") || item.original_url?.includes("nyiwicwbwzjkijamqqsl");
 
   // 1. Viewport IntersectionObserver + Immediate Fallback
   useEffect(() => {
@@ -137,8 +141,8 @@ const HistoryCardItem: React.FC<{
     let isMounted = true;
 
     decryptQueue.add(async () => {
-      let finalOrig = item.original_url;
-      let finalProc = item.processed_url;
+      let finalOrig = getVaultProxyUrl(item.original_url);
+      let finalProc = getVaultProxyUrl(item.processed_url);
 
       try {
         // Fetch & Decrypt Original Image
@@ -219,30 +223,50 @@ const HistoryCardItem: React.FC<{
         )}
 
         {/* Left Side: Original */}
-        <div className="w-1/2 h-full border-r border-gray-950 overflow-hidden relative">
-          <img
-            src={origUrl}
-            alt="Original"
-            decoding="async"
-            loading="lazy"
-            className="w-full h-full object-cover group-hover:scale-[1.03] transition duration-500"
-          />
+        <div className="w-1/2 h-full border-r border-gray-950 overflow-hidden relative bg-gray-900/50 flex items-center justify-center">
+          {origError ? (
+            <div className="flex flex-col items-center justify-center p-2 text-center">
+              <ImageIcon className="h-5 w-5 text-gray-600 mb-1" />
+              <span className="text-[9px] font-mono text-gray-500">
+                {isLegacy ? "Archived Asset" : "Original"}
+              </span>
+            </div>
+          ) : (
+            <img
+              src={origUrl}
+              alt="Original"
+              decoding="async"
+              loading="lazy"
+              onError={() => setOrigError(true)}
+              className="w-full h-full object-cover group-hover:scale-[1.03] transition duration-500"
+            />
+          )}
           <span className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-gray-950/80 backdrop-blur-md rounded text-[8px] font-mono text-gray-400 border border-gray-850 z-20">
             Original
           </span>
         </div>
 
         {/* Right Side: Processed Over Grid */}
-        <div className="w-1/2 h-full overflow-hidden relative checkerboard-preview-bg">
-          <img
-            src={procUrl}
-            alt="Isolated"
-            decoding="async"
-            loading="lazy"
-            className="w-full h-full object-cover group-hover:scale-[1.03] transition duration-500 relative z-10"
-          />
+        <div className="w-1/2 h-full overflow-hidden relative checkerboard-preview-bg flex items-center justify-center">
+          {procError ? (
+            <div className="flex flex-col items-center justify-center p-2 text-center bg-gray-900/70 w-full h-full">
+              <Sparkles className="h-5 w-5 text-gray-600 mb-1" />
+              <span className="text-[9px] font-mono text-gray-500">
+                {isLegacy ? "Archived (Quota Restricted)" : "Preview Unavailable"}
+              </span>
+            </div>
+          ) : (
+            <img
+              src={procUrl}
+              alt="Isolated"
+              decoding="async"
+              loading="lazy"
+              onError={() => setProcError(true)}
+              className="w-full h-full object-cover group-hover:scale-[1.03] transition duration-500 relative z-10"
+            />
+          )}
           <span className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-gray-950/80 backdrop-blur-md rounded text-[8px] font-mono text-emerald-400 border border-gray-850 z-20">
-            Isolated
+            {isLegacy ? "Legacy Archive" : "Isolated"}
           </span>
         </div>
       </div>
@@ -328,8 +352,7 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
   const handleDelete = async (item: HistoryItem) => {
     setDeletingId(item.id);
     try {
-      const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-      const response = await fetch(`${apiBase}/api/vault/${item.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/vault/${item.id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -366,25 +389,44 @@ export default function HistoryGallery({ userId, isPro }: HistoryGalleryProps) {
         return;
       }
 
-      // If it's a remote URL, fetch via vault buffer (with backend proxy fallback) and decrypt
+      // If it's a remote URL, fetch via vault buffer (proxy-backed) and decrypt
       const buf = await fetchVaultBuffer(url);
-      if (buf && userId) {
-        const dec = await decryptStorageBuffer(buf, userId);
-        if (dec) {
-          const link = document.createElement("a");
-          link.href = dec;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          return;
+      if (buf) {
+        let downloadUrl = "";
+        if (userId) {
+          const dec = await decryptStorageBuffer(buf, userId);
+          if (dec) downloadUrl = dec;
         }
+
+        if (!downloadUrl) {
+          // If already unencrypted or raw binary, create a direct blob
+          const blob = new Blob([buf], { type: "image/png" });
+          downloadUrl = URL.createObjectURL(blob);
+        }
+
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
       }
 
-      window.open(url, "_blank");
+      if (url.includes("nyiwicwbwzjkijamqqsl") || url.includes("supabase.co/storage")) {
+        alert("This historical asset was stored in the legacy Supabase project which is currently restricted due to plan quota. All newly isolated assets are stored permanently in Cloudflare R2 and download instantly.");
+        return;
+      }
+
+      // Safe fallback: open proxy URL instead of raw R2 bucket domain to prevent 401
+      window.open(getVaultProxyUrl(url), "_blank");
     } catch (err) {
       console.error("Download failed:", err);
-      window.open(url, "_blank");
+      if (url.includes("nyiwicwbwzjkijamqqsl") || url.includes("supabase.co/storage")) {
+        alert("This historical asset was stored in the legacy Supabase project which is currently restricted due to plan quota.");
+        return;
+      }
+      window.open(getVaultProxyUrl(url), "_blank");
     }
   };
 

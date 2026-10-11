@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from "react";
 import LandingPage from "./components/LandingPage";
 import { supabase } from "./utils/supabaseClient";
+import { API_BASE_URL } from "./utils/apiConfig";
 import { initializePaddle } from "@paddle/paddle-js";
 
 import BlogIndex from "./components/BlogIndex";
@@ -163,8 +164,7 @@ export default function App() {
   useEffect(() => {
     async function initPaddle() {
       try {
-        const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-        const response = await fetch(`${apiBase}/api/billing/config`);
+        const response = await fetch(`${API_BASE_URL}/api/billing/config`);
         if (!response.ok) throw new Error(`Server returned status ${response.status}`);
         const config = await response.json();
         
@@ -239,7 +239,7 @@ export default function App() {
       const activeUser = session?.user ?? null;
       setUser(activeUser);
       if (activeUser) {
-        fetchProfile(activeUser.id, activeUser.email || "");
+        fetchProfile(activeUser.id, activeUser.email || "", activeUser);
         setCurrentTab((prev) => (prev === "landing" ? "editor" : prev));
       }
     });
@@ -249,7 +249,7 @@ export default function App() {
       const activeUser = session?.user ?? null;
       setUser(activeUser);
       if (activeUser) {
-        fetchProfile(activeUser.id, activeUser.email || "");
+        fetchProfile(activeUser.id, activeUser.email || "", activeUser);
         setCurrentTab((prev) => (prev === "landing" ? "editor" : prev));
       } else {
         setProfile(null);
@@ -360,13 +360,15 @@ export default function App() {
     };
   }, []);
 
-  const fetchProfile = async (userId: string, email: string) => {
+  const fetchProfile = async (userId: string, email: string, userObj?: any) => {
     // 1. Read cached profile from localStorage for instant persistence across page refreshes
     let localCached: any = null;
     try {
       const raw = localStorage.getItem(`pixelisolate_profile_${userId}`);
       if (raw) localCached = JSON.parse(raw);
     } catch (e) {}
+
+    const meta = userObj?.user_metadata || {};
 
     const isVipEmail = email.toLowerCase().includes("elborgy") || 
                        email.toLowerCase().includes("admin") || 
@@ -384,19 +386,21 @@ export default function App() {
       // Fallback: If profile row not found in database, insert it immediately client-side
       if (error && (error.code === "PGRST116" || error.message?.includes("rows"))) {
         console.info("[Auth] Profile not found in database. Auto-creating client-side...");
+        const resolvedName = localCached?.display_name || localCached?.full_name || meta.display_name || meta.full_name || (email ? email.split("@")[0] : "User");
+        const resolvedAvatar = localCached?.avatar_url || meta.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`;
+
         const { data: newProfile, error: insertError } = await supabase
           .from("profiles")
           .insert({
             id: userId,
             email: email,
-            display_name: localCached?.display_name || (email ? email.split("@")[0] : "User"),
-            avatar_url: localCached?.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
-            bio: localCached?.bio || "",
-            role: localCached?.role || (isVipEmail ? "admin" : "user"),
+            full_name: resolvedName,
+            avatar_url: resolvedAvatar,
             credits: isVipEmail ? 9999 : 10,
             hd_credits_remaining: isVipEmail ? 9999 : 3,
             solid_bg_trials_remaining: isVipEmail ? 9999 : 3,
-            is_pro: isVipEmail ? true : false
+            is_pro: isVipEmail ? true : false,
+            email_notifications_enabled: true
           })
           .select()
           .single();
@@ -410,10 +414,21 @@ export default function App() {
       if (!error && data) {
         const merged = {
           ...data,
-          display_name: localCached?.display_name || data.display_name || (email ? email.split("@")[0] : "User"),
-          avatar_url: localCached?.avatar_url || data.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
-          bio: localCached?.bio || data.bio || "",
-          role: localCached?.role || data.role || (isVipEmail ? "admin" : "user"),
+          display_name: localCached?.display_name || data.display_name || data.full_name || meta.display_name || meta.full_name || (email ? email.split("@")[0] : "User"),
+          full_name: data.full_name || localCached?.full_name || meta.full_name || (email ? email.split("@")[0] : "User"),
+          avatar_url: localCached?.avatar_url || data.avatar_url || meta.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
+          bio: localCached?.bio || data.bio || meta.bio || "",
+          role: localCached?.role || data.role || meta.role || (isVipEmail ? "admin" : "user"),
+          email_notifications: localCached?.email_notifications !== undefined
+            ? localCached.email_notifications
+            : data.email_notifications_enabled !== undefined
+            ? data.email_notifications_enabled
+            : meta.email_notifications !== undefined
+            ? meta.email_notifications
+            : true,
+          email_notifications_enabled: data.email_notifications_enabled !== undefined
+            ? data.email_notifications_enabled
+            : true,
           is_pro: isVipEmail ? true : (data.is_pro ?? false),
           credits: isVipEmail ? Math.max(data.credits || 0, 9999) : (data.credits ?? 10),
           hd_credits_remaining: isVipEmail ? Math.max(data.hd_credits_remaining || 0, 9999) : (data.hd_credits_remaining ?? 3),
@@ -432,10 +447,13 @@ export default function App() {
     const fallbackProfile = localCached || {
       id: userId,
       email: email,
-      display_name: (email ? email.split("@")[0] : "User"),
-      avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
-      bio: "",
-      role: isVipEmail ? "admin" : "user",
+      display_name: meta.display_name || meta.full_name || (email ? email.split("@")[0] : "User"),
+      full_name: meta.full_name || meta.display_name || (email ? email.split("@")[0] : "User"),
+      avatar_url: meta.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
+      bio: meta.bio || "",
+      role: meta.role || (isVipEmail ? "admin" : "user"),
+      email_notifications: meta.email_notifications !== undefined ? meta.email_notifications : true,
+      email_notifications_enabled: true,
       credits: isVipEmail ? 9999 : 10,
       hd_credits_remaining: isVipEmail ? 9999 : 3,
       solid_bg_trials_remaining: isVipEmail ? 9999 : 3,

@@ -14,6 +14,7 @@
  */
 
 import { RawImage, AutoModelForImageToImage, env } from "@huggingface/transformers";
+import { API_BASE_URL } from "./apiConfig";
 
 export type ImageCategory = "graphic" | "product" | "portrait";
 export type UpscaleTarget = "2x" | "4k" | "8k";
@@ -106,7 +107,7 @@ export async function processSuperResolution(
     const timeoutMs = scaleFactor > 4 ? 25000 : 10000; // 25s for 8K multi-pass, 10s for 4K/2x
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const response = await fetch("/api/upscale", {
+    const response = await fetch(`${API_BASE_URL}/api/upscale`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,

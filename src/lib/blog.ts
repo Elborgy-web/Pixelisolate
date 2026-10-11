@@ -1,4 +1,5 @@
 import { supabase } from "../utils/supabaseClient";
+import { API_BASE_URL } from "../utils/apiConfig";
 
 export interface BlogPost {
   id: string;
@@ -44,10 +45,25 @@ export interface UserProfile {
   is_pro?: boolean;
 }
 
+export function isValidUUID(str: any): boolean {
+  return typeof str === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
+}
+
+export function generateUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 // Built-in seed posts (cleared so user has 100% full control over post creation & deletion)
 export const INITIAL_SEED_POSTS: BlogPost[] = [
   {
-    "id": "post-1785374599817-ib6x",
+    "id": "e1f8a920-3b4c-4e5d-8f9a-1c2d3e4f5a6b",
     "slug": "introducing-pixelisolates-new-ai-image-upscaler-bulk-batch-engine-scale-designs-to-8k-in-seconds-nebwp",
     "title": "Introducing PixelIsolate's New AI Image Upscaler & Bulk Batch Engine: Scale Designs to 8K in Seconds",
     "excerpt": "Stop scaling art with blurry results. Meet our new AI engine that upscales images to massive 8K resolution for large-format print projects and includes a dedicated bulk batch processor to handle entire collections at once.",
@@ -402,12 +418,13 @@ export function getCachedPosts(category?: string, search?: string, includeUnpubl
       const key = matchingSeed ? matchingSeed.id : (p.id || p.slug);
       if (matchingSeed) {
         const merged: BlogPost = {
+          ...matchingSeed,
           ...p,
-          id: matchingSeed.id,
-          slug: matchingSeed.slug,
-          title: matchingSeed.title || p.title,
-          excerpt: matchingSeed.excerpt || p.excerpt,
-          cover_image: p.cover_image || (matchingSeed ? matchingSeed.cover_image : ""),
+          id: p.id || matchingSeed.id,
+          slug: p.slug || matchingSeed.slug,
+          title: p.title || matchingSeed.title,
+          excerpt: p.excerpt || matchingSeed.excerpt,
+          cover_image: p.cover_image || matchingSeed.cover_image,
           content: (p.content && p.content.trim().length > 0) ? p.content : matchingSeed.content,
         };
         allMap.set(key, merged);
@@ -463,14 +480,10 @@ export async function getPublishedPosts(category?: string, search?: string, incl
       query = query.eq("is_published", true);
     }
 
-    if (category && category !== "All") {
-      query = query.eq("category", category);
-    }
-
-    // Add a 2.5s timeout for DB queries to avoid statement timeouts
+    // Add a 5s timeout for DB queries to handle cold starts gracefully
     const fetchPromise = query.then(res => res);
     const timeoutPromise = new Promise<any>(res =>
-      setTimeout(() => res({ data: null, error: new Error("DB timeout") }), 2500)
+      setTimeout(() => res({ data: null, error: new Error("DB timeout") }), 5000)
     );
 
     const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
@@ -478,8 +491,10 @@ export async function getPublishedPosts(category?: string, search?: string, incl
     if (!error && data && data.length > 0) {
       dbPosts = data as BlogPost[];
     } else {
-      // Direct REST API Fallback with 2.5s timeout
+      // 1. Direct REST API Fallback with 5s timeout
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://wnzgwwtidscjwfnapleb.supabase.co";
         const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Induemd3d3RpZHNjandmbmFwbGViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMzYzODIsImV4cCI6MjEwNjgxMjM4Mn0.c6EmEUjhhv0-aEtS3BRbfqJ_F23CgUIWUu7NOCcHXt8";
         const anonRes = await fetch(`${supabaseUrl}/rest/v1/posts?select=*&order=published_at.desc`, {
@@ -497,6 +512,19 @@ export async function getPublishedPosts(category?: string, search?: string, incl
           }
         }
       } catch (e) {}
+
+      // 2. Backend API server fallback
+      if (dbPosts.length === 0) {
+        try {
+          const fRes = await fetch(`${API_BASE_URL}/api/blog/posts`).catch(() => null);
+          if (fRes && fRes.ok) {
+            const fData = await fRes.json();
+            if (fData && Array.isArray(fData) && fData.length > 0) {
+              dbPosts = fData;
+            }
+          }
+        } catch (e) {}
+      }
     }
   } catch (err) {
     console.warn("DB posts query error:", err);
@@ -519,12 +547,12 @@ export async function getPublishedPosts(category?: string, search?: string, incl
       const merged: BlogPost = {
         ...matchingSeed,
         ...p,
-        id: matchingSeed.id,
-        slug: matchingSeed.slug,
-        title: matchingSeed.title,
-        excerpt: matchingSeed.excerpt,
-        cover_image: matchingSeed.cover_image,
-        content: matchingSeed.content,
+        id: p.id || matchingSeed.id,
+        slug: p.slug || matchingSeed.slug,
+        title: p.title || matchingSeed.title,
+        excerpt: p.excerpt || matchingSeed.excerpt,
+        cover_image: p.cover_image || matchingSeed.cover_image,
+        content: (p.content && p.content.trim().length > 0) ? p.content : matchingSeed.content,
       };
       allMap.set(key, merged);
     } else {
@@ -540,15 +568,17 @@ export async function getPublishedPosts(category?: string, search?: string, incl
     const key = matchingSeed ? matchingSeed.id : (p.id || p.slug);
     const dbObj = { ...p };
     if (matchingSeed) {
-      dbObj.id = matchingSeed.id;
-      dbObj.slug = matchingSeed.slug;
-      dbObj.title = matchingSeed.title || dbObj.title;
-      dbObj.excerpt = matchingSeed.excerpt || dbObj.excerpt;
-      if (!dbObj.cover_image && matchingSeed) { dbObj.cover_image = matchingSeed.cover_image; }
+      dbObj.id = p.id || matchingSeed.id;
+      dbObj.slug = p.slug || matchingSeed.slug;
+      dbObj.title = p.title || matchingSeed.title;
+      dbObj.excerpt = p.excerpt || matchingSeed.excerpt;
+      dbObj.cover_image = p.cover_image || matchingSeed.cover_image;
       if (!dbObj.content || dbObj.content.trim().length === 0) {
         dbObj.content = matchingSeed.content;
       }
-    } else if (!dbObj.cover_image && INITIAL_SEED_POSTS.length > 0) { dbObj.cover_image = INITIAL_SEED_POSTS[0].cover_image; }
+    } else if (!dbObj.cover_image && INITIAL_SEED_POSTS.length > 0) {
+      dbObj.cover_image = INITIAL_SEED_POSTS[0].cover_image;
+    }
     allMap.set(key, dbObj as BlogPost);
   });
 
@@ -641,12 +671,14 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   // 2. Try DB query for full post with 2.5s timeout
   try {
     const baseSlug = cleanSlug.replace(/-[a-z0-9]{4,6}$/, "");
-    const fetchPromise = supabase
-      .from("posts")
-      .select("*")
-      .or(`slug.eq.${cleanSlug},id.eq.${cleanSlug},slug.ilike.${baseSlug}%`)
-      .limit(1)
-      .maybeSingle();
+    const isUUID = isValidUUID(cleanSlug);
+    let query = supabase.from("posts").select("*");
+    if (isUUID) {
+      query = query.or(`id.eq.${cleanSlug},slug.eq.${cleanSlug}`);
+    } else {
+      query = query.or(`slug.eq.${cleanSlug},slug.ilike.${baseSlug}%`);
+    }
+    const fetchPromise = query.limit(1).maybeSingle();
 
     const timeoutPromise = new Promise<any>(res =>
       setTimeout(() => res({ data: null, error: new Error("DB timeout") }), 2500)
@@ -657,11 +689,11 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     if (!error && data) {
       const matchingSeed = findMatchingSeedPost(data);
       if (matchingSeed) {
-        data.id = matchingSeed.id;
-        data.slug = matchingSeed.slug;
-        data.title = matchingSeed.title || data.title;
-        data.excerpt = matchingSeed.excerpt || data.excerpt;
-        if (!data.cover_image && matchingSeed) { data.cover_image = matchingSeed.cover_image; }
+        data.id = data.id || matchingSeed.id;
+        data.slug = data.slug || matchingSeed.slug;
+        data.title = data.title || matchingSeed.title;
+        data.excerpt = data.excerpt || matchingSeed.excerpt;
+        data.cover_image = data.cover_image || matchingSeed.cover_image;
         if (!data.content || data.content.trim().length === 0) {
           data.content = matchingSeed.content;
         }
@@ -727,14 +759,17 @@ export async function createPost(
   const userEmail = (user?.email || "").toLowerCase();
   const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || userEmail.includes("elborgy") || userEmail.includes("admin") || userEmail === "rjhustles@gmail.com" || userEmail === "detourdesignllc@gmail.com" || userEmail === "philip@philipanders.com";
 
+  const postId = generateUUID();
+  const authorId = isValidUUID(user?.id) ? user.id : null;
+
   const newPost: BlogPost = {
-    id: `post-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    id: postId,
     slug,
     title: postData.title,
     excerpt: postData.excerpt,
     content: postData.content,
     cover_image: postData.cover_image || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop",
-    author_id: user?.id,
+    author_id: authorId,
     author_name: authorName,
     author_avatar: authorAvatar,
     category: postData.category || "Tutorials",
@@ -755,9 +790,30 @@ export async function createPost(
 
   // 2. Insert into Supabase DB
   try {
-    const { data } = await supabase.from("posts").insert(newPost).select().single();
+    const { data, error } = await supabase.from("posts").insert(newPost).select().single();
     if (data) {
       newPost.id = data.id;
+    } else if (error) {
+      // Fallback: If DB schema is missing optional columns (category, reading_time_minutes, etc.), insert core columns
+      const corePayload = {
+        id: postId,
+        slug: newPost.slug,
+        title: newPost.title,
+        excerpt: newPost.excerpt,
+        content: newPost.content,
+        cover_image: newPost.cover_image,
+        author_id: authorId,
+        author_name: newPost.author_name,
+        author_avatar: newPost.author_avatar,
+        is_published: true,
+        published_at: newPost.published_at,
+        created_at: newPost.created_at,
+        upvotes_count: 1
+      };
+      const { data: coreData } = await supabase.from("posts").insert(corePayload).select().single();
+      if (coreData) {
+        newPost.id = coreData.id;
+      }
     }
   } catch (e) {
     console.warn("[Blog] Direct Supabase post insert notice:", e);
@@ -768,31 +824,19 @@ export async function createPost(
     const notifyPayload = JSON.stringify(newPost);
     const headers = { "Content-Type": "application/json" };
 
-    // Try relative endpoint first (current origin server), fallback to VITE_API_URL if relative fails
-    let res = await fetch("/api/blog/posts", {
+    // Dispatch to backend API server for post persistence and automated subscriber notifications
+    await fetch(`${API_BASE_URL}/api/blog/posts`, {
       method: "POST",
       headers,
       body: notifyPayload,
-    }).catch(() => null);
-
-    if (!res || !res.ok) {
-      const fallbackApiUrl = (import.meta.env.VITE_API_URL || "").trim();
-      if (fallbackApiUrl) {
-        await fetch(`${fallbackApiUrl}/api/blog/posts`, {
-          method: "POST",
-          headers,
-          body: notifyPayload,
-        }).catch(() => {});
-      }
-    }
+    }).catch((err) => console.warn("[Blog] Notification dispatch request notice:", err));
   } catch (e) {
     console.warn("[Blog] Notification dispatch request notice:", e);
   }
 
   // 4. NOW trigger Facebook Graph API auto-scrape AFTER post exists in DB!
   try {
-    const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-    fetch(`${apiBase}/api/blog/scrape-fb`, {
+    fetch(`${API_BASE_URL}/api/blog/scrape-fb`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ slug: newPost.slug })
@@ -956,14 +1000,27 @@ export async function updatePost(
 
   // 1. Try DB update
   try {
-    const { data } = await supabase
-      .from("posts")
-      .update(updatedFields)
-      .eq("id", postId)
-      .select()
-      .single();
+    const isUUID = isValidUUID(postId);
+    let query = supabase.from("posts").update(updatedFields);
+    query = isUUID ? query.eq("id", postId) : query.eq("slug", postId);
+    const { data, error } = await query.select().single();
+
     if (data) {
       updatedPostResult = data as BlogPost;
+    } else if (error) {
+      // Fallback: If DB schema is missing optional columns (category, updated_at, etc.), update core columns
+      const coreUpdate: any = {
+        title: postData.title,
+        excerpt: postData.excerpt,
+        content: postData.content,
+        cover_image: postData.cover_image
+      };
+      let coreQuery = supabase.from("posts").update(coreUpdate);
+      coreQuery = isUUID ? coreQuery.eq("id", postId) : coreQuery.eq("slug", postId);
+      const { data: coreData } = await coreQuery.select().single();
+      if (coreData) {
+        updatedPostResult = { ...updatedFields, ...coreData } as BlogPost;
+      }
     }
   } catch (e) {}
 
@@ -986,14 +1043,23 @@ export async function updatePost(
     updatedPostResult = seedItem;
   }
 
+  // Update in-memory RAM cache
+  if (postsMemoryCache) {
+    const memIdx = postsMemoryCache.findIndex(p => p.id === postId || p.slug === postId || (seedItem && p.id === seedItem.id));
+    if (memIdx !== -1) {
+      postsMemoryCache[memIdx] = { ...postsMemoryCache[memIdx], ...updatedFields };
+    }
+  }
+
   // 4. Try backend API update
   try {
-    const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-    await fetch(`${apiBase}/api/blog/posts/${encodeURIComponent(postId)}`, {
+    const apiPayload = JSON.stringify(updatedFields);
+    const headers = { "Content-Type": "application/json" };
+    await fetch(`${API_BASE_URL}/api/blog/posts/${encodeURIComponent(postId)}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedFields)
-    });
+      headers,
+      body: apiPayload
+    }).catch(() => {});
   } catch (e) {}
 
   if (updatedPostResult) {
@@ -1015,7 +1081,10 @@ export async function togglePostPublishStatus(postId: string, isPublished: boole
   }
 
   try {
-    await supabase.from("posts").update({ is_published: isPublished }).eq("id", postId);
+    if (isValidUUID(postId)) {
+      await supabase.from("posts").update({ is_published: isPublished }).eq("id", postId);
+    }
+    await supabase.from("posts").update({ is_published: isPublished }).eq("slug", postId);
   } catch (e) {}
 }
 
@@ -1027,15 +1096,20 @@ export async function deletePost(postId: string): Promise<void> {
   const filtered = stored.filter(p => p.id !== postId && p.slug !== postId);
   saveStoredPosts(filtered);
 
+  if (postsMemoryCache) {
+    postsMemoryCache = postsMemoryCache.filter(p => p.id !== postId && p.slug !== postId);
+  }
+
   try {
-    const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-    await fetch(`${apiBase}/api/blog/posts/${encodeURIComponent(postId)}`, {
+    await fetch(`${API_BASE_URL}/api/blog/posts/${encodeURIComponent(postId)}`, {
       method: "DELETE"
-    });
+    }).catch(() => {});
   } catch (e) {}
 
   try {
-    await supabase.from("posts").delete().eq("id", postId);
+    if (isValidUUID(postId)) {
+      await supabase.from("posts").delete().eq("id", postId);
+    }
     await supabase.from("posts").delete().eq("slug", postId);
   } catch (e) {}
 }

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, User, ShieldCheck, Sparkles, Image as ImageIcon, Save, Check, Bell } from "lucide-react";
 import { supabase } from "../utils/supabaseClient";
+import { API_BASE_URL } from "../utils/apiConfig";
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -22,15 +23,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin") || user?.email?.toLowerCase() === "rjhustles@gmail.com" || user?.email?.toLowerCase() === "detourdesignllc@gmail.com" || user?.email?.toLowerCase() === "philip@philipanders.com";
 
   const [displayName, setDisplayName] = useState<string>(
-    profile?.display_name || user?.email?.split("@")[0] || ""
+    profile?.display_name || profile?.full_name || user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || ""
   );
   const [avatarUrl, setAvatarUrl] = useState<string>(
-    profile?.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${user?.id || "user"}`
+    profile?.avatar_url || user?.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${user?.id || "user"}`
   );
-  const [bio, setBio] = useState<string>(profile?.bio || "");
-  const [role, setRole] = useState<string>(profile?.role || (isAdminOrMod ? "admin" : "user"));
+  const [bio, setBio] = useState<string>(profile?.bio || user?.user_metadata?.bio || "");
+  const [role, setRole] = useState<string>(profile?.role || user?.user_metadata?.role || (isAdminOrMod ? "admin" : "user"));
   const [emailNotifications, setEmailNotifications] = useState<boolean>(
-    profile?.email_notifications !== undefined ? Boolean(profile.email_notifications) : true
+    profile?.email_notifications !== undefined
+      ? Boolean(profile.email_notifications)
+      : profile?.email_notifications_enabled !== undefined
+      ? Boolean(profile.email_notifications_enabled)
+      : user?.user_metadata?.email_notifications !== undefined
+      ? Boolean(user.user_metadata.email_notifications)
+      : true
   );
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -40,28 +47,85 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     setIsSaving(true);
     setSavedSuccess(false);
 
+    const nameToSave = displayName.trim();
     const updated = {
       ...profile,
       id: user.id,
       email: user.email,
-      display_name: displayName.trim(),
+      full_name: nameToSave,
+      display_name: nameToSave,
       avatar_url: avatarUrl.trim(),
       bio: bio.trim(),
       role: role,
       email_notifications: emailNotifications,
+      email_notifications_enabled: emailNotifications,
     };
 
-    // Store in localStorage cache for instant persistence across page refreshes
+    // 1. Store in localStorage cache for instant persistence across page refreshes
     try {
       localStorage.setItem(`pixelisolate_profile_${user.id}`, JSON.stringify(updated));
     } catch (e) {}
 
+    // 2. Persist in Supabase Auth user_metadata (lives forever in auth.users, persists on every login)
     try {
-      const { error } = await supabase.from("profiles").upsert(updated);
-      if (error) console.warn("Supabase profile save warning:", error);
-    } catch (err) {
-      console.warn("Profile save fallback:", err);
+      await supabase.auth.updateUser({
+        data: {
+          display_name: nameToSave,
+          full_name: nameToSave,
+          bio: bio.trim(),
+          role: role,
+          avatar_url: avatarUrl.trim(),
+          email_notifications: emailNotifications,
+        }
+      });
+    } catch (authErr) {
+      console.warn("Supabase auth user_metadata notice:", authErr);
     }
+
+    // 3. Persist in Supabase DB public.profiles table
+    try {
+      const fullDbPayload = {
+        id: user.id,
+        email: user.email,
+        full_name: nameToSave,
+        display_name: nameToSave,
+        avatar_url: avatarUrl.trim(),
+        bio: bio.trim(),
+        role: role,
+        email_notifications_enabled: emailNotifications,
+      };
+
+      const { error } = await supabase.from("profiles").upsert(fullDbPayload);
+      if (error) {
+        // Fallback: If DB table does not yet have bio/role/display_name columns,
+        // update the core columns (full_name, avatar_url, email_notifications_enabled)
+        await supabase.from("profiles").update({
+          full_name: nameToSave,
+          avatar_url: avatarUrl.trim(),
+          email_notifications_enabled: emailNotifications
+        }).eq("id", user.id);
+      }
+    } catch (err) {
+      console.warn("Profile save DB fallback:", err);
+    }
+
+    // 4. Also notify backend API endpoint for server-side service role persistence
+    try {
+      const apiPayload = JSON.stringify({
+        userId: user.id,
+        display_name: nameToSave,
+        full_name: nameToSave,
+        bio: bio.trim(),
+        role: role,
+        avatar_url: avatarUrl.trim(),
+        email_notifications: emailNotifications
+      });
+      fetch(`${API_BASE_URL}/api/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: apiPayload
+      }).catch(() => null);
+    } catch (e) {}
 
     setIsSaving(false);
     setSavedSuccess(true);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CheckCircle2, MailX, Bell, ArrowLeft, Home, Sparkles, RefreshCw } from "lucide-react";
+import { API_BASE_URL } from "../utils/apiConfig";
 
 interface UnsubscribeSuccessPageProps {
   onGoToBlog?: () => void;
@@ -25,8 +26,7 @@ export const UnsubscribeSuccessPage: React.FC<UnsubscribeSuccessPageProps> = ({
   const handleResubscribe = async () => {
     setLoading(true);
     try {
-      const apiBase = (import.meta.env.VITE_API_URL || "").trim();
-      const res = await fetch(`${apiBase}/api/unsubscribe/resubscribe`, {
+      const res = await fetch(`${API_BASE_URL}/api/unsubscribe/resubscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: token || "current" }),

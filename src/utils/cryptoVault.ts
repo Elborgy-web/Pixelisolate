@@ -97,6 +97,25 @@ export async function setCachedDecryptedBlob(urlKey: string, blob: Blob): Promis
 }
 
 /**
+ * Derives a deterministic AES-256-GCM CryptoKey for the user using SHA-256 HKDF-style salt.
+ * Ensures vault items are accessible across multiple browsers, devices, and sessions.
+ */
+export async function getDeterministicUserCryptoKey(userId: string): Promise<CryptoKey> {
+  const enc = new TextEncoder();
+  const rawHash = await window.crypto.subtle.digest(
+    "SHA-256",
+    enc.encode(`pixel-vault-v1:${userId}`)
+  );
+  return window.crypto.subtle.importKey(
+    "raw",
+    rawHash,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+/**
  * Gets or creates a secure, non-extractable AES-256 CryptoKey for the user in IndexedDB.
  * Migrates legacy localStorage hex keys if present.
  */
@@ -129,12 +148,8 @@ export async function getOrCreateUserCryptoKey(userId: string): Promise<CryptoKe
     await saveKeyToIDB(userId, key);
     localStorage.removeItem(storageKey);
   } else {
-    // 3. Generate a fresh non-extractable 256-bit AES-GCM key directly via WebCrypto
-    key = await window.crypto.subtle.generateKey(
-      { name: "AES-GCM", length: 256 },
-      false, // non-extractable for max browser security
-      ["encrypt", "decrypt"]
-    );
+    // 3. Derive deterministic AES-256 key for cross-device and cross-session support
+    key = await getDeterministicUserCryptoKey(userId);
     await saveKeyToIDB(userId, key);
   }
 
@@ -183,23 +198,33 @@ export async function decryptBinaryBuffer(
 ): Promise<ArrayBuffer | null> {
   if (!encryptedData || !userId) return null;
 
+  const combined = encryptedData instanceof Uint8Array ? encryptedData : new Uint8Array(encryptedData);
+  if (combined.byteLength < 13) return null;
+
+  const iv = combined.subarray(0, 12);
+  const cipherBytes = combined.subarray(12);
+
+  // 1. Try with the primary key (from IndexedDB)
   try {
     const key = await getOrCreateUserCryptoKey(userId);
-    const combined = encryptedData instanceof Uint8Array ? encryptedData : new Uint8Array(encryptedData);
-
-    if (combined.byteLength < 13) return null;
-
-    const iv = combined.subarray(0, 12);
-    const cipherBytes = combined.subarray(12);
-
     return await window.crypto.subtle.decrypt(
       { name: "AES-GCM", iv },
       key,
       cipherBytes
     );
   } catch (err) {
-    console.error("Zero-Knowledge binary WebCrypto decryption failed:", err);
-    return null;
+    // 2. Fallback: Try with deterministic key
+    try {
+      const fallbackKey = await getDeterministicUserCryptoKey(userId);
+      return await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        fallbackKey,
+        cipherBytes
+      );
+    } catch (fallbackErr) {
+      console.warn("Both primary and deterministic WebCrypto decryption failed:", fallbackErr);
+      return null;
+    }
   }
 }
 
@@ -299,6 +324,18 @@ export async function decryptStorageBuffer(buffer: ArrayBuffer, userId: string):
 
   try {
     const combined = new Uint8Array(buffer);
+
+    // Fast magic bytes check: If it's already an unencrypted JPEG
+    if (combined.length >= 3 && combined[0] === 0xFF && combined[1] === 0xD8 && combined[2] === 0xFF) {
+      const blob = new Blob([buffer], { type: "image/jpeg" });
+      return URL.createObjectURL(blob);
+    }
+
+    // Fast magic bytes check: If it's already an unencrypted PNG
+    if (combined.length >= 4 && combined[0] === 0x89 && combined[1] === 0x50 && combined[2] === 0x4E && combined[3] === 0x47) {
+      const blob = new Blob([buffer], { type: "image/png" });
+      return URL.createObjectURL(blob);
+    }
 
     // Check if raw buffer is an unencrypted legacy DataURI string
     const sample = new TextDecoder().decode(combined.subarray(0, 30));

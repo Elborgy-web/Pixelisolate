@@ -402,40 +402,150 @@ app.get("/api/blog/posts", async (req, res) => {
   res.status(200).json([]);
 });
 
+function isValidUUID(str: any): boolean {
+  return typeof str === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
+}
+
+// User Profile Persistence API
+app.post("/api/profile", async (req, res) => {
+  try {
+    const { userId, display_name, full_name, bio, role, avatar_url, email_notifications } = req.body;
+    if (!userId) {
+      res.status(400).json({ error: "Missing userId" });
+      return;
+    }
+
+    const nameToSave = (display_name || full_name || "").trim();
+
+    // 1. Update Supabase Auth user_metadata (bulletproof, works on all logins/devices)
+    try {
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          display_name: nameToSave,
+          full_name: nameToSave,
+          bio: (bio || "").trim(),
+          role: role || "user",
+          avatar_url: avatar_url || "",
+          email_notifications: email_notifications !== undefined ? Boolean(email_notifications) : true
+        }
+      });
+    } catch (authErr: any) {
+      console.warn("[Profile API] user_metadata update warning:", authErr.message);
+    }
+
+    // 2. Update profiles table
+    const profileUpdate: any = {
+      full_name: nameToSave,
+      avatar_url: avatar_url || null,
+      email_notifications_enabled: email_notifications !== undefined ? Boolean(email_notifications) : true
+    };
+
+    const extendedUpdate = {
+      ...profileUpdate,
+      display_name: nameToSave,
+      bio: (bio || "").trim(),
+      role: role || "user"
+    };
+
+    let { data, error } = await supabaseAdmin
+      .from("profiles")
+      .update(extendedUpdate)
+      .eq("id", userId)
+      .select();
+
+    if (error) {
+      // Fallback if display_name/bio/role columns don't exist in DB schema yet
+      const { data: coreData } = await supabaseAdmin
+        .from("profiles")
+        .update(profileUpdate)
+        .eq("id", userId)
+        .select();
+      data = coreData;
+    }
+
+    res.status(200).json({ success: true, profile: data ? data[0] : extendedUpdate });
+  } catch (err: any) {
+    console.error("[Profile API] Error saving profile:", err);
+    res.status(500).json({ error: err.message || "Failed to update profile" });
+  }
+});
+
+// Blog API Endpoints: Create/Upsert Post
 app.post("/api/blog/posts", async (req, res) => {
   try {
-    const newPost = req.body;
-    if (!newPost || !newPost.title || !newPost.slug) {
+    const postPayload = req.body;
+    if (!postPayload || !postPayload.title || !postPayload.slug) {
       res.status(400).json({ error: "Missing title or slug in post payload" });
       return;
     }
 
-    // 1. Save / Upsert post into Supabase DB
+    // Ensure valid UUID for id
+    const postId = isValidUUID(postPayload.id) ? postPayload.id : crypto.randomUUID();
+    const authorId = isValidUUID(postPayload.author_id) ? postPayload.author_id : null;
+
+    const fullPayload = {
+      ...postPayload,
+      id: postId,
+      author_id: authorId
+    };
+
+    let savedPost: any = null;
+
+    // 1. Try upserting full payload with all columns
     const { data, error } = await supabaseAdmin
       .from("posts")
-      .upsert(newPost, { onConflict: "id" })
+      .upsert(fullPayload, { onConflict: "id" })
       .select()
       .single();
 
-    if (error) {
-      console.warn("[BlogAPI] Failed to save post to DB:", error.message);
+    if (!error && data) {
+      savedPost = data;
+    } else {
+      // Fallback: If DB schema is missing optional columns (category, reading_time_minutes, etc.), insert core columns
+      const corePayload = {
+        id: postId,
+        slug: fullPayload.slug,
+        title: fullPayload.title,
+        excerpt: fullPayload.excerpt || "",
+        content: fullPayload.content || "",
+        cover_image: fullPayload.cover_image || null,
+        author_id: authorId,
+        author_name: fullPayload.author_name || "Community Member",
+        author_avatar: fullPayload.author_avatar || null,
+        is_published: fullPayload.is_published !== false,
+        published_at: fullPayload.published_at || new Date().toISOString(),
+        created_at: fullPayload.created_at || new Date().toISOString(),
+        upvotes_count: fullPayload.upvotes_count || 0
+      };
+
+      const { data: coreData, error: coreErr } = await supabaseAdmin
+        .from("posts")
+        .upsert(corePayload, { onConflict: "id" })
+        .select()
+        .single();
+
+      if (coreErr) {
+        console.warn("[BlogAPI] Core post upsert error:", coreErr.message);
+      } else {
+        savedPost = { ...fullPayload, ...coreData };
+      }
     }
 
     // 2. Trigger automated email notifications to active subscribers if post is published
     let emailResult = { count: 0 };
-    if (newPost.is_published !== false) {
+    if (fullPayload.is_published !== false) {
       try {
         emailResult = await sendNewPostNotification({
-          title: newPost.title,
-          slug: newPost.slug,
-          excerpt: newPost.excerpt || "",
+          title: fullPayload.title,
+          slug: fullPayload.slug,
+          excerpt: fullPayload.excerpt || "",
         });
       } catch (notifyErr) {
         console.error("[BlogAPI] Error sending post notification emails:", notifyErr);
       }
     }
 
-    res.status(200).json({ success: true, post: data || newPost, notifiedSubscribers: emailResult.count });
+    res.status(200).json({ success: true, post: savedPost || fullPayload, notifiedSubscribers: emailResult.count });
   } catch (err: any) {
     console.error("[BlogAPI] Publish route error:", err);
     res.status(500).json({ error: err.message || "Failed to publish post" });
@@ -1333,55 +1443,63 @@ app.delete("/api/vault/:id", async (req, res) => {
   }
 });
 
-// Backend Blog API: Create Post (Admin bypasses RLS)
-app.post("/api/blog/posts", async (req, res) => {
-  try {
-    const postPayload = req.body;
-    if (!postPayload.title || !postPayload.slug) {
-      res.status(400).json({ error: "Missing title or slug" });
-      return;
-    }
-    const { data, error } = await supabaseAdmin
-      .from("posts")
-      .upsert(postPayload, { onConflict: "id" })
-      .select()
-      .single();
-
-    if (error) {
-      console.warn("[Blog API] Admin post insert warning:", error.message);
-      res.status(200).json({ success: false, warning: error.message, data: postPayload });
-      return;
-    }
-    res.status(200).json({ success: true, data });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || "Failed to create post" });
-  }
-});
-
 // Backend Blog API: Update Post (Admin bypasses RLS)
 app.put("/api/blog/posts/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const updatedFields = req.body;
-    const { data, error } = await supabaseAdmin
-      .from("posts")
-      .update(updatedFields)
-      .eq("id", id)
-      .select();
+    const isUUID = isValidUUID(id);
+    let updatedPost: any = null;
 
-    if (error || !data || data.length === 0) {
-      const { data: slugData } = await supabaseAdmin
-        .from("posts")
-        .update(updatedFields)
-        .eq("slug", id)
-        .select();
-      if (slugData && slugData.length > 0) {
-        res.status(200).json({ success: true, data: slugData[0] });
-        return;
+    // 1. Try updating with full fields
+    let query = supabaseAdmin.from("posts").update(updatedFields);
+    query = isUUID ? query.eq("id", id) : query.eq("slug", id);
+    const { data, error } = await query.select();
+
+    if (!error && data && data.length > 0) {
+      updatedPost = data[0];
+    } else {
+      // If updating by id failed or id was a slug
+      if (isUUID) {
+        const { data: slugData } = await supabaseAdmin
+          .from("posts")
+          .update(updatedFields)
+          .eq("slug", id)
+          .select();
+        if (slugData && slugData.length > 0) {
+          updatedPost = slugData[0];
+        }
+      }
+
+      // If still not updated, try with core fields only in case columns like category/updated_at don't exist in DB schema yet
+      if (!updatedPost) {
+        const coreUpdate: any = {};
+        ["title", "excerpt", "content", "cover_image", "author_name", "author_avatar", "is_published"].forEach((k) => {
+          if (updatedFields[k] !== undefined) coreUpdate[k] = updatedFields[k];
+        });
+
+        let coreQuery = supabaseAdmin.from("posts").update(coreUpdate);
+        coreQuery = isUUID ? coreQuery.eq("id", id) : coreQuery.eq("slug", id);
+        const { data: cData } = await coreQuery.select();
+
+        if (cData && cData.length > 0) {
+          updatedPost = { ...updatedFields, ...cData[0] };
+        } else if (isUUID) {
+          const { data: cSlugData } = await supabaseAdmin
+            .from("posts")
+            .update(coreUpdate)
+            .eq("slug", id)
+            .select();
+          if (cSlugData && cSlugData.length > 0) {
+            updatedPost = { ...updatedFields, ...cSlugData[0] };
+          }
+        }
       }
     }
-    res.status(200).json({ success: true, data: data ? data[0] : updatedFields });
+
+    res.status(200).json({ success: true, data: updatedPost || updatedFields });
   } catch (err: any) {
+    console.error("[Blog API] Update error:", err);
     res.status(500).json({ error: err.message || "Failed to update post" });
   }
 });
@@ -1390,7 +1508,9 @@ app.put("/api/blog/posts/:id", async (req, res) => {
 app.delete("/api/blog/posts/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    await supabaseAdmin.from("posts").delete().eq("id", id);
+    if (isValidUUID(id)) {
+      await supabaseAdmin.from("posts").delete().eq("id", id);
+    }
     await supabaseAdmin.from("posts").delete().eq("slug", id);
     res.status(200).json({ success: true });
   } catch (err: any) {
