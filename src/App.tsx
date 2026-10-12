@@ -251,6 +251,9 @@ export default function App() {
       if (activeUser) {
         fetchProfile(activeUser.id, activeUser.email || "", activeUser);
         setCurrentTab((prev) => (prev === "landing" ? "editor" : prev));
+        if (typeof window !== "undefined" && sessionStorage.getItem("pending_redeem_key")) {
+          setPricingModalOpen(true);
+        }
       } else {
         setProfile(null);
       }
@@ -298,6 +301,19 @@ export default function App() {
       setLandingIntent("transparent-png-maker");
     } else if (initPath.startsWith("/background-remover")) {
       setLandingIntent("background-remover");
+    }
+
+    // Check for VIP redeem voucher in URL (e.g., ?redeem=PIXEL-PRO-MIO-XXXX or ?key=...)
+    const redeemKey = urlParams.get("redeem") || urlParams.get("key") || urlParams.get("voucher");
+    if (redeemKey) {
+      sessionStorage.setItem("pending_redeem_key", redeemKey.trim().toUpperCase());
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          setPricingModalOpen(true);
+        } else {
+          setAuthModalOpen(true);
+        }
+      });
     }
 
     if (window.location.hash) {
@@ -935,7 +951,9 @@ export default function App() {
             isOpen={authModalOpen}
             onClose={() => setAuthModalOpen(false)}
             onSuccess={() => {
-              // Profile updates automatically
+              if (typeof window !== "undefined" && sessionStorage.getItem("pending_redeem_key")) {
+                setPricingModalOpen(true);
+              }
             }}
           />
 
@@ -944,6 +962,11 @@ export default function App() {
             onClose={() => setPricingModalOpen(false)}
             userId={user?.id || null}
             userEmail={user?.email || null}
+            onSuccess={() => {
+              if (user) {
+                fetchProfile(user.id, user.email || "", user);
+              }
+            }}
           />
 
           <EmbedBadgeModal

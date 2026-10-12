@@ -1134,6 +1134,96 @@ app.get("/api/billing/portal", async (req: any, res) => {
   }
 });
 
+// Route to redeem MerchOS Enterprise VIP Voucher or Pixel Isolate VIP Key
+app.post("/api/billing/redeem-voucher", async (req: any, res) => {
+  try {
+    const { userId, email, voucherKey } = req.body || {};
+    if (!userId || !voucherKey) {
+      res.status(400).json({ error: "Missing required parameters (userId, voucherKey)." });
+      return;
+    }
+
+    const keyClean = String(voucherKey).trim().toUpperCase();
+    const isMerchOsPattern =
+      keyClean.startsWith("PIXEL-PRO-") ||
+      keyClean.startsWith("MIO-ENTERPRISE-") ||
+      keyClean.startsWith("MIO-ENT-") ||
+      keyClean === "MIO-TRIAL-ALLACCESS";
+
+    if (!isMerchOsPattern) {
+      res.status(400).json({ error: "Invalid VIP voucher key. Key must begin with PIXEL-PRO- or MIO-ENT-." });
+      return;
+    }
+
+    // Verify key with MerchOS backend if network permits
+    let isKeyValid = true;
+    try {
+      const verifyRes = await fetch("https://merchos.shop/api/licensing/verify-pixel-isolate-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: keyClean, email }),
+      });
+      if (verifyRes.ok) {
+        const verifyData: any = await verifyRes.json();
+        isKeyValid = verifyData.valid === true;
+      }
+    } catch (e) {
+      // Fallback to pattern match if MerchOS backend is temporarily unreachable
+      isKeyValid = isMerchOsPattern;
+    }
+
+    if (!isKeyValid) {
+      res.status(400).json({ error: "This VIP voucher key is not active or has expired." });
+      return;
+    }
+
+    // Upgrade user in Supabase profiles
+    const { error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        is_pro: true,
+        credits: 9999,
+        hd_credits_remaining: 9999,
+        solid_bg_trials_remaining: 9999,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+
+    if (profileError) {
+      logError("[Voucher] Failed to upgrade profile:", profileError);
+      res.status(500).json({ error: "Failed to update profile to Pro tier." });
+      return;
+    }
+
+    // Upsert paddle_subscriptions to record active partner bundle
+    try {
+      await supabaseAdmin
+        .from("paddle_subscriptions")
+        .upsert({
+          id: `sub_merchos_bundle_${userId}`,
+          user_id: userId,
+          customer_id: `merchos_${keyClean}`,
+          status: "active",
+          price_id: "pri_merchos_enterprise_bundle",
+          updated_at: new Date().toISOString(),
+        });
+    } catch (_) {}
+
+    logInfo(`[Voucher] Successfully redeemed MerchOS VIP key ${keyClean} for user ${userId} (${email})`);
+
+    res.json({
+      success: true,
+      message: "Pro Tier activated successfully with your MerchOS Enterprise membership!",
+      is_pro: true,
+      credits: 9999,
+      hd_credits_remaining: 9999,
+    });
+  } catch (err: any) {
+    logError("[Voucher] Redemption error:", err);
+    res.status(500).json({ error: err?.message || "Internal server error during voucher redemption." });
+  }
+});
+
 // GET endpoint to securely expose public Paddle configurations to client dynamically at runtime
 app.get("/api/billing/config", (req, res) => {
   const token = (

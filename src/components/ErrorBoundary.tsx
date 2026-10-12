@@ -1,4 +1,4 @@
-import React, { ErrorInfo, ReactNode } from "react";
+import React, { Component, ErrorInfo, ReactNode } from "react";
 import { RefreshCw, AlertTriangle, RotateCcw, Bug } from "lucide-react";
 
 interface Props {
@@ -11,13 +11,14 @@ interface State {
   error: Error | null;
 }
 
-export class ErrorBoundary extends React.Component<Props, State> {
+export class ErrorBoundary extends Component<Props, State> {
+  state: State = {
+    hasError: false,
+    error: null,
+  };
+
   constructor(props: Props) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-    };
   }
 
   // @ts-ignore
@@ -33,12 +34,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
   private handleReset = () => {
     sessionStorage.clear();
     localStorage.removeItem("pixelisolate_upscale_trial_used");
-    this.setState({ hasError: false, error: null });
+    (this as any).setState({ hasError: false, error: null });
     window.location.href = window.location.origin + window.location.pathname;
   };
 
   private handleTryAgain = () => {
-    this.setState({ hasError: false, error: null });
+    (this as any).setState({ hasError: false, error: null });
   };
 
   render() {

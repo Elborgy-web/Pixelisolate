@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, X, ShieldAlert, Sparkles, Zap, Package } from "lucide-react";
+import { Check, X, ShieldAlert, Sparkles, Zap, Package, Loader2, AlertCircle } from "lucide-react";
 import { getPaddleInstance } from "@paddle/paddle-js";
 
 interface PricingModalProps {
@@ -7,9 +7,10 @@ interface PricingModalProps {
   onClose: () => void;
   userId: string | null;
   userEmail: string | null;
+  onSuccess?: () => void;
 }
 
-export default function PricingModal({ isOpen, onClose, userId, userEmail }: PricingModalProps) {
+export default function PricingModal({ isOpen, onClose, userId, userEmail, onSuccess }: PricingModalProps) {
   if (!isOpen) return null;
 
   // Paddle price IDs
@@ -28,14 +29,32 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
   const [promoCode, setPromoCode] = React.useState(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const code = params.get("promo") || params.get("discount") || params.get("code") || params.get("coupon") || "";
+      const code =
+        params.get("redeem") ||
+        params.get("key") ||
+        params.get("voucher") ||
+        params.get("promo") ||
+        params.get("discount") ||
+        params.get("code") ||
+        params.get("coupon") ||
+        (sessionStorage.getItem("pending_redeem_key") || "");
       return code.trim().toUpperCase();
     }
     return "";
   });
 
+  const [redeemLoading, setRedeemLoading] = React.useState(false);
+  const [redeemSuccess, setRedeemSuccess] = React.useState<string | null>(null);
+  const [redeemError, setRedeemError] = React.useState<string | null>(null);
+
   // Valid promo code definitions
   const cleanCode = promoCode.trim().toUpperCase();
+  const isMerchOsVipKey =
+    cleanCode.startsWith("PIXEL-PRO-") ||
+    cleanCode.startsWith("MIO-ENTERPRISE-") ||
+    cleanCode.startsWith("MIO-ENT-") ||
+    cleanCode === "MIO-TRIAL-ALLACCESS";
+
   const PRO_PROMO_CODES = [
     "APPZ20",
     "APPZ30",
@@ -79,6 +98,62 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
 
   const creditDiscountPrice = is30PercentCode ? "$3.50" : "$4.00";
   const creditDiscountBadgeLabel = is30PercentCode ? "30% OFF" : "20% OFF";
+
+  const handleRedeemVoucher = async (codeToRedeem: string) => {
+    if (!userId) {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("pending_redeem_key", codeToRedeem);
+      }
+      alert("Please log in or create your Pixel Isolate account first so we can attach your free Pro Tier to your profile!");
+      return;
+    }
+
+    setRedeemLoading(true);
+    setRedeemError(null);
+    setRedeemSuccess(null);
+
+    try {
+      const res = await fetch("/api/billing/redeem-voucher", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          email: userEmail,
+          voucherKey: codeToRedeem,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setRedeemSuccess("🎉 VIP Key Accepted! Your account has been upgraded to Pro Tier!");
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("pending_redeem_key");
+          try {
+            const cached = localStorage.getItem(`pixelisolate_profile_${userId}`);
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              parsed.is_pro = true;
+              parsed.credits = 9999;
+              parsed.hd_credits_remaining = 9999;
+              localStorage.setItem(`pixelisolate_profile_${userId}`, JSON.stringify(parsed));
+            }
+          } catch (e) {}
+        }
+        if (onSuccess) {
+          onSuccess();
+        }
+        setTimeout(() => {
+          onClose();
+        }, 1800);
+      } else {
+        setRedeemError(data.error || "Could not redeem VIP key. Please verify key is active.");
+      }
+    } catch (err: any) {
+      setRedeemError("Connection error while redeeming key. Please try again.");
+    } finally {
+      setRedeemLoading(false);
+    }
+  };
 
   const handleCheckout = (priceId: string, purchaseType: "subscription" | "credit_topup", creditsToGrant?: number) => {
     if (!userId) {
@@ -148,6 +223,21 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
           </button>
         </div>
 
+        {/* Status alerts */}
+        {redeemSuccess && (
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 flex items-center gap-3 text-xs font-medium animate-fade-in">
+            <Sparkles className="h-5 w-5 text-emerald-400 shrink-0" />
+            <span>{redeemSuccess}</span>
+          </div>
+        )}
+
+        {redeemError && (
+          <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-center gap-3 text-xs font-medium animate-fade-in">
+            <AlertCircle className="h-5 w-5 text-rose-400 shrink-0" />
+            <span>{redeemError}</span>
+          </div>
+        )}
+
         {/* Pricing Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           
@@ -166,7 +256,16 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               <p className="text-gray-400 text-xs mt-1.5 mb-6">Perfect for designers, creators, and daily power-users.</p>
 
               <div className="flex items-baseline gap-2 mb-6">
-                {isProDiscountValid ? (
+                {isMerchOsVipKey ? (
+                  <>
+                    <span className="text-3xl font-extrabold text-emerald-400 tracking-tight">$0.00</span>
+                    <span className="text-sm text-gray-500 line-through">$7.99</span>
+                    <span className="text-xs text-emerald-400 font-mono font-bold">VIP FREE</span>
+                    <span className="ml-auto text-[9px] font-mono font-bold text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/30 uppercase tracking-wider">
+                      MerchOS Enterprise
+                    </span>
+                  </>
+                ) : isProDiscountValid ? (
                   <>
                     <span className="text-3xl font-extrabold text-white tracking-tight">{proDiscountPrice}</span>
                     <span className="text-sm text-gray-500 line-through">$7.99</span>
@@ -215,15 +314,36 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
               </ul>
             </div>
 
-            <button
-              onClick={() => {
-                handleCheckout(PRO_PRICE_ID, "subscription");
-              }}
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-xs hover:shadow-lg hover:shadow-emerald-500/10 active:scale-[0.99] transition duration-200 cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <Sparkles className="h-3.5 w-3.5 shrink-0" />
-              <span>{isProDiscountValid ? `Subscribe to Pro (${proDiscountPrice}/mo)` : "Subscribe to Pro"}</span>
-            </button>
+            {isMerchOsVipKey ? (
+              <button
+                type="button"
+                onClick={() => handleRedeemVoucher(cleanCode)}
+                disabled={redeemLoading}
+                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-gray-950 font-bold text-xs active:scale-[0.99] transition duration-200 cursor-pointer shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 border border-emerald-300 disabled:opacity-60"
+              >
+                {redeemLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-gray-950" />
+                    <span>Activating Pro Tier…</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 fill-current text-gray-950" />
+                    <span>⚡ Activate Free Pro Tier with VIP Key</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  handleCheckout(PRO_PRICE_ID, "subscription");
+                }}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-xs hover:shadow-lg hover:shadow-emerald-500/10 active:scale-[0.99] transition duration-200 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                <span>{isProDiscountValid ? `Subscribe to Pro (${proDiscountPrice}/mo)` : "Subscribe to Pro"}</span>
+              </button>
+            )}
           </div>
 
           {/* Card 2: Pay-As-You-Go Credits */}
@@ -314,7 +434,12 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail }: Pri
             </div>
 
             {promoCode.trim() && (
-              isProDiscountValid || isCreditDiscountValid ? (
+              isMerchOsVipKey ? (
+                <span className="text-[10px] font-mono font-bold text-emerald-300 bg-emerald-500/15 px-2.5 py-1.5 rounded-lg border border-emerald-500/30 whitespace-nowrap flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-emerald-400" />
+                  <span>MerchOS VIP: 100% Free Pro Tier</span>
+                </span>
+              ) : isProDiscountValid || isCreditDiscountValid ? (
                 <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 whitespace-nowrap">
                   {is30PercentCode
                     ? "30% OFF Applied"
