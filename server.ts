@@ -1027,21 +1027,19 @@ app.post("/api/webhooks/paddle", async (req: any, res) => {
         // Fetch current credits
         const { data: profile, error: getError } = await supabaseAdmin
           .from("profiles")
-          .select("credits, hd_credits_remaining")
+          .select("hd_credits")
           .eq("id", userId)
           .single();
 
         if (getError) throw getError;
 
-        const currentCredits = profile?.credits || 0;
-        const currentHdCredits = profile?.hd_credits_remaining || 0;
+        const currentHdCredits = profile?.hd_credits || 0;
         const creditsToGrant = parseInt(customData.creditsToGrant || "100", 10);
 
         const { error: updateError } = await supabaseAdmin
           .from("profiles")
           .update({ 
-            credits: currentCredits + creditsToGrant, 
-            hd_credits_remaining: currentHdCredits + creditsToGrant,
+            hd_credits: currentHdCredits + creditsToGrant,
             updated_at: new Date().toISOString() 
           })
           .eq("id", userId);
@@ -1178,21 +1176,40 @@ app.post("/api/billing/redeem-voucher", async (req: any, res) => {
     }
 
     // Upgrade user in Supabase profiles
-    const { error: profileError } = await supabaseAdmin
+    let { data: updatedProfiles, error: profileError } = await supabaseAdmin
       .from("profiles")
       .update({
         is_pro: true,
-        credits: 9999,
-        hd_credits_remaining: 9999,
+        hd_credits: 9999,
         solid_bg_trials_remaining: 9999,
+        subscription_status: "active",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", userId);
+      .eq("id", userId)
+      .select();
 
     if (profileError) {
       logError("[Voucher] Failed to upgrade profile:", profileError);
       res.status(500).json({ error: "Failed to update profile to Pro tier." });
       return;
+    }
+
+    // If profile didn't exist yet, upsert it
+    if (!updatedProfiles || updatedProfiles.length === 0) {
+      const { error: upsertErr } = await supabaseAdmin
+        .from("profiles")
+        .upsert({
+          id: userId,
+          email: email || undefined,
+          is_pro: true,
+          hd_credits: 9999,
+          solid_bg_trials_remaining: 9999,
+          subscription_status: "active",
+          updated_at: new Date().toISOString(),
+        });
+      if (upsertErr) {
+        logError("[Voucher] Failed to upsert profile record:", upsertErr);
+      }
     }
 
     // Upsert paddle_subscriptions to record active partner bundle
@@ -1216,6 +1233,7 @@ app.post("/api/billing/redeem-voucher", async (req: any, res) => {
       message: "Pro Tier activated successfully with your MerchOS Enterprise membership!",
       is_pro: true,
       credits: 9999,
+      hd_credits: 9999,
       hd_credits_remaining: 9999,
     });
   } catch (err: any) {

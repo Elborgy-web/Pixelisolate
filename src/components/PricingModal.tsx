@@ -1,6 +1,7 @@
 import React from "react";
 import { Check, X, ShieldAlert, Sparkles, Zap, Package, Loader2, AlertCircle } from "lucide-react";
 import { getPaddleInstance } from "@paddle/paddle-js";
+import { API_BASE_URL } from "../utils/apiConfig";
 
 interface PricingModalProps {
   isOpen: boolean;
@@ -8,9 +9,10 @@ interface PricingModalProps {
   userId: string | null;
   userEmail: string | null;
   onSuccess?: () => void;
+  onOpenAuth?: () => void;
 }
 
-export default function PricingModal({ isOpen, onClose, userId, userEmail, onSuccess }: PricingModalProps) {
+export default function PricingModal({ isOpen, onClose, userId, userEmail, onSuccess, onOpenAuth }: PricingModalProps) {
   if (!isOpen) return null;
 
   // Paddle price IDs
@@ -104,7 +106,12 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail, onSuc
       if (typeof window !== "undefined") {
         sessionStorage.setItem("pending_redeem_key", codeToRedeem);
       }
-      alert("Please log in or create your Pixel Isolate account first so we can attach your free Pro Tier to your profile!");
+      if (onOpenAuth) {
+        onClose();
+        onOpenAuth();
+      } else {
+        alert("Please log in or create your Pixel Isolate account first so we can attach your free Pro Tier to your profile!");
+      }
       return;
     }
 
@@ -113,43 +120,73 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail, onSuc
     setRedeemSuccess(null);
 
     try {
-      const res = await fetch("/api/billing/redeem-voucher", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          email: userEmail,
-          voucherKey: codeToRedeem,
-        }),
-      });
+      const endpoints = [
+        `${API_BASE_URL}/api/billing/redeem-voucher`,
+        "/api/billing/redeem-voucher",
+      ];
 
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setRedeemSuccess("🎉 VIP Key Accepted! Your account has been upgraded to Pro Tier!");
-        if (typeof window !== "undefined") {
-          sessionStorage.removeItem("pending_redeem_key");
+      let lastError = "Connection error while redeeming key. Please try again.";
+      let succeeded = false;
+
+      for (const endpoint of endpoints) {
+        try {
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId,
+              email: userEmail,
+              voucherKey: codeToRedeem,
+            }),
+          });
+
+          let data: any = null;
           try {
-            const cached = localStorage.getItem(`pixelisolate_profile_${userId}`);
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              parsed.is_pro = true;
-              parsed.credits = 9999;
-              parsed.hd_credits_remaining = 9999;
-              localStorage.setItem(`pixelisolate_profile_${userId}`, JSON.stringify(parsed));
+            data = await res.json();
+          } catch (_) {}
+
+          if (res.ok && data?.success) {
+            setRedeemSuccess("🎉 VIP Key Accepted! Your account has been upgraded to Pro Tier!");
+            if (typeof window !== "undefined") {
+              sessionStorage.removeItem("pending_redeem_key");
+              try {
+                const cached = localStorage.getItem(`pixelisolate_profile_${userId}`);
+                if (cached) {
+                  const parsed = JSON.parse(cached);
+                  parsed.is_pro = true;
+                  parsed.credits = 9999;
+                  parsed.hd_credits = 9999;
+                  parsed.hd_credits_remaining = 9999;
+                  parsed.solid_bg_trials_remaining = 9999;
+                  parsed.subscription_status = "active";
+                  localStorage.setItem(`pixelisolate_profile_${userId}`, JSON.stringify(parsed));
+                }
+              } catch (e) {}
             }
-          } catch (e) {}
+            if (onSuccess) {
+              onSuccess();
+            }
+            setTimeout(() => {
+              onClose();
+            }, 1800);
+            succeeded = true;
+            break;
+          } else if (data?.error) {
+            lastError = data.error;
+            break;
+          } else if (res.status === 405 || res.status === 404 || res.status === 502) {
+            continue;
+          }
+        } catch (callErr: any) {
+          console.warn(`Fetch error for ${endpoint}:`, callErr);
         }
-        if (onSuccess) {
-          onSuccess();
-        }
-        setTimeout(() => {
-          onClose();
-        }, 1800);
-      } else {
-        setRedeemError(data.error || "Could not redeem VIP key. Please verify key is active.");
+      }
+
+      if (!succeeded) {
+        setRedeemError(lastError);
       }
     } catch (err: any) {
-      setRedeemError("Connection error while redeeming key. Please try again.");
+      setRedeemError(err?.message || "Connection error while redeeming key. Please try again.");
     } finally {
       setRedeemLoading(false);
     }

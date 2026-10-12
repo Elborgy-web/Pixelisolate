@@ -21,6 +21,26 @@ export default {
       });
     }
 
+    // 3. Reverse-proxy all /api/* requests to Express backend on Render
+    if (pathname.startsWith('/api/') || pathname === '/api') {
+      const backendUrl = new URL(request.url);
+      backendUrl.protocol = 'https:';
+      backendUrl.hostname = 'pixelisolate-backend.onrender.com';
+      backendUrl.port = '';
+
+      const proxyHeaders = new Headers(request.headers);
+      proxyHeaders.set('host', 'pixelisolate-backend.onrender.com');
+
+      const proxyReq = new Request(backendUrl.toString(), {
+        method: request.method,
+        headers: proxyHeaders,
+        body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
+        redirect: 'follow',
+      });
+
+      return fetch(proxyReq);
+    }
+
     // Supabase Credentials for Edge Worker SSR
     const SUPABASE_URL = "https://wnzgwwtidscjwfnapleb.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Induemd3d3RpZHNjandmbmFwbGViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMzYzODIsImV4cCI6MjEwNjgxMjM4Mn0.c6EmEUjhhv0-aEtS3BRbfqJ_F23CgUIWUu7NOCcHXt8";

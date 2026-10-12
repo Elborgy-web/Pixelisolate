@@ -412,8 +412,7 @@ export default function App() {
             email: email,
             full_name: resolvedName,
             avatar_url: resolvedAvatar,
-            credits: isVipEmail ? 9999 : 10,
-            hd_credits_remaining: isVipEmail ? 9999 : 3,
+            hd_credits: isVipEmail ? 9999 : 3,
             solid_bg_trials_remaining: isVipEmail ? 9999 : 3,
             is_pro: isVipEmail ? true : false,
             email_notifications_enabled: true
@@ -446,8 +445,9 @@ export default function App() {
             ? data.email_notifications_enabled
             : true,
           is_pro: isVipEmail ? true : (data.is_pro ?? false),
-          credits: isVipEmail ? Math.max(data.credits || 0, 9999) : (data.credits ?? 10),
-          hd_credits_remaining: isVipEmail ? Math.max(data.hd_credits_remaining || 0, 9999) : (data.hd_credits_remaining ?? 3),
+          credits: isVipEmail ? 9999 : (data.hd_credits ?? data.credits ?? 10),
+          hd_credits: isVipEmail ? 9999 : (data.hd_credits ?? 3),
+          hd_credits_remaining: isVipEmail ? 9999 : (data.hd_credits ?? data.hd_credits_remaining ?? 3),
           solid_bg_trials_remaining: isVipEmail ? 9999 : (data.solid_bg_trials_remaining ?? 3)
         };
         setProfile(merged);
@@ -962,6 +962,7 @@ export default function App() {
             onClose={() => setPricingModalOpen(false)}
             userId={user?.id || null}
             userEmail={user?.email || null}
+            onOpenAuth={() => setAuthModalOpen(true)}
             onSuccess={() => {
               if (user) {
                 fetchProfile(user.id, user.email || "", user);
