@@ -55,8 +55,12 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail, onSuc
     cleanCode.startsWith("PIXEL-PRO-") ||
     cleanCode.startsWith("MIO-ENTERPRISE-") ||
     cleanCode.startsWith("MIO-ENT-") ||
+    cleanCode.startsWith("MIO-YT-") ||
+    cleanCode.startsWith("MIO-YOUTUBE-") ||
     cleanCode.startsWith("MIO-CREATOR-") ||
-    cleanCode.startsWith("CREATOR-") ||
+    cleanCode.includes("30DAYS") ||
+    cleanCode.includes("30-DAY") ||
+    cleanCode.includes("ALLACCESS") ||
     cleanCode === "MIO-TRIAL-ALLACCESS";
 
   const PRO_PROMO_CODES = [

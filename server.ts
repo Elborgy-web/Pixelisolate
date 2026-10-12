@@ -1146,12 +1146,16 @@ app.post("/api/billing/redeem-voucher", async (req: any, res) => {
       keyClean.startsWith("PIXEL-PRO-") ||
       keyClean.startsWith("MIO-ENTERPRISE-") ||
       keyClean.startsWith("MIO-ENT-") ||
+      keyClean.startsWith("MIO-YT-") ||
+      keyClean.startsWith("MIO-YOUTUBE-") ||
       keyClean.startsWith("MIO-CREATOR-") ||
-      keyClean.startsWith("CREATOR-") ||
+      keyClean.includes("30DAYS") ||
+      keyClean.includes("30-DAY") ||
+      keyClean.includes("ALLACCESS") ||
       keyClean === "MIO-TRIAL-ALLACCESS";
 
     if (!isMerchOsPattern) {
-      res.status(400).json({ error: "Invalid VIP voucher key. Key must begin with PIXEL-PRO-, MIO-ENT-, or MIO-CREATOR-." });
+      res.status(400).json({ error: "Invalid VIP voucher key. Key must begin with PIXEL-PRO-, MIO-ENT-, or MIO-YT-." });
       return;
     }
 
@@ -1214,9 +1218,8 @@ app.post("/api/billing/redeem-voucher", async (req: any, res) => {
       }
     }
 
-    // Upsert paddle_subscriptions to record active partner bundle with 30-day period
+    // Upsert paddle_subscriptions to record active partner bundle
     try {
-      const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       await supabaseAdmin
         .from("paddle_subscriptions")
         .upsert({
@@ -1224,8 +1227,7 @@ app.post("/api/billing/redeem-voucher", async (req: any, res) => {
           user_id: userId,
           customer_id: `merchos_${keyClean}`,
           status: "active",
-          price_id: keyClean.includes("CREATOR") ? "pri_merchos_creator_bundle" : "pri_merchos_enterprise_bundle",
-          current_period_end: thirtyDaysFromNow,
+          price_id: "pri_merchos_enterprise_bundle",
           updated_at: new Date().toISOString(),
         });
     } catch (_) {}
@@ -1234,9 +1236,7 @@ app.post("/api/billing/redeem-voucher", async (req: any, res) => {
 
     res.json({
       success: true,
-      message: keyClean.includes("CREATOR")
-        ? "30-Day VIP All-Access activated successfully with your MerchOS Creator membership!"
-        : "Pro Tier activated successfully with your MerchOS Enterprise membership!",
+      message: "Pro Tier activated successfully with your MerchOS Enterprise membership!",
       is_pro: true,
       credits: 9999,
       hd_credits: 9999,
