@@ -1533,9 +1533,13 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscal
             <span>•</span>
             <a href="https://www.instagram.com/pixelisolate/" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition">Instagram</a>
             <span>•</span>
-            <a href="/privacy.html" className="hover:text-gray-300 transition">Privacy Policy</a>
+            <a href="/terms" className="hover:text-gray-300 transition">Terms of Service</a>
             <span>•</span>
-            <a href="/terms.html" className="hover:text-gray-300 transition">Terms of Service</a>
+            <a href="/privacy" className="hover:text-gray-300 transition">Privacy Policy</a>
+            <span>•</span>
+            <a href="/refund" className="hover:text-gray-300 transition">Refund Policy</a>
+            <span>•</span>
+            <a href="mailto:contact@pixelisolate.online" className="hover:text-emerald-400 transition">Contact Support</a>
             <span>•</span>
             <a href="/sitemap.xml" className="hover:text-gray-300 transition">Sitemap</a>
             {onOpenEmbedBadge && (
