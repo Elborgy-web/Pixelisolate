@@ -135,6 +135,12 @@ export default {
     <priority>0.9</priority>
   </url>
   <url>
+    <loc>${baseUrl}/sitemap</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>${baseUrl}/privacy</loc>
     <lastmod>${today}</lastmod>
     <changefreq>monthly</changefreq>

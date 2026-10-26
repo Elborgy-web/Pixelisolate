@@ -1541,7 +1541,7 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscal
             <span>•</span>
             <a href="mailto:contact@pixelisolate.online" className="hover:text-emerald-400 transition">Contact Support</a>
             <span>•</span>
-            <a href="/sitemap.xml" className="hover:text-gray-300 transition">Sitemap</a>
+            <a href="/sitemap" className="hover:text-gray-300 transition">Sitemap</a>
             {onOpenEmbedBadge && (
               <>
                 <span>•</span>
