@@ -10,27 +10,22 @@ http://pixelisolate.online/*      https://pixelisolate.online/:splat 301!
 # 2. 301 Permanent Redirects for Inbound Broken / Legacy URLs
 /Pixel           https://pixelisolate.online/           301!
 /pixel           https://pixelisolate.online/           301!
-/privacy.html    https://pixelisolate.online/privacy    301!
-/terms.html      https://pixelisolate.online/terms      301!
-/refund.html     https://pixelisolate.online/refund     301!
 
-# 3. 301 Permanent Redirects for Trailing Slash Canonicalization
-/privacy/        https://pixelisolate.online/privacy    301!
-/terms/          https://pixelisolate.online/terms      301!
-/refund/         https://pixelisolate.online/refund     301!
-/sitemap/        https://pixelisolate.online/sitemap    301!
-
-# 4. Static HTML & Text Files (Serve directly with HTTP 200)
+# 3. Static HTML & Text Files (Serve directly with HTTP 200 OK)
 /privacy         /privacy/index.html    200
+/privacy/        /privacy/index.html    200
 /terms           /terms/index.html      200
+/terms/          /terms/index.html      200
 /refund          /refund/index.html     200
+/refund/         /refund/index.html     200
 /sitemap         /sitemap/index.html    200
+/sitemap/        /sitemap/index.html    200
 /sitemap.xml     /sitemap.xml           200
 /llms.txt        /llms.txt              200
 /llms-full.txt   /llms-full.txt         200
 
-# 5. Backend API Proxy (Proxy to Express backend on Render)
+# 4. Backend API Proxy (Proxy to Express backend on Render)
 /api/*           https://pixelisolate-backend.onrender.com/api/:splat  200
 
-# 6. Single Page App Fallback (Serves /index.html with HTTP 200 OK for root app routes)
+# 5. Single Page App Fallback (Serves /index.html with HTTP 200 OK for root app routes)
 /*               /index.html            200

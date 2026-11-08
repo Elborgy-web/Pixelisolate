@@ -143,10 +143,30 @@ export default {
       return Response.redirect(`https://pixelisolate.online/`, 301);
     }
 
-    // 3. 301 Permanent Redirect for trailing slashes on clean static routes
-    if (pathname.length > 1 && pathname.endsWith('/')) {
-      const cleanPath = pathname.slice(0, -1);
-      return Response.redirect(`https://${url.hostname}${cleanPath}${url.search}`, 301);
+    // 3. Direct Static Clean Pages (/sitemap, /privacy, /terms, /refund) - No redirect loops
+    const STATIC_PAGES = {
+      '/sitemap': '/sitemap/index.html',
+      '/sitemap/': '/sitemap/index.html',
+      '/privacy': '/privacy/index.html',
+      '/privacy/': '/privacy/index.html',
+      '/terms': '/terms/index.html',
+      '/terms/': '/terms/index.html',
+      '/refund': '/refund/index.html',
+      '/refund/': '/refund/index.html',
+    };
+
+    if (STATIC_PAGES[pathname]) {
+      const targetPath = STATIC_PAGES[pathname];
+      const assetReq = new Request(new URL(targetPath, request.url), request);
+      const assetRes = await env.ASSETS.fetch(assetReq);
+      return new Response(assetRes.body, {
+        status: 200,
+        headers: {
+          "content-type": "text/html; charset=UTF-8",
+          "x-robots-tag": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+          "cache-control": "public, max-age=3600, s-maxage=86400"
+        }
+      });
     }
 
     // 4. Block direct directory browsing / listing attempts with 403 Forbidden
