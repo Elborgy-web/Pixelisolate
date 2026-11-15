@@ -13,6 +13,60 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+function truncateWordBoundary(text, maxLen) {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (clean.length <= maxLen) return clean;
+  const sliced = clean.slice(0, maxLen).replace(/\s+\S*$/, "").trim();
+  return sliced.length >= Math.min(20, maxLen) ? sliced : clean.slice(0, maxLen).trim();
+}
+
+function buildMetaTitle(metaTitle, title) {
+  const candidate = String(metaTitle || "").trim();
+  if (candidate && candidate.length <= 60) return candidate;
+  const raw = String(candidate || title || "PixelIsolate").trim();
+  const suffix = " | PixelIsolate";
+  if (raw.length + suffix.length <= 60) return `${raw}${suffix}`;
+  if (raw.length <= 60) return raw;
+  return truncateWordBoundary(raw, 60);
+}
+
+function buildMetaDescription(metaDesc, excerpt) {
+  const candidate = String(metaDesc || "").replace(/\s+/g, " ").trim();
+  if (candidate && candidate.length >= 70 && candidate.length <= 160) return candidate;
+  const fallback = String(excerpt || "Read AI background removal, white halo cleanup, and 8K print-ready upscaling guides from PixelIsolate.").replace(/\s+/g, " ").trim();
+  if (fallback.length <= 160) return fallback;
+  return truncateWordBoundary(fallback, 159) + ".";
+}
+
+function escapeAttr(val) {
+  return String(val || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+
+function applyPageMetadata(baseHtml, { title, description, pageUrl, markdownHref, imageUrl, ogType = "website" }) {
+  const safeTitle = escapeAttr(title);
+  const safeDesc = escapeAttr(description);
+  const safeUrl = escapeAttr(pageUrl);
+  const safeImage = escapeAttr(imageUrl);
+  const safeMd = escapeAttr(markdownHref);
+
+  return baseHtml
+    .replace(/<title>.*?<\/title>/gi, `<title>${safeTitle}</title>`)
+    .replace(/<link\s+[^>]*?rel=["']canonical["'][^>]*?>/gi, `<link rel="canonical" href="${safeUrl}" />`)
+    .replace(/<link\s+[^>]*?hreflang=["']en["'][^>]*?>/gi, `<link rel="alternate" hreflang="en" href="${safeUrl}" />`)
+    .replace(/<link\s+[^>]*?hreflang=["']x-default["'][^>]*?>/gi, `<link rel="alternate" hreflang="x-default" href="${safeUrl}" />`)
+    .replace(/<link\s+[^>]*?type=["']text\/markdown["'][^>]*?>/gi, `<link rel="alternate" type="text/markdown" href="${safeMd}" />`)
+    .replace(/<meta\s+name=["']description["'][^>]*?>/gi, `<meta name="description" content="${safeDesc}" />`)
+    .replace(/<meta\s+property=["']og:type["'][^>]*?>/gi, `<meta property="og:type" content="${ogType}" />`)
+    .replace(/<meta\s+property=["']og:title["'][^>]*?>/gi, `<meta property="og:title" content="${safeTitle}" />`)
+    .replace(/<meta\s+property=["']og:description["'][^>]*?>/gi, `<meta property="og:description" content="${safeDesc}" />`)
+    .replace(/<meta\s+property=["']og:image["'][^>]*?>/gi, `<meta property="og:image" content="${safeImage}" />`)
+    .replace(/<meta\s+property=["']og:url["'][^>]*?>/gi, `<meta property="og:url" content="${safeUrl}" />`)
+    .replace(/<meta\s+(?:name|property)=["']twitter:url["'][^>]*?>/gi, `<meta property="twitter:url" content="${safeUrl}" />`)
+    .replace(/<meta\s+(?:name|property)=["']twitter:title["'][^>]*?>/gi, `<meta property="twitter:title" content="${safeTitle}" />`)
+    .replace(/<meta\s+(?:name|property)=["']twitter:description["'][^>]*?>/gi, `<meta property="twitter:description" content="${safeDesc}" />`)
+    .replace(/<meta\s+(?:name|property)=["']twitter:image["'][^>]*?>/gi, `<meta property="twitter:image" content="${safeImage}" />`);
+}
+
 function formatInline(str) {
   if (!str) return "";
   let out = str;
@@ -127,7 +181,7 @@ async function prerender() {
   try {
     const { data, error } = await supabase
       .from("posts")
-      .select("id, slug, title, excerpt, content, cover_image, category, reading_time_minutes, author_name, published_at, updated_at")
+      .select("id, slug, title, meta_title, meta_description, excerpt, content, cover_image, category, reading_time_minutes, author_name, published_at, updated_at")
       .eq("is_published", true)
       .order("published_at", { ascending: false });
 
@@ -219,18 +273,14 @@ async function prerender() {
     </footer>
   `;
 
-  let blogIndexHtml = baseHtml
-    .replace(/<title>.*?<\/title>/gi, `<title>${blogTitle}</title>`)
-    .replace(/<link\s+[^>]*?rel=["']canonical["'][^>]*?>/gi, `<link rel="canonical" href="${blogUrl}" />`)
-    .replace(/<meta name="description" content=".*?" \/>/gi, `<meta name="description" content="${blogDesc}" />`)
-    .replace(/<meta property="og:title" content=".*?" \/>/gi, `<meta property="og:title" content="${blogTitle}" />`)
-    .replace(/<meta property="og:description" content=".*?" \/>/gi, `<meta property="og:description" content="${blogDesc}" />`)
-    .replace(/<meta property="og:image" content=".*?" \/>/gi, `<meta property="og:image" content="${blogImage}" />`)
-    .replace(/<meta property="og:url" content=".*?" \/>/gi, `<meta property="og:url" content="${blogUrl}" />`)
-    .replace(/<meta name="twitter:title" content=".*?" \/>/gi, `<meta name="twitter:title" content="${blogTitle}" />`)
-    .replace(/<meta name="twitter:description" content=".*?" \/>/gi, `<meta name="twitter:description" content="${blogDesc}" />`)
-    .replace(/<meta name="twitter:image" content=".*?" \/>/gi, `<meta name="twitter:image" content="${blogImage}" />`)
-    .replace(/<div id="root">[\s\S]*?<\/div>\s*<\/body>/i, `<div id="root">\n${blogRootContent}\n</div>\n</body>`);
+  let blogIndexHtml = applyPageMetadata(baseHtml, {
+    title: blogTitle,
+    description: blogDesc,
+    pageUrl: blogUrl,
+    markdownHref: "/blog.md",
+    imageUrl: blogImage,
+    ogType: "website"
+  }).replace(/<div id="root">[\s\S]*?<\/div>\s*<\/body>/i, `<div id="root">\n${blogRootContent}\n</div>\n</body>`);
 
   fs.writeFileSync(path.join(blogDir, "index.html"), blogIndexHtml, "utf8");
   console.log(`[Prerender] Generated static HTML for: /blog`);
@@ -242,8 +292,8 @@ async function prerender() {
     const postDir = path.join(blogDir, post.slug);
     if (!fs.existsSync(postDir)) fs.mkdirSync(postDir, { recursive: true });
 
-    const title = `${post.title} | Pixel Isolate`;
-    const desc = (post.excerpt || "").replace(/"/g, '&quot;');
+    const title = buildMetaTitle(post.meta_title, post.title);
+    const desc = buildMetaDescription(post.meta_description, post.excerpt);
     const pageUrl = `https://pixelisolate.online/blog/${post.slug}`;
     const imageUrl = post.cover_image && post.cover_image.startsWith("http")
       ? post.cover_image
@@ -360,18 +410,14 @@ async function prerender() {
       }
     });
 
-    let postHtml = baseHtml
-      .replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`)
-      .replace(/<link\s+[^>]*?rel=["']canonical["'][^>]*?>/gi, `<link rel="canonical" href="${pageUrl}" />`)
-      .replace(/<meta name="description" content=".*?" \/>/gi, `<meta name="description" content="${desc}" />`)
-      .replace(/<meta property="og:type" content=".*?" \/>/gi, `<meta property="og:type" content="article" />`)
-      .replace(/<meta property="og:title" content=".*?" \/>/gi, `<meta property="og:title" content="${title}" />`)
-      .replace(/<meta property="og:description" content=".*?" \/>/gi, `<meta property="og:description" content="${desc}" />`)
-      .replace(/<meta property="og:image" content=".*?" \/>/gi, `<meta property="og:image" content="${imageUrl}" />`)
-      .replace(/<meta property="og:url" content=".*?" \/>/gi, `<meta property="og:url" content="${pageUrl}" />`)
-      .replace(/<meta name="twitter:title" content=".*?" \/>/gi, `<meta name="twitter:title" content="${title}" />`)
-      .replace(/<meta name="twitter:description" content=".*?" \/>/gi, `<meta name="twitter:description" content="${desc}" />`)
-      .replace(/<meta name="twitter:image" content=".*?" \/>/gi, `<meta name="twitter:image" content="${imageUrl}" />`)
+    let postHtml = applyPageMetadata(baseHtml, {
+      title,
+      description: desc,
+      pageUrl,
+      markdownHref: `/blog/${post.slug}.md`,
+      imageUrl,
+      ogType: "article"
+    })
       .replace("</head>", `<script type="application/ld+json">\n${schemaJson}\n</script>\n</head>`)
       .replace(/<div id="root">[\s\S]*?<\/div>\s*<\/body>/i, `<div id="root">\n${articleRootContent}\n</div>\n</body>`);
 

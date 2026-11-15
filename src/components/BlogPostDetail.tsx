@@ -69,14 +69,17 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   const canEdit = isAuthor || isAdminOrMod;
 
   const updateMetaData = (postData: BlogPost) => {
-    document.title = postData.meta_title || `${postData.title} | PixelIsolate Blog`;
+    const rawTitle = (postData.meta_title || `${postData.title} | PixelIsolate`).trim();
+    document.title = rawTitle.length <= 60 ? rawTitle : `${rawTitle.slice(0, 57).replace(/\s+\S*$/, "")}...`;
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
       metaDesc = document.createElement("meta");
       metaDesc.setAttribute("name", "description");
       document.head.appendChild(metaDesc);
     }
-    metaDesc.setAttribute("content", postData.meta_description || postData.excerpt);
+    const rawDesc = (postData.meta_description || postData.excerpt || "").trim();
+    const safeDesc = rawDesc.length <= 160 ? rawDesc : `${rawDesc.slice(0, 157).replace(/\s+\S*$/, "")}...`;
+    metaDesc.setAttribute("content", safeDesc);
   };
 
   const loadPostDetails = async () => {
@@ -347,7 +350,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
     "author": [{
       "@type": "Person",
       "name": post.author_name,
-      "url": "https://pixelisolate.online"
+      "url": "https://pixelisolate.online/"
     }],
     "publisher": {
       "@type": "Organization",

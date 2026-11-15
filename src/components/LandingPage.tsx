@@ -111,27 +111,42 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscal
   // Dynamic Intent Headers
   const getHeroContent = () => {
     switch (intent) {
+      case "background-remover":
+        return {
+          badge: "AI Neural Subject Isolation",
+          h1: "Instant AI Background Remover for Transparent PNGs",
+          p: "Run subpixel neural segmentation and HSV color keying directly inside your browser. Isolate portraits, products, and graphic assets with clean alpha edges and zero server uploads.",
+          primaryCta: "Remove Background Free",
+          secondaryCta: "Upscale an Image"
+        };
       case "image-upscaler":
         return {
           badge: "8K AI Super-Resolution Engine",
-          h1: "Upscale Images to 8K with Razor-Sharp Print Detail",
+          h1: "8K AI Image Upscaler for 300 DPI Print Artwork",
           p: "Transform low-resolution graphics and product photos into 300 DPI print-ready masterpieces. Powered by Real-ESRGAN Vulkan neural upscaling with alpha transparency preservation.",
           primaryCta: "Upscale Image to 8K Free",
           secondaryCta: "Remove Backgrounds"
         };
       case "pod-background-remover":
-      case "remove-white-background":
         return {
           badge: "Print-on-Demand Specialist Engine",
-          h1: "Eliminate White Halos on Dark Apparel & Merchandise",
-          p: "Subpixel edge feathering and erosion tools specifically engineered for POD designers. Remove white backgrounds and export clean transparent PNGs ready for Direct-to-Garment (DTG) printing.",
+          h1: "POD Background Remover Without White Edge Halos",
+          p: "Subpixel edge feathering and erosion tools specifically engineered for POD designers. Eliminate white halos on dark garments and export clean transparent PNGs ready for DTG and DTF printing.",
           primaryCta: "Remove Background for POD",
+          secondaryCta: "Upscale for 300 DPI Print"
+        };
+      case "remove-white-background":
+        return {
+          badge: "Studio & Scan Cleanup Engine",
+          h1: "Remove White Backgrounds from Logos & Product Shots",
+          p: "Strip pure white #FFFFFF studio backdrops and scanned paper backgrounds while protecting interior white artwork details via connected-component flood protection.",
+          primaryCta: "Strip White Background Free",
           secondaryCta: "Upscale for 300 DPI Print"
         };
       case "bulk-background-remover":
         return {
           badge: "High-Volume Batch Processing",
-          h1: "Remove Backgrounds from 50+ Images Simultaneously",
+          h1: "Bulk Background Remover for 50+ Images at Once",
           p: "Drop bulk product catalogs, sticker packs, and merchandise graphics for fast parallel client-side processing. Download cleanly structured ZIP archives with zero wait queues.",
           primaryCta: "Start Bulk Batch Free",
           secondaryCta: "Explore Pro Features"
@@ -139,7 +154,7 @@ export default function LandingPage({ onOpenAuth, onOpenEmbedBadge, onGoToUpscal
       case "transparent-png-maker":
         return {
           badge: "Instant Transparent PNG Creator",
-          h1: "Create Crystal-Clear Transparent PNGs in Seconds",
+          h1: "Transparent PNG Maker with 32-Bit RGBA Alpha Precision",
           p: "Extract isolated subjects with lossless alpha channels directly inside your browser. 100% on-device WebAssembly privacy with zero cloud image harvesting.",
           primaryCta: "Make PNG Transparent Free",
           secondaryCta: "8K AI Upscaler"

@@ -6,6 +6,9 @@
   <title>Privacy Policy - Pixel Isolate</title>
   <meta name="description" content="Privacy Policy for Pixel Isolate AI Background Remover Engine. Read how we protect your personal data and image assets." />
   <link rel="canonical" href="https://pixelisolate.online/privacy" />
+  <link rel="alternate" hreflang="en" href="https://pixelisolate.online/privacy" />
+  <link rel="alternate" hreflang="x-default" href="https://pixelisolate.online/privacy" />
+  <link rel="alternate" type="text/markdown" href="/privacy.md" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Privacy Policy - Pixel Isolate" />
   <meta property="og:description" content="Privacy Policy for Pixel Isolate AI Background Remover Engine. Read how we protect your personal data and image assets." />
@@ -23,10 +26,11 @@
       margin: 0 auto;
       padding: 60px 20px;
     }
-    h1, h2 { color: #ffffff; font-weight: 700; tracking: -0.025em; }
+    h1, h2 { color: #ffffff; font-weight: 700; letter-spacing: -0.025em; }
     h1 { border-bottom: 1px solid #1f2937; padding-bottom: 12px; margin-bottom: 30px; font-size: 1.875rem; }
     h2 { font-size: 1.25rem; margin-top: 40px; margin-bottom: 15px; }
-    p { margin-bottom: 20px; font-size: 0.95rem; }
+    p, li { margin-bottom: 16px; font-size: 0.95rem; }
+    ul { padding-left: 20px; margin-bottom: 20px; }
     a { color: #10b981; text-decoration: none; font-weight: 500; }
     a:hover { text-decoration: underline; }
   </style>
@@ -34,19 +38,30 @@
 <body>
   <h1>Privacy Policy</h1>
   <p>Last updated: July 17, 2026</p>
-  <p>At Pixel Isolate, we respect your privacy and are committed to protecting any personal data we collect from you.</p>
+  <p>At Pixel Isolate (operated by Mohamed Elborgy as a sole proprietor brand), we respect your privacy and are committed to protecting any personal data and creative assets you process through our platform.</p>
   
-  <h2>1. Information We Collect</h2>
-  <p>We collect your email address for account authentication and user communications. We also store uploaded original and isolated image assets in secure storage buckets to maintain your history gallery dashboard.</p>
+  <h2>1. On-Device Background Removal Architecture</h2>
+  <p>Pixel Isolate is engineered around a privacy-first client-side execution model. When you use our AI Magic segmentation engine or HSV chroma keyer in the workspace, neural inference and morphological edge processing run directly inside your local web browser memory using WebAssembly and WebGPU. Your input images are not harvested or used to train third-party AI models.</p>
+
+  <h2>2. Information We Collect</h2>
+  <p>When you create an account or subscribe to a paid plan, we collect only the information required to operate the service:</p>
+  <ul>
+    <li><strong>Account Credentials:</strong> Your email address and basic profile display details used for authentication, credit tracking, and optional blog notifications.</li>
+    <li><strong>Saved History Gallery Assets:</strong> For authenticated users who save exports to their cloud history gallery, original and isolated image assets are encrypted client-side with AES-256-GCM before storage and retained in private storage buckets solely so you can re-download your files across sessions.</li>
+    <li><strong>Billing Metadata:</strong> Subscription status, credit balances, and transaction identifiers provided by our payment processor. We never store raw credit card numbers on our servers.</li>
+  </ul>
   
-  <h2>2. Data Security</h2>
-  <p>We implement robust, industry-standard security measures to safeguard your personal details and image assets against unauthorized access, alteration, or disclosure.</p>
+  <h2>3. Data Security &amp; Retention</h2>
+  <p>We implement robust, industry-standard security measures—including HTTPS transport encryption, Strict-Transport-Security (HSTS), Row-Level Security (RLS) database policies, and client-side Web Crypto encryption—to safeguard your personal details and saved assets against unauthorized access, alteration, or disclosure. You may delete any saved image from your History Gallery at any time, which permanently removes both the database record and underlying object storage file.</p>
   
-  <h2>3. Third-Party Processors</h2>
-  <p>We use Supabase for authentication and database management, and Paddle to process payments. These third-party processors manage your details securely in compliance with their own strict privacy policies.</p>
+  <h2>4. Third-Party Processors</h2>
+  <p>We partner with trusted infrastructure providers to deliver core features: Supabase for authentication and database management, Cloudflare for edge delivery and encrypted object storage, and Paddle as our Merchant of Record for secure global payments and tax compliance. These processors manage data strictly in accordance with their respective privacy and security commitments.</p>
+
+  <h2>5. Your Privacy Rights &amp; Contact</h2>
+  <p>In accordance with GDPR, CCPA, and applicable data protection laws, you have the right to access, export, correct, or request deletion of your personal account data, and to unsubscribe from email notifications at any time. For privacy inquiries or deletion requests, contact us at <a href="mailto:contact@pixelisolate.online">contact@pixelisolate.online</a>.</p>
   
   <p style="margin-top: 50px; border-top: 1px solid #1f2937; padding-top: 20px;">
-    <a href="/">← Back to Workspace</a>
+    <a href="/">← Back to Workspace</a> • <a href="/terms">Terms of Service</a> • <a href="/refund">Refund Policy</a> • <a href="/sitemap">Sitemap</a>
   </p>
 </body>
 </html>

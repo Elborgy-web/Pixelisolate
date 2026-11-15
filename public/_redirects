@@ -2,12 +2,17 @@
 # CLOUDFLARE PAGES REWRITES (_redirects)
 # ==========================================
 
-# 1. 301 Permanent Canonical Redirects for www -> non-www domain
+# 1. 301 Permanent Canonical Redirects for www / http -> https://pixelisolate.online
 https://www.pixelisolate.online/* https://pixelisolate.online/:splat 301!
 http://www.pixelisolate.online/*  https://pixelisolate.online/:splat 301!
 http://pixelisolate.online/*      https://pixelisolate.online/:splat 301!
 
-# 2. 301 Permanent Redirects for Inbound Broken URLs
+# 2. 301 Permanent Redirects for .html and Inbound Broken URLs
+/index.html      https://pixelisolate.online/           301!
+/privacy.html    https://pixelisolate.online/privacy    301!
+/terms.html      https://pixelisolate.online/terms      301!
+/refund.html     https://pixelisolate.online/refund     301!
+/sitemap.html    https://pixelisolate.online/sitemap    301!
 /Pixel           https://pixelisolate.online/           301!
 /pixel           https://pixelisolate.online/           301!
 

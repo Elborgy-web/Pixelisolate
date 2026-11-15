@@ -98,11 +98,32 @@ app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
 
-  // 301 Canonical redirect www to non-www
-  const host = req.headers.host || "";
-  if (host.startsWith("www.")) {
-    const canonicalHost = host.replace(/^www\./, "");
-    res.redirect(301, `https://${canonicalHost}${req.url}`);
+  // 301 Canonical redirect host/protocol, .html clean paths, and trailing slashes on GET/HEAD non-API routes
+  const host = (req.headers.host || "").toLowerCase();
+  const isProdHost = host === "pixelisolate.online" || host === "www.pixelisolate.online";
+  const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "https").toLowerCase();
+  const rawPath = req.path || "/";
+  const queryIdx = req.originalUrl.indexOf("?");
+  const queryString = queryIdx >= 0 ? req.originalUrl.slice(queryIdx) : "";
+  const htmlCleanMap: Record<string, string> = {
+    "/index.html": "/",
+    "/privacy.html": "/privacy",
+    "/terms.html": "/terms",
+    "/refund.html": "/refund",
+    "/sitemap.html": "/sitemap",
+  };
+  let canonicalPath = htmlCleanMap[rawPath.toLowerCase()] || rawPath;
+  if (canonicalPath.length > 1 && canonicalPath.endsWith("/") && !canonicalPath.startsWith("/api/")) {
+    canonicalPath = canonicalPath.replace(/\/+$/, "") || "/";
+  }
+  const needsRedirect =
+    (req.method === "GET" || req.method === "HEAD") &&
+    !rawPath.startsWith("/api/") &&
+    (host.startsWith("www.") || (isProdHost && proto !== "https") || canonicalPath !== rawPath);
+
+  if (needsRedirect) {
+    const targetOrigin = isProdHost || host.startsWith("www.") ? "https://pixelisolate.online" : `${proto}://${host}`;
+    res.redirect(301, `${targetOrigin}${canonicalPath}${queryString}`);
     return;
   }
 
@@ -255,7 +276,7 @@ app.post("/api/upscale", async (req, res) => {
 // Automated XML Sitemap Route
 app.get("/sitemap.xml", async (req, res) => {
   res.setHeader("Content-Type", "application/xml; charset=utf-8");
-  res.setHeader("X-Robots-Tag", "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1");
+  res.setHeader("X-Robots-Tag", "noindex, follow");
   const baseUrl = "https://pixelisolate.online";
 
   let slugs: { slug: string; lastmod: string }[] = [];
@@ -1660,29 +1681,58 @@ app.post("/api/blog/scrape-fb", async (req, res) => {
   }
 });
 
+function truncateMetaWordBoundary(text: string, maxLen: number): string {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (clean.length <= maxLen) return clean;
+  const sliced = clean.slice(0, maxLen).replace(/\s+\S*$/, "").trim();
+  return sliced.length >= Math.min(20, maxLen) ? sliced : clean.slice(0, maxLen).trim();
+}
+
+function clampServerMetaTitle(metaTitle?: string | null, title?: string | null): string {
+  const candidate = String(metaTitle || "").trim();
+  if (candidate && candidate.length <= 60) return candidate;
+  const raw = String(candidate || title || "PixelIsolate").trim();
+  const suffix = " | PixelIsolate";
+  if (raw.length + suffix.length <= 60) return `${raw}${suffix}`;
+  if (raw.length <= 60) return raw;
+  return truncateMetaWordBoundary(raw, 60);
+}
+
+function clampServerMetaDescription(metaDesc?: string | null, excerpt?: string | null): string {
+  const candidate = String(metaDesc || "").replace(/\s+/g, " ").trim();
+  if (candidate && candidate.length >= 70 && candidate.length <= 160) return candidate;
+  const fallback = String(excerpt || "Read AI background removal, white halo cleanup, and 8K print-ready upscaling guides from PixelIsolate.").replace(/\s+/g, " ").trim();
+  if (fallback.length <= 160) return fallback;
+  return `${truncateMetaWordBoundary(fallback, 159)}.`;
+}
+
 // Helper: Cleanly replace OpenGraph meta tags so crawlers (Facebook, X, LinkedIn) read article metadata first
 function injectOpenGraphTags(html: string, ogData: {
   title: string;
   description: string;
   imageUrl: string;
   pageUrl: string;
+  markdownHref?: string;
   type?: string;
 }): string {
-  const safeTitle = ogData.title.replace(/"/g, '&quot;');
-  const safeDesc = ogData.description.replace(/"/g, '&quot;');
+  const safeTitle = ogData.title.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+  const safeDesc = ogData.description.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   const safeImage = ogData.imageUrl;
   const safeUrl = ogData.pageUrl;
+  const safeMd = ogData.markdownHref || "/index.md";
   const ogType = ogData.type || "article";
 
   // 1. Replace main <title> tag
   let cleanHtml = html.replace(/<title>.*?<\/title>/gi, `<title>${safeTitle}</title>`);
 
-  // 2. Strip all existing description, og:*, twitter:* meta tags and canonical link to prevent duplicate collisions
+  // 2. Strip all existing description, og:*, twitter:* meta tags and canonical/hreflang/markdown links
   cleanHtml = cleanHtml
     .replace(/<meta\s+[^>]*?(?:name|property)=["'](?:description|og:[^"']+|twitter:[^"']+)["'][^>]*?>/gi, "")
-    .replace(/<link\s+[^>]*?rel=["']canonical["'][^>]*?>/gi, "");
+    .replace(/<link\s+[^>]*?rel=["']canonical["'][^>]*?>/gi, "")
+    .replace(/<link\s+[^>]*?hreflang=["'](?:en|x-default)["'][^>]*?>/gi, "")
+    .replace(/<link\s+[^>]*?type=["']text\/markdown["'][^>]*?>/gi, "");
 
-  // 3. Construct clean article OpenGraph tags according to Facebook specifications
+  // 3. Construct clean OpenGraph, hreflang, canonical, and Markdown alternate tags
   const ogMeta = `
     <meta name="description" content="${safeDesc}" />
     <meta property="og:type" content="${ogType}" />
@@ -1696,11 +1746,15 @@ function injectOpenGraphTags(html: string, ogData: {
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="${safeTitle}" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${safeTitle}" />
-    <meta name="twitter:description" content="${safeDesc}" />
-    <meta name="twitter:image" content="${safeImage}" />
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="${safeUrl}" />
+    <meta property="twitter:title" content="${safeTitle}" />
+    <meta property="twitter:description" content="${safeDesc}" />
+    <meta property="twitter:image" content="${safeImage}" />
     <link rel="canonical" href="${safeUrl}" />
+    <link rel="alternate" hreflang="en" href="${safeUrl}" />
+    <link rel="alternate" hreflang="x-default" href="${safeUrl}" />
+    <link rel="alternate" type="text/markdown" href="${safeMd}" />
   `;
 
   return cleanHtml.replace("<head>", `<head>\n${ogMeta}`);
@@ -1741,10 +1795,11 @@ app.get(["/blog", "/blog/:slug"], async (req, res) => {
 
       if (post) {
         html = injectOpenGraphTags(html, {
-          title: `${post.title} | PixelIsolate`,
-          description: post.excerpt,
+          title: clampServerMetaTitle(post.meta_title, post.title),
+          description: clampServerMetaDescription(post.meta_description, post.excerpt),
           imageUrl: post.cover_image || "https://pixelisolate.online/logo.png",
           pageUrl: `https://pixelisolate.online/blog/${post.slug}`,
+          markdownHref: `/blog/${post.slug}.md`,
           type: "article"
         });
       } else {
@@ -1753,6 +1808,7 @@ app.get(["/blog", "/blog/:slug"], async (req, res) => {
           description: "Expert tutorials on background removal, subpixel chroma keying, eliminating white print halos, and scaling e-commerce photography.",
           imageUrl: "https://pixelisolate.online/logo.png",
           pageUrl: `https://pixelisolate.online/blog/${cleanSlug}`,
+          markdownHref: `/blog/${cleanSlug}.md`,
           type: "article"
         });
       }
@@ -1762,6 +1818,7 @@ app.get(["/blog", "/blog/:slug"], async (req, res) => {
         description: "Expert tutorials on background removal, subpixel chroma keying, eliminating white print halos, and scaling e-commerce photography.",
         imageUrl: "https://pixelisolate.online/logo.png",
         pageUrl: "https://pixelisolate.online/blog",
+        markdownHref: "/blog.md",
         type: "website"
       });
     }
