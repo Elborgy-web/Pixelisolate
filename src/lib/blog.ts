@@ -45,6 +45,35 @@ export interface UserProfile {
   is_pro?: boolean;
 }
 
+const COMMON_5_LETTER_WORDS = new Set([
+  "guide", "shirt", "print", "photo", "merch", "store", "image", "tools", "scale", "files",
+  "color", "craft", "black", "white", "clean", "alpha", "brand", "sales", "pixel", "spend",
+  "ready", "batch", "craft", "world", "focus", "boost", "smart", "quick", "super", "ultra",
+  "light", "heavy", "sharp", "clear", "edges", "matte", "gloss", "frame", "style", "vinyl",
+  "paper", "glass", "metal", "wood", "laser", "anime", "retro", "trend", "sales", "spend"
+]);
+
+/**
+ * Strip auto-generated 5-char random hash suffixes (e.g., -liwfj, -ac9zc, --oe7uz)
+ * while preserving legitimate English words.
+ */
+export function toCleanBlogSlug(slug: string): string {
+  const s = String(slug || "").trim().replace(/^\/+|\/+$/g, "").toLowerCase();
+  if (!s) return "";
+  const match = s.match(/^(.*?)-+([a-z0-9]{5})$/);
+  if (!match) return s.replace(/-+/g, "-");
+  const base = match[1].replace(/-+$/g, "");
+  const suffix = match[2];
+  if (!base || base.length < 10) return s.replace(/-+/g, "-");
+
+  const hasDigit = /\d/.test(suffix);
+  const hasWeirdCluster = /[qxzjv]/.test(suffix) || /[bcdfghjklmnpqrstvwxyz]{3,}/.test(suffix) || /(aa|uu|yy|ii|oo|ee)/.test(suffix);
+  if ((hasDigit || hasWeirdCluster) && !COMMON_5_LETTER_WORDS.has(suffix)) {
+    return base.replace(/-+/g, "-");
+  }
+  return s.replace(/-+/g, "-");
+}
+
 export function isValidUUID(str: any): boolean {
   return typeof str === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
 }
@@ -751,7 +780,9 @@ export async function createPost(
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-") + `-${Math.random().toString(36).substring(2, 7)}`;
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 
   const readingTime = Math.max(2, Math.ceil((postData.content || "").split(/\s+/).length / 180));
   const authorName = profile?.display_name || (user?.email ? user.email.split("@")[0] : "") || "Community Member";

@@ -12,6 +12,7 @@ import { initializePaddle } from "@paddle/paddle-js";
 import BlogIndex from "./components/BlogIndex";
 import BlogPostDetail from "./components/BlogPostDetail";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { captureAttribution, trackConversionEvent } from "./utils/attribution";
 
 // Helper to auto-retry dynamic imports when new builds are deployed (prevents chunk load white screens)
 const lazyWithRetry = <T extends React.ComponentType<any>>(
@@ -54,6 +55,8 @@ const CreatePostModal = lazyWithRetry(() => import("./components/CreatePostModal
 const UserProfileModal = lazyWithRetry(() => import("./components/UserProfileModal"));
 const UpscalerWorkspace = lazyWithRetry(() => import("./components/UpscalerWorkspace"));
 const UnsubscribeSuccessPage = lazyWithRetry(() => import("./components/UnsubscribeSuccessPage"));
+const PricingPage = lazyWithRetry(() => import("./components/PricingPage"));
+const ComparePage = lazyWithRetry(() => import("./components/ComparePage"));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center p-12 text-gray-500 font-mono text-xs gap-2">
@@ -140,9 +143,11 @@ function cropImageTransparentEdges(imgElement: HTMLImageElement): string {
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [currentTab, setCurrentTab] = useState<"landing" | "editor" | "upscaler" | "history" | "billing" | "howto" | "blog" | "unsubscribe">(() => {
+  const [currentTab, setCurrentTab] = useState<"landing" | "editor" | "upscaler" | "history" | "billing" | "howto" | "blog" | "unsubscribe" | "pricing" | "compare">(() => {
     if (typeof window !== "undefined") {
       if (window.location.pathname.startsWith("/blog")) return "blog";
+      if (window.location.pathname.startsWith("/pricing")) return "pricing";
+      if (window.location.pathname.startsWith("/compare") || window.location.pathname.startsWith("/alternatives")) return "compare";
       if (window.location.pathname.startsWith("/unsubscribe")) return "unsubscribe";
       if (window.location.pathname.startsWith("/image-upscaler")) return "upscaler";
       if (window.location.pathname.startsWith("/remove-background")) return "editor";
@@ -234,6 +239,8 @@ export default function App() {
   >("general");
 
   useEffect(() => {
+    captureAttribution();
+
     // 1. Initial session load
     supabase.auth.getSession().then(({ data: { session } }) => {
       const activeUser = session?.user ?? null;
@@ -282,6 +289,10 @@ export default function App() {
       const slugPart = parts[1] ? parts[1].replace(/^\//, "") : "";
       setCurrentTab("blog");
       setSelectedBlogSlug(slugPart || null);
+    } else if (initPath.startsWith("/pricing")) {
+      setCurrentTab("pricing");
+    } else if (initPath.startsWith("/compare") || initPath.startsWith("/alternatives")) {
+      setCurrentTab("compare");
     } else if (initPath.startsWith("/unsubscribe")) {
       setCurrentTab("unsubscribe");
     } else if (initPath.startsWith("/remove-background")) {
@@ -331,6 +342,12 @@ export default function App() {
         const slugPart = parts[1] ? parts[1].replace(/^\//, "") : "";
         setCurrentTab("blog");
         setSelectedBlogSlug(slugPart || null);
+      } else if (currentPath.startsWith("/pricing")) {
+        setCurrentTab("pricing");
+        setSelectedBlogSlug(null);
+      } else if (currentPath.startsWith("/compare") || currentPath.startsWith("/alternatives")) {
+        setCurrentTab("compare");
+        setSelectedBlogSlug(null);
       } else if (currentPath.startsWith("/unsubscribe")) {
         setCurrentTab("unsubscribe");
         setSelectedBlogSlug(null);
@@ -582,12 +599,18 @@ export default function App() {
                   </button>
 
                   <a
-                    href="/#pricing"
+                    href="/pricing"
                     onClick={(e) => {
                       e.preventDefault();
-                      scrollToSection("pricing");
+                      window.history.pushState({}, "", "/pricing");
+                      setCurrentTab("pricing");
+                      setSelectedBlogSlug(null);
                     }}
-                    className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap text-gray-400 hover:text-gray-200"
+                    className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
+                      currentTab === "pricing"
+                        ? "bg-gray-850 text-white"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
                   >
                     <Tag className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
                     <span>Pricing</span>
@@ -638,6 +661,24 @@ export default function App() {
                     <Maximize2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
                     <span>AI Upscaler (4K/8K)</span>
                   </button>
+
+                  <a
+                    href="/pricing"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.history.pushState({}, "", "/pricing");
+                      setCurrentTab("pricing");
+                      setSelectedBlogSlug(null);
+                    }}
+                    className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold tracking-wide transition whitespace-nowrap ${
+                      currentTab === "pricing"
+                        ? "bg-gray-850 text-white"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <Tag className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-emerald-400" />
+                    <span>Pricing</span>
+                  </a>
                 </>
               )}
 
@@ -752,7 +793,10 @@ export default function App() {
                   <span>Sign In</span>
                 </button>
                 <button
-                  onClick={() => setAuthModalOpen(true)}
+                  onClick={() => {
+                    trackConversionEvent("free_trial_click", { location: "header_cta" });
+                    setAuthModalOpen(true);
+                  }}
                   className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-[11px] sm:text-xs font-bold hover:shadow-lg transition cursor-pointer whitespace-nowrap"
                 >
                   Get 10 Free Credits
@@ -783,9 +827,24 @@ export default function App() {
                   setCreatePostModalOpen(true);
                 }}
                 onGoToWorkspace={() => {
-                  window.history.pushState({}, "", "/");
+                  window.history.pushState({}, "", "/background-remover");
                   setCurrentTab("editor");
                   setSelectedBlogSlug(null);
+                }}
+                onGoToUpscaler={() => {
+                  window.history.pushState({}, "", "/image-upscaler");
+                  setCurrentTab("upscaler");
+                  setSelectedBlogSlug(null);
+                }}
+                onGoToPricing={() => {
+                  window.history.pushState({}, "", "/pricing");
+                  setCurrentTab("pricing");
+                  setSelectedBlogSlug(null);
+                }}
+                onSelectPost={(nextSlug) => {
+                  window.history.pushState({}, "", `/blog/${nextSlug}`);
+                  setSelectedBlogSlug(nextSlug);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
               />
             ) : (
@@ -812,6 +871,55 @@ export default function App() {
                 onOpenProfile={() => setUserProfileModalOpen(true)}
               />
             )}
+          </div>
+
+          <div style={{ display: currentTab === "pricing" ? "block" : "none" }}>
+            <PricingPage
+              userId={user?.id || null}
+              userEmail={user?.email || null}
+              isPro={profile?.is_pro ?? false}
+              onOpenAuth={() => setAuthModalOpen(true)}
+              onGoToEditor={() => {
+                window.history.pushState({}, "", "/background-remover");
+                setCurrentTab("editor");
+                setSelectedBlogSlug(null);
+              }}
+              onGoToUpscaler={() => {
+                window.history.pushState({}, "", "/image-upscaler");
+                setCurrentTab("upscaler");
+                setSelectedBlogSlug(null);
+              }}
+              onGoToCompare={() => {
+                window.history.pushState({}, "", "/compare");
+                setCurrentTab("compare");
+                setSelectedBlogSlug(null);
+              }}
+              onSuccess={() => {
+                if (user) {
+                  fetchProfile(user.id, user.email || "", user);
+                }
+              }}
+            />
+          </div>
+
+          <div style={{ display: currentTab === "compare" ? "block" : "none" }}>
+            <ComparePage
+              onGoToEditor={() => {
+                window.history.pushState({}, "", "/background-remover");
+                setCurrentTab("editor");
+                setSelectedBlogSlug(null);
+              }}
+              onGoToUpscaler={() => {
+                window.history.pushState({}, "", "/image-upscaler");
+                setCurrentTab("upscaler");
+                setSelectedBlogSlug(null);
+              }}
+              onGoToPricing={() => {
+                window.history.pushState({}, "", "/pricing");
+                setCurrentTab("pricing");
+                setSelectedBlogSlug(null);
+              }}
+            />
           </div>
 
           <div style={{ display: currentTab === "howto" ? "block" : "none" }}>
@@ -929,6 +1037,30 @@ export default function App() {
                 >
                   How It Works
                 </button>
+                <a
+                  href="/pricing"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.history.pushState({}, "", "/pricing");
+                    setCurrentTab("pricing");
+                    setSelectedBlogSlug(null);
+                  }}
+                  className="hover:text-emerald-400 transition duration-150"
+                >
+                  Pricing
+                </a>
+                <a
+                  href="/compare"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.history.pushState({}, "", "/compare");
+                    setCurrentTab("compare");
+                    setSelectedBlogSlug(null);
+                  }}
+                  className="hover:text-emerald-400 transition duration-150"
+                >
+                  Compare
+                </a>
                 <a href="/terms" className="hover:text-gray-300 transition duration-150">Terms of Service</a>
               <a href="/privacy" className="hover:text-gray-300 transition duration-150">Privacy Policy</a>
               <a href="/refund" className="hover:text-gray-300 transition duration-150">Refund Policy</a>

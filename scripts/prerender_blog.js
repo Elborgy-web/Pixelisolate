@@ -42,14 +42,68 @@ function escapeAttr(val) {
   return String(val || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
 
-function applyPageMetadata(baseHtml, { title, description, pageUrl, markdownHref, imageUrl, ogType = "website" }) {
+const COMMON_5_LETTER_WORDS = new Set([
+  "guide", "shirt", "print", "photo", "merch", "store", "image", "tools", "scale", "files",
+  "color", "craft", "black", "white", "clean", "alpha", "brand", "sales", "pixel", "spend",
+  "ready", "batch", "world", "focus", "boost", "smart", "quick", "super", "ultra",
+  "light", "heavy", "sharp", "clear", "edges", "matte", "gloss", "frame", "style", "vinyl",
+  "paper", "glass", "metal", "wood", "laser", "anime", "retro", "trend"
+]);
+
+function stripBlogSlugHash(slug) {
+  const s = String(slug || "").trim().replace(/^\/+|\/+$/g, "").toLowerCase();
+  if (!s) return "";
+  const match = s.match(/^(.*?)-+([a-z0-9]{5})$/);
+  if (!match) return s.replace(/-+/g, "-");
+  const base = match[1].replace(/-+$/g, "");
+  const suffix = match[2];
+  if (!base || base.length < 10) return s.replace(/-+/g, "-");
+  const hasDigit = /\d/.test(suffix);
+  const hasWeirdCluster = /[qxzjv]/.test(suffix) || /[bcdfghjklmnpqrstvwxyz]{3,}/.test(suffix) || /(aa|uu|yy|ii|oo|ee)/.test(suffix);
+  if ((hasDigit || hasWeirdCluster) && !COMMON_5_LETTER_WORDS.has(suffix)) {
+    return base.replace(/-+/g, "-");
+  }
+  return s.replace(/-+/g, "-");
+}
+
+function detectArticleTopic(post) {
+  const haystack = `${post.title || ""} ${post.slug || ""} ${post.category || ""} ${post.excerpt || ""}`.toLowerCase();
+  if (/(upscal|8k|4k|300\s*dpi|super-resolution|esrgan|midjourney|flux|resolution|poster|wall art)/.test(haystack)) {
+    return "upscaler";
+  }
+  if (/(etsy|amazon|shopify|e-commerce|ecommerce|catalog|listing|product photo|bulk|batch)/.test(haystack)) {
+    return "ecommerce";
+  }
+  return "bg-remover";
+}
+
+function buildMidArticleCtaHtml(topic) {
+  if (topic === "upscaler") {
+    return `<div class="my-6 p-5 rounded-xl bg-emerald-950/25 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <p class="text-sm text-gray-200 m-0"><strong class="text-emerald-400">Need 300 DPI print resolution?</strong> Try PixelIsolate's <a href="/image-upscaler?source=organic&amp;utm_campaign=blog_mid_cta" class="text-emerald-400 underline font-semibold">8K AI Image Upscaler</a> or <a href="/pricing?source=organic&amp;utm_campaign=blog_mid_cta" class="text-emerald-400 underline font-semibold">compare plans</a>.</p>
+      <a href="/image-upscaler?source=organic&amp;utm_campaign=blog_mid_cta" class="shrink-0 inline-block px-4 py-2 rounded-lg bg-emerald-500 text-gray-950 font-bold text-xs no-underline">Try 8K Upscaler →</a>
+    </div>`;
+  }
+  if (topic === "ecommerce") {
+    return `<div class="my-6 p-5 rounded-xl bg-emerald-950/25 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <p class="text-sm text-gray-200 m-0"><strong class="text-emerald-400">Preparing marketplace product images at scale?</strong> Use our <a href="/background-remover?source=organic&amp;utm_campaign=blog_mid_cta" class="text-emerald-400 underline font-semibold">AI Background Remover</a>, <a href="/image-upscaler?source=organic&amp;utm_campaign=blog_mid_cta" class="text-emerald-400 underline font-semibold">8K Upscaler</a>, and <a href="/pricing?source=organic&amp;utm_campaign=blog_mid_cta" class="text-emerald-400 underline font-semibold">non-expiring credit bundles</a>.</p>
+      <a href="/background-remover?source=organic&amp;utm_campaign=blog_mid_cta" class="shrink-0 inline-block px-4 py-2 rounded-lg bg-emerald-500 text-gray-950 font-bold text-xs no-underline">Try Free →</a>
+    </div>`;
+  }
+  return `<div class="my-6 p-5 rounded-xl bg-emerald-950/25 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <p class="text-sm text-gray-200 m-0"><strong class="text-emerald-400">Need zero-halo transparent PNGs at scale?</strong> Try PixelIsolate's <a href="/background-remover?source=organic&amp;utm_campaign=blog_mid_cta" class="text-emerald-400 underline font-semibold">AI Background Remover</a> with 10 free credits — no credit card required.</p>
+    <a href="/background-remover?source=organic&amp;utm_campaign=blog_mid_cta" class="shrink-0 inline-block px-4 py-2 rounded-lg bg-emerald-500 text-gray-950 font-bold text-xs no-underline">Try Free →</a>
+  </div>`;
+}
+
+function applyPageMetadata(baseHtml, { title, description, pageUrl, markdownHref, imageUrl, ogType = "website", schemaObj = null }) {
   const safeTitle = escapeAttr(title);
   const safeDesc = escapeAttr(description);
   const safeUrl = escapeAttr(pageUrl);
   const safeImage = escapeAttr(imageUrl);
   const safeMd = escapeAttr(markdownHref);
 
-  return baseHtml
+  let out = baseHtml
     .replace(/<title>.*?<\/title>/gi, `<title>${safeTitle}</title>`)
     .replace(/<link\s+[^>]*?rel=["']canonical["'][^>]*?>/gi, `<link rel="canonical" href="${safeUrl}" />`)
     .replace(/<link\s+[^>]*?hreflang=["']en["'][^>]*?>/gi, `<link rel="alternate" hreflang="en" href="${safeUrl}" />`)
@@ -65,6 +119,16 @@ function applyPageMetadata(baseHtml, { title, description, pageUrl, markdownHref
     .replace(/<meta\s+(?:name|property)=["']twitter:title["'][^>]*?>/gi, `<meta property="twitter:title" content="${safeTitle}" />`)
     .replace(/<meta\s+(?:name|property)=["']twitter:description["'][^>]*?>/gi, `<meta property="twitter:description" content="${safeDesc}" />`)
     .replace(/<meta\s+(?:name|property)=["']twitter:image["'][^>]*?>/gi, `<meta property="twitter:image" content="${safeImage}" />`);
+
+  if (schemaObj) {
+    const schemaScript = `<script type="application/ld+json">\n${JSON.stringify(schemaObj, null, 2)}\n    </script>`;
+    if (/<script\s+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/i.test(out)) {
+      out = out.replace(/<script\s+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/i, schemaScript);
+    } else {
+      out = out.replace("</head>", `${schemaScript}\n</head>`);
+    }
+  }
+  return out;
 }
 
 function formatInline(str) {
@@ -77,6 +141,7 @@ function formatInline(str) {
   out = out.replace(/\*([^*]+)\*/g, '<em class="italic text-gray-200">$1</em>');
   out = out.replace(/_([^_]+)_/g, '<em class="italic text-gray-200">$1</em>');
   out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 font-semibold transition">$1</a>');
+  out = out.replace(/\[([^\]]+)\]\((\/[^\s\)]+)\)/g, '<a href="$2" class="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 font-semibold transition">$1</a>');
   return out;
 }
 
@@ -204,6 +269,7 @@ async function prerender() {
   const blogImage = "https://pixelisolate.online/logo.png";
 
   const blogCardsHtml = posts.map(p => {
+    const cleanS = stripBlogSlugHash(p.slug);
     const pubDate = new Date(p.published_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
     const coverHtml = p.cover_image && p.cover_image.startsWith("http")
       ? `<div class="h-44 w-full overflow-hidden bg-gray-900"><img src="${p.cover_image}" alt="${p.title}" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105" loading="lazy" /></div>`
@@ -219,26 +285,55 @@ async function prerender() {
               <span>${p.reading_time_minutes || 5} min read</span>
             </div>
             <h2 class="text-lg font-bold text-white mb-2 leading-snug hover:text-emerald-400 transition">
-              <a href="/blog/${p.slug}">${p.title}</a>
+              <a href="/blog/${cleanS}">${p.title}</a>
             </h2>
             <p class="text-sm text-gray-400 line-clamp-3 mb-4 leading-relaxed">${p.excerpt || ""}</p>
           </div>
           <div class="pt-3 border-t border-gray-800/80 flex items-center justify-between text-xs text-gray-500 font-mono">
             <span>${pubDate}</span>
-            <a href="/blog/${p.slug}" class="text-emerald-400 hover:underline font-semibold">Read Guide →</a>
+            <a href="/blog/${cleanS}" class="text-emerald-400 hover:underline font-semibold">Read Guide →</a>
           </div>
         </div>
       </article>
     `;
   }).join("\n");
 
+  const blogIndexSchema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Blog",
+        "@id": `${blogUrl}#blog`,
+        "name": blogTitle,
+        "description": blogDesc,
+        "url": blogUrl,
+        "publisher": {
+          "@type": "Organization",
+          "@id": "https://pixelisolate.online/#organization",
+          "name": "Pixel Isolate Engine Inc.",
+          "url": "https://pixelisolate.online/",
+          "logo": "https://pixelisolate.online/logo.png"
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://pixelisolate.online/" },
+          { "@type": "ListItem", "position": 2, "name": "Blog", "item": blogUrl }
+        ]
+      }
+    ]
+  };
+
   const blogRootContent = `
     <header class="p-4 border-b border-white/10 bg-[#030712] text-white">
-      <nav class="max-w-6xl mx-auto flex justify-between items-center">
+      <nav class="max-w-6xl mx-auto flex justify-between items-center flex-wrap gap-4">
         <a href="https://pixelisolate.online/" class="text-white font-bold no-underline text-lg">Pixel Isolate</a>
-        <div class="flex gap-4 text-sm font-medium">
-          <a href="/" class="text-gray-300 hover:text-white transition">Workspace</a>
+        <div class="flex gap-4 text-sm font-medium flex-wrap">
+          <a href="/background-remover" class="text-gray-300 hover:text-white transition">Background Remover</a>
           <a href="/image-upscaler" class="text-gray-300 hover:text-white transition">8K Upscaler</a>
+          <a href="/pricing" class="text-gray-300 hover:text-white transition">Pricing</a>
+          <a href="/compare" class="text-gray-300 hover:text-white transition">Compare</a>
           <a href="/blog" class="text-emerald-400 font-semibold">Blog</a>
           <a href="/sitemap" class="text-gray-300 hover:text-white transition">Sitemap</a>
         </div>
@@ -246,9 +341,14 @@ async function prerender() {
     </header>
 
     <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 py-10">
+      <nav class="text-xs text-gray-400 mb-6 flex gap-2 items-center font-mono" aria-label="Breadcrumb">
+        <a href="/" class="hover:text-emerald-400 transition">Home</a>
+        <span>›</span>
+        <span class="text-emerald-400">Blog</span>
+      </nav>
       <div class="text-center max-w-3xl mx-auto mb-12">
-        <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-3 font-mono">Engineering & Masterclasses</span>
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">Print-on-Demand & AI Design Guides</h1>
+        <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-3 font-mono">Engineering &amp; Masterclasses</span>
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">Print-on-Demand &amp; AI Design Guides</h1>
         <p class="text-base text-gray-400 leading-relaxed">
           Comprehensive, production-grade masterclasses on AI background removal, eliminating white edge halos on dark shirts, 8K super-resolution upscaling, and e-commerce conversion optimization.
         </p>
@@ -262,7 +362,10 @@ async function prerender() {
     <footer class="mt-16 border-t border-gray-900 py-10 text-center text-xs text-gray-500 font-mono">
       <div class="flex justify-center flex-wrap gap-5 mb-4">
         <a href="/" class="hover:text-emerald-400">Home</a>
+        <a href="/background-remover" class="hover:text-emerald-400">Background Remover</a>
         <a href="/image-upscaler" class="hover:text-emerald-400">8K Upscaler</a>
+        <a href="/pricing" class="hover:text-emerald-400">Pricing</a>
+        <a href="/compare" class="hover:text-emerald-400">Compare</a>
         <a href="/blog" class="hover:text-emerald-400">Blog</a>
         <a href="/sitemap" class="hover:text-emerald-400">Sitemap</a>
         <a href="/privacy" class="hover:text-emerald-400">Privacy Policy</a>
@@ -279,7 +382,8 @@ async function prerender() {
     pageUrl: blogUrl,
     markdownHref: "/blog.md",
     imageUrl: blogImage,
-    ogType: "website"
+    ogType: "website",
+    schemaObj: blogIndexSchema
   }).replace(/<div id="root">[\s\S]*?<\/div>\s*<\/body>/i, `<div id="root">\n${blogRootContent}\n</div>\n</body>`);
 
   fs.writeFileSync(path.join(blogDir, "index.html"), blogIndexHtml, "utf8");
@@ -289,12 +393,13 @@ async function prerender() {
   // 2. Pre-render each article slug page with FULL SEMANTIC BODY
   // -------------------------------------------------------------
   for (const post of posts) {
-    const postDir = path.join(blogDir, post.slug);
+    const cleanSlug = stripBlogSlugHash(post.slug);
+    const postDir = path.join(blogDir, cleanSlug);
     if (!fs.existsSync(postDir)) fs.mkdirSync(postDir, { recursive: true });
 
     const title = buildMetaTitle(post.meta_title, post.title);
     const desc = buildMetaDescription(post.meta_description, post.excerpt);
-    const pageUrl = `https://pixelisolate.online/blog/${post.slug}`;
+    const pageUrl = `https://pixelisolate.online/blog/${cleanSlug}`;
     const imageUrl = post.cover_image && post.cover_image.startsWith("http")
       ? post.cover_image
       : "https://pixelisolate.online/logo.png";
@@ -302,7 +407,33 @@ async function prerender() {
     const isoDate = new Date(post.published_at).toISOString();
     const modifiedDate = new Date(post.updated_at || post.published_at).toISOString();
 
-    const articleBodyHtml = markdownToHtml(post.content || "");
+    const topic = detectArticleTopic(post);
+    const rawBodyHtml = markdownToHtml(post.content || "");
+    const bodyParts = rawBodyHtml.split("\n");
+    const midPos = bodyParts.length >= 8 ? Math.floor(bodyParts.length * 0.45) : -1;
+    if (midPos > 0) {
+      bodyParts.splice(midPos, 0, buildMidArticleCtaHtml(topic));
+    }
+    const articleBodyHtml = bodyParts.join("\n");
+
+    const relatedPosts = posts.filter((p) => stripBlogSlugHash(p.slug) !== cleanSlug).slice(0, 4);
+    const relatedHtml = relatedPosts.length > 0 ? `
+      <aside class="mt-10 p-6 rounded-2xl bg-gray-900/50 border border-gray-800">
+        <h2 class="text-lg font-bold text-white mb-4">Related Guides &amp; Tools</h2>
+        <ul class="space-y-2 text-sm">
+          ${relatedPosts.map((r) => `<li><a href="/blog/${stripBlogSlugHash(r.slug)}" class="text-emerald-400 hover:underline">${r.title}</a></li>`).join("\n")}
+        </ul>
+        <div class="mt-4 pt-4 border-t border-gray-800 flex flex-wrap gap-4 text-xs font-mono">
+          <a href="/background-remover?source=organic" class="text-emerald-400 hover:underline">AI Background Remover →</a>
+          <a href="/image-upscaler?source=organic" class="text-emerald-400 hover:underline">8K AI Image Upscaler →</a>
+          <a href="/pricing?source=organic" class="text-emerald-400 hover:underline">Pricing &amp; Plans →</a>
+        </div>
+      </aside>
+    ` : "";
+
+    const primaryToolHref = topic === "upscaler" ? "/image-upscaler?source=organic&amp;utm_campaign=blog_cta" : "/background-remover?source=organic&amp;utm_campaign=blog_cta";
+    const primaryToolLabel = topic === "upscaler" ? "Try 8K Upscaler Free ↗" : "Try Background Remover Free ↗";
+
     const coverImgTag = post.cover_image && post.cover_image.startsWith("http")
       ? `<div class="mb-8 rounded-xl overflow-hidden border border-gray-800 bg-gray-900 max-h-[500px]">
           <img src="${post.cover_image}" alt="${post.title}" class="w-full h-full object-cover" />
@@ -311,11 +442,12 @@ async function prerender() {
 
     const articleRootContent = `
       <header class="p-4 border-b border-white/10 bg-[#030712] text-white">
-        <nav class="max-w-4xl mx-auto flex justify-between items-center">
+        <nav class="max-w-4xl mx-auto flex justify-between items-center flex-wrap gap-4">
           <a href="https://pixelisolate.online/" class="text-white font-bold no-underline text-lg">Pixel Isolate</a>
-          <div class="flex gap-4 text-sm font-medium">
-            <a href="/" class="text-gray-300 hover:text-white transition">Workspace</a>
+          <div class="flex gap-4 text-sm font-medium flex-wrap">
+            <a href="/background-remover" class="text-gray-300 hover:text-white transition">Background Remover</a>
             <a href="/image-upscaler" class="text-gray-300 hover:text-white transition">8K Upscaler</a>
+            <a href="/pricing" class="text-gray-300 hover:text-white transition">Pricing</a>
             <a href="/blog" class="text-emerald-400 font-semibold">Blog</a>
             <a href="/sitemap" class="text-gray-300 hover:text-white transition">Sitemap</a>
           </div>
@@ -328,7 +460,7 @@ async function prerender() {
           <span>›</span>
           <a href="/blog" class="hover:text-emerald-400 transition">Blog</a>
           <span>›</span>
-          <span class="text-emerald-400 truncate max-w-xs">${post.category || "Tutorials"}</span>
+          <span class="text-emerald-400 truncate max-w-xs">${post.title}</span>
         </nav>
 
         <article class="prose prose-invert max-w-none">
@@ -359,21 +491,31 @@ async function prerender() {
           </div>
 
           <div class="mt-14 p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-gray-900 to-gray-900 border border-emerald-500/30 text-center">
-            <h3 class="text-xl sm:text-2xl font-bold text-white mb-2">Ready to Isolate & Upscale Your Artwork?</h3>
+            <h3 class="text-xl sm:text-2xl font-bold text-white mb-2">Start With 10 Free Credits — No Credit Card Required</h3>
             <p class="text-sm text-gray-300 mb-6 max-w-xl mx-auto leading-relaxed">
-              Create subpixel zero-halo cutouts and upscale images to 8K print resolution directly inside your browser. 10 Free HD Credits included.
+              Create subpixel zero-halo cutouts and upscale images to 8K 300 DPI print resolution directly inside your browser.
             </p>
-            <a href="/" class="inline-block px-6 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold text-sm transition">
-              Launch Free Workspace ↗
-            </a>
+            <div class="flex justify-center flex-wrap gap-3">
+              <a href="${primaryToolHref}" class="inline-block px-6 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold text-sm transition no-underline">
+                ${primaryToolLabel}
+              </a>
+              <a href="/pricing?source=organic&amp;utm_campaign=blog_cta" class="inline-block px-6 py-3 rounded-lg border border-gray-700 text-emerald-400 font-semibold text-sm transition no-underline">
+                View Pricing Plans
+              </a>
+            </div>
           </div>
+
+          ${relatedHtml}
         </article>
       </main>
 
       <footer class="mt-16 border-t border-gray-900 py-10 text-center text-xs text-gray-500 font-mono">
         <div class="flex justify-center flex-wrap gap-5 mb-4">
           <a href="/" class="hover:text-emerald-400">Home</a>
+          <a href="/background-remover" class="hover:text-emerald-400">Background Remover</a>
           <a href="/image-upscaler" class="hover:text-emerald-400">8K Upscaler</a>
+          <a href="/pricing" class="hover:text-emerald-400">Pricing</a>
+          <a href="/compare" class="hover:text-emerald-400">Compare</a>
           <a href="/blog" class="hover:text-emerald-400">Blog</a>
           <a href="/sitemap" class="hover:text-emerald-400">Sitemap</a>
           <a href="/privacy" class="hover:text-emerald-400">Privacy Policy</a>
@@ -384,42 +526,54 @@ async function prerender() {
       </footer>
     `;
 
-    const schemaJson = JSON.stringify({
+    const articleSchema = {
       "@context": "https://schema.org",
-      "@type": "BlogPosting",
-      "headline": post.title,
-      "description": post.excerpt,
-      "image": imageUrl,
-      "datePublished": isoDate,
-      "dateModified": modifiedDate,
-      "author": {
-        "@type": "Person",
-        "name": post.author_name || "Mohamed Elborgy"
-      },
-      "publisher": {
-        "@type": "Organization",
-        "name": "Pixel Isolate",
-        "logo": {
-          "@type": "ImageObject",
-          "url": "https://pixelisolate.online/logo.png"
+      "@graph": [
+        {
+          "@type": "BlogPosting",
+          "headline": post.title,
+          "description": desc,
+          "image": imageUrl,
+          "datePublished": isoDate,
+          "dateModified": modifiedDate,
+          "author": {
+            "@type": "Person",
+            "name": post.author_name || "Mohamed Elborgy"
+          },
+          "publisher": {
+            "@type": "Organization",
+            "@id": "https://pixelisolate.online/#organization",
+            "name": "Pixel Isolate Engine Inc.",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://pixelisolate.online/logo.png"
+            }
+          },
+          "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": pageUrl
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://pixelisolate.online/" },
+            { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pixelisolate.online/blog" },
+            { "@type": "ListItem", "position": 3, "name": post.title, "item": pageUrl }
+          ]
         }
-      },
-      "mainEntityOfPage": {
-        "@type": "WebPage",
-        "@id": pageUrl
-      }
-    });
+      ]
+    };
 
     let postHtml = applyPageMetadata(baseHtml, {
       title,
       description: desc,
       pageUrl,
-      markdownHref: `/blog/${post.slug}.md`,
+      markdownHref: `/blog/${cleanSlug}.md`,
       imageUrl,
-      ogType: "article"
-    })
-      .replace("</head>", `<script type="application/ld+json">\n${schemaJson}\n</script>\n</head>`)
-      .replace(/<div id="root">[\s\S]*?<\/div>\s*<\/body>/i, `<div id="root">\n${articleRootContent}\n</div>\n</body>`);
+      ogType: "article",
+      schemaObj: articleSchema
+    }).replace(/<div id="root">[\s\S]*?<\/div>\s*<\/body>/i, `<div id="root">\n${articleRootContent}\n</div>\n</body>`);
 
     fs.writeFileSync(path.join(postDir, "index.html"), postHtml, "utf8");
   }

@@ -68,6 +68,23 @@
       "@context": "https://schema.org",
       "@graph": [
         {
+          "@type": "WebSite",
+          "@id": "https://pixelisolate.online/#website",
+          "name": "PixelIsolate",
+          "url": "https://pixelisolate.online/",
+          "publisher": {
+            "@id": "https://pixelisolate.online/#organization"
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://pixelisolate.online/blog?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
           "@type": "WebApplication",
           "@id": "https://pixelisolate.online/#software",
           "name": "PixelIsolate",
@@ -75,11 +92,15 @@
           "applicationCategory": "DesignApplication",
           "operatingSystem": "All",
           "offers": {
-            "@type": "Offer",
-            "price": "0",
+            "@type": "AggregateOffer",
+            "lowPrice": "0",
+            "highPrice": "7.99",
             "priceCurrency": "USD",
-            "availability": "https://schema.org/InStock",
-            "url": "https://pixelisolate.online/#pricing"
+            "offerCount": "3",
+            "url": "https://pixelisolate.online/pricing"
+          },
+          "publisher": {
+            "@id": "https://pixelisolate.online/#organization"
           },
           "description": "AI-powered subpixel background remover and 8K super-resolution upscaler for print-on-demand and digital designers."
         },
@@ -103,28 +124,6 @@
             "contactType": "customer support",
             "availableLanguage": "English"
           }
-        },
-        {
-          "@type": "FAQPage",
-          "@id": "https://pixelisolate.online/#faq",
-          "mainEntity": [
-            {
-              "@type": "Question",
-              "name": "How does the high resolution background remover engine work?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "The Pixel Isolate engine runs WebAssembly subject processing directly inside your web browser, preserving original high resolution details with zero cloud latency."
-              }
-            },
-            {
-              "@type": "Question",
-              "name": "Is subject processing private and secure?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "Yes. Subject processing is computed on-device. Images are never harvested or stored on remote servers."
-              }
-            }
-          ]
         }
       ]
     }
@@ -163,14 +162,13 @@
       <header class="p-4 border-b border-white/10 bg-[#030712] text-white">
         <nav class="max-w-6xl mx-auto flex justify-between items-center">
           <a href="https://pixelisolate.online/" class="text-white font-bold no-underline">Pixel Isolate Engine</a>
-          <div class="flex gap-4 text-sm">
-            <a href="https://pixelisolate.online/#features" class="seo-footer-link">Features</a>
-            <a href="https://pixelisolate.online/#how-it-works" class="seo-footer-link">How It Works</a>
-            <a href="https://pixelisolate.online/#pricing" class="seo-footer-link">Pricing</a>
-            <a href="https://pixelisolate.online/#capabilities" class="seo-footer-link">Capabilities</a>
-            <a href="https://pixelisolate.online/#faq" class="seo-footer-link">FAQ</a>
-            <a href="https://www.facebook.com/pixelisolate/" target="_blank" rel="noopener noreferrer me" class="seo-footer-accent-link">Facebook</a>
-            <a href="https://www.instagram.com/pixelisolate/" target="_blank" rel="noopener noreferrer me" class="seo-footer-accent-link">Instagram</a>
+          <div class="flex gap-4 text-sm flex-wrap">
+            <a href="https://pixelisolate.online/background-remover" class="seo-footer-link">Background Remover</a>
+            <a href="https://pixelisolate.online/image-upscaler" class="seo-footer-link">8K Upscaler</a>
+            <a href="https://pixelisolate.online/pricing" class="seo-footer-link">Pricing</a>
+            <a href="https://pixelisolate.online/compare" class="seo-footer-link">Compare</a>
+            <a href="https://pixelisolate.online/blog" class="seo-footer-link">Blog</a>
+            <a href="https://pixelisolate.online/how-it-works" class="seo-footer-link">How It Works</a>
           </div>
         </nav>
       </header>
@@ -250,10 +248,15 @@
       <footer class="seo-footer">
         <div class="flex justify-center flex-wrap gap-5 mb-3">
           <a href="https://pixelisolate.online/" class="seo-footer-link">Home</a>
+          <a href="https://pixelisolate.online/background-remover" class="seo-footer-link">Background Remover</a>
+          <a href="https://pixelisolate.online/image-upscaler" class="seo-footer-link">8K Upscaler</a>
+          <a href="https://pixelisolate.online/pricing" class="seo-footer-link">Pricing</a>
+          <a href="https://pixelisolate.online/compare" class="seo-footer-link">Compare</a>
+          <a href="https://pixelisolate.online/blog" class="seo-footer-link">Blog</a>
           <a href="https://pixelisolate.online/privacy" class="seo-footer-link">Privacy Policy</a>
           <a href="https://pixelisolate.online/terms" class="seo-footer-link">Terms of Service</a>
           <a href="https://pixelisolate.online/refund" class="seo-footer-link">Refund Policy</a>
-          <a href="https://pixelisolate.online/sitemap.xml" class="seo-footer-link">Sitemap</a>
+          <a href="https://pixelisolate.online/sitemap" class="seo-footer-link">Sitemap</a>
           <a href="https://www.facebook.com/pixelisolate/" target="_blank" rel="noopener noreferrer me" class="seo-footer-accent-link">Facebook Page</a>
           <a href="https://www.instagram.com/pixelisolate/" target="_blank" rel="noopener noreferrer me" class="seo-footer-accent-link">Instagram Profile</a>
           <a href="https://github.com/Elborgy-web/Pixelisolate" target="_blank" rel="noopener noreferrer me" class="seo-footer-accent-link">GitHub Repository</a>

@@ -5,6 +5,9 @@ Disallow: /api/
 Sitemap: https://pixelisolate.online/sitemap.xml
 
 # Explicit crawl permissions for contemporary AI search models and LLM engines
+User-agent: OAI-SearchBot
+Allow: /
+
 User-agent: GPTBot
 Allow: /
 

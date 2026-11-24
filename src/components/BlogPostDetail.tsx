@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { getPostBySlug, getCachedPostBySlug, toggleUpvote, hasUserUpvoted, getPostComments, addComment, deleteComment, deletePost, togglePostPublishStatus, BlogPost, BlogComment } from "../lib/blog";
+import { getPostBySlug, getCachedPostBySlug, getPublishedPosts, toCleanBlogSlug, toggleUpvote, hasUserUpvoted, getPostComments, addComment, deleteComment, deletePost, togglePostPublishStatus, BlogPost, BlogComment } from "../lib/blog";
 import { BlogCTA } from "./BlogCTA";
 import ShareModal from "./ShareModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
-import { ArrowLeft, Calendar, Clock, User, Share2, Check, List, Sparkles, ThumbsUp, MessageSquare, Send, Trash2, ShieldCheck, Eye, EyeOff, Edit3 } from "lucide-react";
+import { trackConversionEvent } from "../utils/attribution";
+import { ArrowLeft, ArrowRight, ChevronRight, Calendar, Clock, Share2, List, Sparkles, ThumbsUp, MessageSquare, Send, Trash2, Eye, EyeOff, Edit3, Layers } from "lucide-react";
 
 interface BlogPostDetailProps {
   slug: string;
@@ -13,6 +14,9 @@ interface BlogPostDetailProps {
   onOpenAuth?: () => void;
   onOpenEditPost?: (post: BlogPost) => void;
   onGoToWorkspace?: () => void;
+  onGoToUpscaler?: () => void;
+  onGoToPricing?: () => void;
+  onSelectPost?: (slug: string) => void;
 }
 
 interface TocItem {
@@ -29,6 +33,9 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   onOpenAuth,
   onOpenEditPost,
   onGoToWorkspace,
+  onGoToUpscaler,
+  onGoToPricing,
+  onSelectPost,
 }) => {
   // Helper to parse Table of Contents from markdown headings (#, ##, ###)
   const parseToc = (content: string): TocItem[] => {
@@ -63,6 +70,7 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const [isDeletingPost, setIsDeletingPost] = useState<boolean>(false);
   const [showPostDeleteModal, setShowPostDeleteModal] = useState<boolean>(false);
+  const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
 
   const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin") || user?.email?.toLowerCase() === "rjhustles@gmail.com" || user?.email?.toLowerCase() === "detourdesignllc@gmail.com" || user?.email?.toLowerCase() === "philip@philipanders.com";
   const isAuthor = user && post && (user.id === post.author_id);
@@ -108,6 +116,18 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
       if (user) {
         setIsUpvoted(hasUserUpvoted(data.id, user.id));
       }
+
+      // Load related articles for internal linking
+      try {
+        const allPosts = await getPublishedPosts("All", "", false);
+        const currentClean = toCleanBlogSlug(data.slug);
+        const others = allPosts.filter((p) => toCleanBlogSlug(p.slug) !== currentClean);
+        const sameCategory = others.filter(
+          (p) => (p.category || "").toLowerCase() === (data.category || "").toLowerCase()
+        );
+        const picked = [...sameCategory, ...others.filter((p) => !sameCategory.includes(p))].slice(0, 4);
+        setRelatedPosts(picked);
+      } catch {}
     }
 
     setIsLoading(false);
@@ -178,54 +198,181 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
     onBackToBlog();
   };
 
-  // Convert Markdown content into HTML blocks
-  const renderMarkdownContent = (content: string) => {
+  const detectArticleTopic = (p: BlogPost): "upscaler" | "ecommerce" | "bg-remover" => {
+    const haystack = `${p.title} ${p.slug} ${p.category} ${p.excerpt}`.toLowerCase();
+    if (/(upscal|8k|4k|300\s*dpi|super-resolution|esrgan|midjourney|flux|resolution|poster|wall art)/.test(haystack)) {
+      return "upscaler";
+    }
+    if (/(etsy|amazon|shopify|e-commerce|ecommerce|catalog|listing|product photo|bulk|batch)/.test(haystack)) {
+      return "ecommerce";
+    }
+    return "bg-remover";
+  };
+
+  // Convert Markdown content into HTML blocks (with topic-aware mid-article soft CTA)
+  const renderMarkdownContent = (content: string, topic: "upscaler" | "ecommerce" | "bg-remover") => {
     const paragraphs = (content || "").split(/\n\n+/);
-    return paragraphs.map((block, idx) => {
+    const midIndex = paragraphs.length >= 6 ? Math.floor(paragraphs.length * 0.45) : -1;
+
+    const midCtaBox = (
+      <div
+        key="mid-article-soft-cta"
+        className="my-6 p-4 sm:p-5 rounded-xl bg-emerald-950/25 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      >
+        <div className="text-xs sm:text-sm text-gray-200 leading-relaxed">
+          {topic === "upscaler" ? (
+            <>
+              <strong className="text-emerald-400">Need 300 DPI print resolution?</strong> Try PixelIsolate&apos;s{" "}
+              <a
+                href="/image-upscaler?source=organic&utm_campaign=blog_mid_cta"
+                onClick={(e) => {
+                  trackConversionEvent("blog_mid_cta_click", { target: "image_upscaler", topic });
+                  if (onGoToUpscaler) {
+                    e.preventDefault();
+                    onGoToUpscaler();
+                  }
+                }}
+                className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 font-semibold"
+              >
+                8K AI Image Upscaler
+              </a>{" "}
+              or{" "}
+              <a
+                href="/pricing?source=organic&utm_campaign=blog_mid_cta"
+                onClick={(e) => {
+                  trackConversionEvent("blog_mid_cta_click", { target: "pricing", topic });
+                  if (onGoToPricing) {
+                    e.preventDefault();
+                    onGoToPricing();
+                  }
+                }}
+                className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 font-semibold"
+              >
+                compare plans
+              </a>
+              .
+            </>
+          ) : topic === "ecommerce" ? (
+            <>
+              <strong className="text-emerald-400">Preparing marketplace product images at scale?</strong> Use our{" "}
+              <a
+                href="/background-remover?source=organic&utm_campaign=blog_mid_cta"
+                onClick={(e) => {
+                  trackConversionEvent("blog_mid_cta_click", { target: "background_remover", topic });
+                  if (onGoToWorkspace) {
+                    e.preventDefault();
+                    onGoToWorkspace();
+                  }
+                }}
+                className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 font-semibold"
+              >
+                AI Background Remover
+              </a>
+              ,{" "}
+              <a
+                href="/image-upscaler?source=organic&utm_campaign=blog_mid_cta"
+                onClick={(e) => {
+                  trackConversionEvent("blog_mid_cta_click", { target: "image_upscaler", topic });
+                  if (onGoToUpscaler) {
+                    e.preventDefault();
+                    onGoToUpscaler();
+                  }
+                }}
+                className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 font-semibold"
+              >
+                8K Upscaler
+              </a>
+              , and{" "}
+              <a
+                href="/pricing?source=organic&utm_campaign=blog_mid_cta"
+                onClick={(e) => {
+                  trackConversionEvent("blog_mid_cta_click", { target: "pricing", topic });
+                  if (onGoToPricing) {
+                    e.preventDefault();
+                    onGoToPricing();
+                  }
+                }}
+                className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 font-semibold"
+              >
+                non-expiring credit bundles
+              </a>
+              .
+            </>
+          ) : (
+            <>
+              <strong className="text-emerald-400">Need zero-halo transparent PNGs at scale?</strong> Try PixelIsolate&apos;s{" "}
+              <a
+                href="/background-remover?source=organic&utm_campaign=blog_mid_cta"
+                onClick={(e) => {
+                  trackConversionEvent("blog_mid_cta_click", { target: "background_remover", topic });
+                  if (onGoToWorkspace) {
+                    e.preventDefault();
+                    onGoToWorkspace();
+                  }
+                }}
+                className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 font-semibold"
+              >
+                AI Background Remover
+              </a>{" "}
+              with 10 free credits — no credit card required.
+            </>
+          )}
+        </div>
+        <a
+          href={topic === "upscaler" ? "/image-upscaler?source=organic&utm_campaign=blog_mid_cta" : "/background-remover?source=organic&utm_campaign=blog_mid_cta"}
+          onClick={(e) => {
+            trackConversionEvent("blog_mid_cta_button", { topic });
+            if (topic === "upscaler" && onGoToUpscaler) {
+              e.preventDefault();
+              onGoToUpscaler();
+            } else if (topic !== "upscaler" && onGoToWorkspace) {
+              e.preventDefault();
+              onGoToWorkspace();
+            }
+          }}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold text-xs transition"
+        >
+          <span>Try Free</span>
+          <ArrowRight className="h-3.5 w-3.5" />
+        </a>
+      </div>
+    );
+
+    const rendered: React.ReactNode[] = [];
+    paragraphs.forEach((block, idx) => {
       const trimmed = (block || "").trim();
+      let node: React.ReactNode;
       
       // H1 Header (Demoted to H2 in body to preserve single H1 per page)
       if (trimmed.startsWith("# ")) {
         const text = trimmed.replace(/^#\s+/, "");
         const id = text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
-        return (
+        node = (
           <h2 key={idx} id={id} className="text-2xl sm:text-3xl font-extrabold text-white mt-8 mb-4 tracking-tight">
             {text}
           </h2>
         );
-      }
-
-      // H2 Header
-      if (trimmed.startsWith("## ")) {
+      } else if (trimmed.startsWith("## ")) {
         const text = trimmed.replace(/^##\s+/, "");
         const id = text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
-        return (
+        node = (
           <h2 key={idx} id={id} className="text-xl sm:text-2xl font-bold text-emerald-400 mt-8 mb-4 tracking-tight border-b border-gray-850 pb-2">
             {text}
           </h2>
         );
-      }
-
-      // H3 Header
-      if (trimmed.startsWith("### ")) {
+      } else if (trimmed.startsWith("### ")) {
         const text = trimmed.replace(/^###\s+/, "");
         const id = text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
-        return (
+        node = (
           <h3 key={idx} id={id} className="text-lg font-bold text-gray-200 mt-6 mb-3 tracking-tight">
             {text}
           </h3>
         );
-      }
-
-      // Horizontal Divider
-      if (trimmed === "---") {
-        return <hr key={idx} className="my-8 border-gray-850" />;
-      }
-
-      // Bullet List
-      if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
+      } else if (trimmed === "---") {
+        node = <hr key={idx} className="my-8 border-gray-850" />;
+      } else if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
         const items = (trimmed || "").split("\n").map((l) => l.replace(/^[*|-]\s+/, ""));
-        return (
+        node = (
           <ul key={idx} className="my-4 space-y-2 font-sans text-sm sm:text-base text-gray-300 list-disc list-inside">
             {items.map((item, iIdx) => (
               <li key={iIdx} className="leading-relaxed">
@@ -234,12 +381,9 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
             ))}
           </ul>
         );
-      }
-
-      // Numbered List
-      if (/^\d+\.\s+/.test(trimmed)) {
+      } else if (/^\d+\.\s+/.test(trimmed)) {
         const items = (trimmed || "").split("\n").map((l) => l.replace(/^\d+\.\s+/, ""));
-        return (
+        node = (
           <ol key={idx} className="my-4 space-y-2 font-sans text-sm sm:text-base text-gray-300 list-decimal list-inside">
             {items.map((item, iIdx) => (
               <li key={iIdx} className="leading-relaxed">
@@ -248,36 +392,42 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
             ))}
           </ol>
         );
+      } else {
+        node = (
+          <p key={idx} className="my-4 text-sm sm:text-base text-gray-300 leading-relaxed font-sans">
+            {formatInlineMarkdown(trimmed)}
+          </p>
+        );
       }
 
-      // Regular Paragraph
-      return (
-        <p key={idx} className="my-4 text-sm sm:text-base text-gray-300 leading-relaxed font-sans">
-          {formatInlineMarkdown(trimmed)}
-        </p>
-      );
+      rendered.push(node);
+      if (idx === midIndex) {
+        rendered.push(midCtaBox);
+      }
     });
+    return rendered;
   };
 
   const formatInlineMarkdown = (text: string) => {
     if (!text) return null;
-    const regex = /(\[.*?\]\(https?:\/\/.*?\)|https?:\/\/[^\s<]+|\*\*.*?\*\*|\`.*?\`)/g;
+    const regex = /(\[.*?\]\((?:https?:\/\/|\/)[^\s)]+\)|https?:\/\/[^\s<]+|\*\*.*?\*\*|\`.*?\`)/g;
     const parts = (text || "").split(regex);
 
     return parts.map((part, i) => {
       if (!part) return null;
 
-      // 1. Markdown Link: [Anchor Text](https://url.com)
-      const mdLinkMatch = part.match(/^\[(.*?)\]\((https?:\/\/.*?)\)$/);
+      // 1. Markdown Link: [Anchor Text](https://url.com or /internal-path)
+      const mdLinkMatch = part.match(/^\[(.*?)\]\(((?:https?:\/\/|\/)[^\s)]+)\)$/);
       if (mdLinkMatch) {
         const anchorText = mdLinkMatch[1];
         const href = mdLinkMatch[2];
+        const isInternal = href.startsWith("/") || href.startsWith("https://pixelisolate.online");
         return (
           <a
             key={i}
             href={href}
-            target="_blank"
-            rel="noopener noreferrer"
+            target={isInternal ? undefined : "_blank"}
+            rel={isInternal ? undefined : "noopener noreferrer"}
             className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 font-semibold transition"
           >
             {anchorText}
@@ -339,31 +489,63 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
     );
   }
 
-  // BlogPosting JSON-LD Schema
+  const cleanCanonicalSlug = toCleanBlogSlug(post.slug);
+  const articleTopic = detectArticleTopic(post);
+
+  // BlogPosting + BreadcrumbList JSON-LD Schema
   const jsonLdSchema = {
     "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    "headline": post.title,
-    "description": post.meta_description || post.excerpt,
-    "image": [post.cover_image],
-    "datePublished": post.published_at,
-    "author": [{
-      "@type": "Person",
-      "name": post.author_name,
-      "url": "https://pixelisolate.online/"
-    }],
-    "publisher": {
-      "@type": "Organization",
-      "name": "PixelIsolate",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "https://pixelisolate.online/logo.png"
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": post.title,
+        "description": post.meta_description || post.excerpt,
+        "image": [post.cover_image],
+        "datePublished": post.published_at,
+        "dateModified": post.updated_at || post.published_at,
+        "author": [{
+          "@type": "Person",
+          "name": post.author_name,
+          "url": "https://pixelisolate.online/"
+        }],
+        "publisher": {
+          "@type": "Organization",
+          "@id": "https://pixelisolate.online/#organization",
+          "name": "Pixel Isolate Engine Inc.",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://pixelisolate.online/logo.png"
+          }
+        },
+        "mainEntityOfPage": {
+          "@type": "WebPage",
+          "@id": `https://pixelisolate.online/blog/${cleanCanonicalSlug}`
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://pixelisolate.online/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Blog",
+            "item": "https://pixelisolate.online/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": post.title,
+            "item": `https://pixelisolate.online/blog/${cleanCanonicalSlug}`
+          }
+        ]
       }
-    },
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": `https://pixelisolate.online/blog/${post.slug}`
-    }
+    ]
   };
 
   return (
@@ -374,6 +556,23 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
       />
 
       <article className="max-w-4xl mx-auto space-y-8">
+        {/* Visible Breadcrumbs */}
+        <nav aria-label="Breadcrumb" className="flex items-center flex-wrap gap-1.5 text-xs font-mono text-gray-400">
+          <a href="/" className="hover:text-emerald-400 transition">Home</a>
+          <ChevronRight className="h-3.5 w-3.5 text-gray-600" />
+          <a
+            href="/blog"
+            onClick={(e) => {
+              e.preventDefault();
+              onBackToBlog();
+            }}
+            className="hover:text-emerald-400 transition"
+          >
+            Blog
+          </a>
+          <ChevronRight className="h-3.5 w-3.5 text-gray-600" />
+          <span className="text-emerald-400 truncate max-w-xs sm:max-w-md">{post.title}</span>
+        </nav>
         {/* Navigation & Header Toolbar */}
         <div className="space-y-6 border-b border-gray-850 pb-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -497,10 +696,16 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Main Article Content */}
           <div className="lg:col-span-8 space-y-8">
-            {renderMarkdownContent(post.content)}
+            {renderMarkdownContent(post.content, articleTopic)}
 
             {/* Embedded Conversion CTA */}
-            <BlogCTA onOpenAuth={onOpenAuth} onGoToWorkspace={onGoToWorkspace} />
+            <BlogCTA
+              topic={articleTopic}
+              onOpenAuth={onOpenAuth}
+              onGoToWorkspace={onGoToWorkspace}
+              onGoToUpscaler={onGoToUpscaler}
+              onGoToPricing={onGoToPricing}
+            />
 
             {/* Comments Section */}
             <div className="pt-8 border-t border-gray-850 space-y-6">
@@ -597,29 +802,118 @@ export const BlogPostDetail: React.FC<BlogPostDetailProps> = ({
             </div>
           </div>
 
-          {/* Sidebar / Table of Contents */}
+          {/* Sidebar / Table of Contents + Recommended Tools + Related Articles */}
           <div className="lg:col-span-4 space-y-6">
-            {toc.length > 0 && (
-              <div className="sticky top-24 bg-gray-950/70 border border-gray-850 p-5 rounded-2xl backdrop-blur-md space-y-4">
-                <div className="flex items-center gap-2 font-mono text-xs font-bold text-gray-300 border-b border-gray-900 pb-3">
-                  <List className="h-4 w-4 text-emerald-400" />
-                  <span>Table of Contents</span>
+            <div className="sticky top-24 space-y-6">
+              {toc.length > 0 && (
+                <div className="bg-gray-950/70 border border-gray-850 p-5 rounded-2xl backdrop-blur-md space-y-4">
+                  <div className="flex items-center gap-2 font-mono text-xs font-bold text-gray-300 border-b border-gray-900 pb-3">
+                    <List className="h-4 w-4 text-emerald-400" />
+                    <span>Table of Contents</span>
+                  </div>
+                  <nav className="space-y-2 font-mono text-xs">
+                    {toc.map((item, i) => (
+                      <a
+                        key={i}
+                        href={`#${item.id}`}
+                        className={`block text-gray-400 hover:text-emerald-400 transition-colors line-clamp-1 ${
+                          item.level === 2 ? "pl-0 font-semibold" : "pl-3 text-[11px]"
+                        }`}
+                      >
+                        {item.text}
+                      </a>
+                    ))}
+                  </nav>
                 </div>
-                <nav className="space-y-2 font-mono text-xs">
-                  {toc.map((item, i) => (
-                    <a
-                      key={i}
-                      href={`#${item.id}`}
-                      className={`block text-gray-400 hover:text-emerald-400 transition-colors line-clamp-1 ${
-                        item.level === 2 ? "pl-0 font-semibold" : "pl-3 text-[11px]"
-                      }`}
-                    >
-                      {item.text}
-                    </a>
-                  ))}
-                </nav>
+              )}
+
+              {/* Recommended Tools Internal Links */}
+              <div className="bg-gray-950/70 border border-emerald-500/20 p-5 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-emerald-400 border-b border-gray-900 pb-2.5">
+                  <Layers className="h-4 w-4" />
+                  <span>Try PixelIsolate Tools</span>
+                </div>
+                <div className="flex flex-col gap-2 text-xs">
+                  <a
+                    href="/background-remover?source=organic&utm_campaign=blog_sidebar"
+                    onClick={(e) => {
+                      trackConversionEvent("blog_sidebar_tool_click", { target: "background_remover" });
+                      if (onGoToWorkspace) {
+                        e.preventDefault();
+                        onGoToWorkspace();
+                      }
+                    }}
+                    className="p-2.5 rounded-xl bg-gray-900/70 hover:bg-gray-900 border border-gray-800 hover:border-emerald-500/40 text-gray-200 hover:text-emerald-400 transition flex items-center justify-between"
+                  >
+                    <span>AI Background Remover</span>
+                    <ArrowRight className="h-3.5 w-3.5 text-emerald-400" />
+                  </a>
+                  <a
+                    href="/image-upscaler?source=organic&utm_campaign=blog_sidebar"
+                    onClick={(e) => {
+                      trackConversionEvent("blog_sidebar_tool_click", { target: "image_upscaler" });
+                      if (onGoToUpscaler) {
+                        e.preventDefault();
+                        onGoToUpscaler();
+                      }
+                    }}
+                    className="p-2.5 rounded-xl bg-gray-900/70 hover:bg-gray-900 border border-gray-800 hover:border-emerald-500/40 text-gray-200 hover:text-emerald-400 transition flex items-center justify-between"
+                  >
+                    <span>8K AI Image Upscaler</span>
+                    <ArrowRight className="h-3.5 w-3.5 text-emerald-400" />
+                  </a>
+                  <a
+                    href="/pricing?source=organic&utm_campaign=blog_sidebar"
+                    onClick={(e) => {
+                      trackConversionEvent("blog_sidebar_tool_click", { target: "pricing" });
+                      if (onGoToPricing) {
+                        e.preventDefault();
+                        onGoToPricing();
+                      }
+                    }}
+                    className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-semibold transition flex items-center justify-between"
+                  >
+                    <span>Pricing &amp; 10 Free Credits</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
+                </div>
               </div>
-            )}
+
+              {/* Related Articles Sidebar */}
+              {relatedPosts.length > 0 && (
+                <div className="bg-gray-950/70 border border-gray-850 p-5 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 font-mono text-xs font-bold text-gray-300 border-b border-gray-900 pb-2.5">
+                    <Sparkles className="h-4 w-4 text-emerald-400" />
+                    <span>Related Guides</span>
+                  </div>
+                  <div className="space-y-3">
+                    {relatedPosts.map((rp) => {
+                      const rpCleanSlug = toCleanBlogSlug(rp.slug);
+                      return (
+                        <a
+                          key={rp.id || rp.slug}
+                          href={`/blog/${rpCleanSlug}`}
+                          onClick={(e) => {
+                            if (onSelectPost) {
+                              e.preventDefault();
+                              onSelectPost(rpCleanSlug);
+                            }
+                          }}
+                          className="block p-3 rounded-xl bg-gray-900/50 hover:bg-gray-900 border border-gray-850 hover:border-emerald-500/30 transition group"
+                        >
+                          <span className="text-[10px] font-mono text-emerald-400 uppercase">
+                            {rp.category || "Guides"}
+                          </span>
+                          <p className="text-xs font-semibold text-gray-200 group-hover:text-emerald-400 transition line-clamp-2 mt-1">
+                            {rp.title}
+                          </p>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

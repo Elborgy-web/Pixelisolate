@@ -2,6 +2,7 @@ import React from "react";
 import { Check, X, ShieldAlert, Sparkles, Zap, Package, Loader2, AlertCircle } from "lucide-react";
 import { getPaddleInstance } from "@paddle/paddle-js";
 import { API_BASE_URL } from "../utils/apiConfig";
+import { getAttribution, trackConversionEvent } from "../utils/attribution";
 
 interface PricingModalProps {
   isOpen: boolean;
@@ -199,6 +200,13 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail, onSuc
   };
 
   const handleCheckout = (priceId: string, purchaseType: "subscription" | "credit_topup", creditsToGrant?: number) => {
+    trackConversionEvent("begin_checkout", {
+      plan: purchaseType === "subscription" ? "pro_monthly" : "credits_100",
+      value: purchaseType === "subscription" ? 7.99 : 5.0,
+      currency: "USD",
+      surface: "pricing_modal",
+    });
+
     if (!userId) {
       alert("Please log in or sign up first to purchase subscriptions or credits.");
       return;
@@ -206,6 +214,7 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail, onSuc
 
     const paddle = getPaddleInstance();
     if (paddle) {
+      const attr = getAttribution();
       const checkoutOptions: any = {
         items: [{ priceId: priceId.trim(), quantity: 1 }],
         customer: userEmail ? { email: userEmail } : undefined,
@@ -213,6 +222,10 @@ export default function PricingModal({ isOpen, onClose, userId, userEmail, onSuc
           userId,
           purchaseType,
           creditsToGrant: creditsToGrant || 0,
+          attributionSource: attr.source,
+          attributionMedium: attr.medium,
+          attributionCampaign: attr.campaign,
+          landingPath: attr.landingPath,
         },
         settings: {
           displayMode: "overlay",

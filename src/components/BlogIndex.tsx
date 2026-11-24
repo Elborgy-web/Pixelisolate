@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { getPublishedPosts, getCachedPosts, toggleUpvote, hasUserUpvoted, deletePost, togglePostPublishStatus, BlogPost } from "../lib/blog";
+import { getPublishedPosts, getCachedPosts, toggleUpvote, hasUserUpvoted, deletePost, togglePostPublishStatus, toCleanBlogSlug, BlogPost } from "../lib/blog";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import { Search, Clock, Calendar, ArrowRight, Tag, Sparkles, BookOpen, ThumbsUp, MessageSquare, Plus, User, ShieldCheck, Trash2, Eye, EyeOff, Edit3 } from "lucide-react";
 
@@ -25,7 +25,12 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
   onOpenProfile,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return new URLSearchParams(window.location.search).get("q") || "";
+    }
+    return "";
+  });
   const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator" || user?.email?.toLowerCase().includes("elborgy") || user?.email?.toLowerCase().includes("admin") || user?.email?.toLowerCase() === "rjhustles@gmail.com" || user?.email?.toLowerCase() === "detourdesignllc@gmail.com" || user?.email?.toLowerCase() === "philip@philipanders.com";
 
   // Instant 0ms cache-first state initialization
@@ -222,7 +227,7 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
               return (
                 <article
                   key={post.id || post.slug}
-                  onClick={() => onSelectPost(post.slug)}
+                  onClick={() => onSelectPost(toCleanBlogSlug(post.slug))}
                   className={`group flex flex-col justify-between bg-gray-950/70 hover:bg-gray-900/80 border ${
                     !post.is_published ? "border-amber-500/40 bg-amber-950/10" : "border-gray-850 hover:border-emerald-500/40"
                   } rounded-2xl p-5 transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-emerald-500/5 cursor-pointer overflow-hidden relative`}
@@ -289,10 +294,10 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
                     <div className="space-y-2">
                       <h2 className="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors line-clamp-2 leading-snug">
                         <a
-                          href={`/blog/${post.slug}`}
+                          href={`/blog/${toCleanBlogSlug(post.slug)}`}
                           onClick={(e) => {
                             e.preventDefault();
-                            onSelectPost(post.slug);
+                            onSelectPost(toCleanBlogSlug(post.slug));
                           }}
                           className="hover:underline"
                         >
@@ -368,10 +373,10 @@ export const BlogIndex: React.FC<BlogIndexProps> = ({
                       )}
 
                       <a
-                        href={`/blog/${post.slug}`}
+                        href={`/blog/${toCleanBlogSlug(post.slug)}`}
                         onClick={(e) => {
                           e.preventDefault();
-                          onSelectPost(post.slug);
+                          onSelectPost(toCleanBlogSlug(post.slug));
                         }}
                         className="text-emerald-400 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform"
                       >

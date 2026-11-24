@@ -1,32 +1,44 @@
-# Pixel Isolate AI Background Remover Engine
+# Pixel Isolate — AI Background Remover & 8K Image Upscaler
 
-> Pixel Isolate is a high-resolution, browser-based AI background remover engine engineered for subpixel subject isolation, HSV color keying, and bulk background extraction.
+> Pixel Isolate (pixelisolate.online) is a browser-based AI background remover and 8K Real-ESRGAN super-resolution upscaler built for Print-on-Demand (POD), e-commerce sellers, and digital designers. Background removal runs locally on-device via WebAssembly/WebGPU for complete privacy and zero white-halo edges on dark garments.
 
 ## Core Capabilities
-- **AI Neural Segmentation**: Browser-based WebAssembly subject isolation preserving hair, fur, and delicate edges.
-- **Chroma Keying**: Interactive HSV color keying for green screen and custom backdrop removal.
-- **Bulk Batch Processing**: Parallel multi-image extraction for print-on-demand and e-commerce workflows.
-- **Solid Canvas Backdrops**: Apply marketplace-compliant white (#FFFFFF), black, or custom solid color backgrounds.
+- **AI Neural Segmentation**: Browser-based WebAssembly subject isolation preserving hair, fur, glassware, and delicate edges at full native resolution.
+- **Subpixel HSV Chroma Keying & POD Halo Removal**: Interactive HSV color keying, BFS flood-fill protection for interior whites, and tunable morphological erosion/dilation/feathering sliders.
+- **8K AI Image Upscaler**: Real-ESRGAN Vulkan super-resolution scaling Midjourney, Flux, and raster graphics to 4K & 8K (300 DPI) while preserving 32-bit RGBA alpha transparency.
+- **Parallel Bulk Batch Processing**: Process 50+ images simultaneously and export transparent PNGs or pure white (#FFFFFF) / custom hex backdrops in a single ZIP archive.
 
-## Primary Documentation & Links
-- [Homepage & Web App](https://pixelisolate.online/)
+## Pricing & Plans
+Full details at [https://pixelisolate.online/pricing](https://pixelisolate.online/pricing):
+- **Free Tier ($0)**: 10 free credits on signup, 3 HD trial exports, 1 solid backdrop trial — no credit card required.
+- **100 Credit Bundle ($5 one-time)**: 100 non-expiring pay-as-you-go credits ($0.05/image) for full-resolution HD exports.
+- **Pro Tier ($7.99/month)**: Unlimited background isolations, unlimited 4K & 8K AI upscaling, 50+ file bulk batch queue, custom solid hex backdrops, and AES-256 encrypted cloud History Gallery. Powered by Paddle (Merchant of Record) with a 14-day refund policy.
+
+## Primary Pages & Tools
+- [Homepage & Workspace](https://pixelisolate.online/)
+- [Pricing & Plans](https://pixelisolate.online/pricing)
+- [Compare vs remove.bg, Adobe Express & Canva](https://pixelisolate.online/compare)
 - [AI Background Remover](https://pixelisolate.online/background-remover)
 - [8K AI Image Upscaler](https://pixelisolate.online/image-upscaler)
-- [POD Background Remover](https://pixelisolate.online/pod-background-remover)
-- [Bulk Background Remover](https://pixelisolate.online/bulk-background-remover)
+- [POD Background Remover (Zero White Halos)](https://pixelisolate.online/pod-background-remover)
+- [Bulk Background Remover (50+ Files)](https://pixelisolate.online/bulk-background-remover)
 - [Remove White Background](https://pixelisolate.online/remove-white-background)
 - [Transparent PNG Maker](https://pixelisolate.online/transparent-png-maker)
-- [Blog & Guides](https://pixelisolate.online/blog)
-- [How to Eliminate White Halos on Dark T-Shirts](https://pixelisolate.online/blog/how-to-eliminate-white-halos-on-dark-t-shirts-pod-masterclass-liwfj)
-- [Masterclass: Bulk Background Removal for E-Commerce](https://pixelisolate.online/blog/masterclass-bulk-background-removal-for-high-converting-e-commerce-stores-lvd36)
+- [How It Works](https://pixelisolate.online/how-it-works)
+- [Blog & Print-on-Demand Guides](https://pixelisolate.online/blog)
+- [How to Eliminate White Halos on Dark T-Shirts](https://pixelisolate.online/blog/how-to-eliminate-white-halos-on-dark-t-shirts-pod-masterclass)
+- [Masterclass: Bulk Background Removal for E-Commerce](https://pixelisolate.online/blog/masterclass-bulk-background-removal-for-high-converting-e-commerce-stores)
 - [Privacy Policy](https://pixelisolate.online/privacy)
 - [Terms of Service](https://pixelisolate.online/terms)
 - [Refund Policy](https://pixelisolate.online/refund)
-- [Sitemap](https://pixelisolate.online/sitemap)
+- [HTML Sitemap](https://pixelisolate.online/sitemap)
+- [XML Sitemap](https://pixelisolate.online/sitemap.xml)
 
 ## Markdown Pages for AI Agents
-Every core HTML page also supports `Accept: text/markdown` content negotiation and has a dedicated `.md` URL:
+Every core HTML page supports `Accept: text/markdown` content negotiation and has a dedicated `.md` URL:
 - [Homepage (Markdown)](https://pixelisolate.online/index.md)
+- [Pricing (Markdown)](https://pixelisolate.online/pricing.md)
+- [Compare (Markdown)](https://pixelisolate.online/compare.md)
 - [AI Background Remover (Markdown)](https://pixelisolate.online/background-remover.md)
 - [8K AI Image Upscaler (Markdown)](https://pixelisolate.online/image-upscaler.md)
 - [POD Background Remover (Markdown)](https://pixelisolate.online/pod-background-remover.md)

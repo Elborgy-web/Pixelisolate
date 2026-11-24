@@ -12,6 +12,10 @@ Pixel Isolate is a high-resolution image background removal and subject isolatio
 
 ## Canonical Resources
 - Web Application: https://pixelisolate.online/
+- Pricing & Plans: https://pixelisolate.online/pricing
+- Compare vs Competitors: https://pixelisolate.online/compare
+- AI Background Remover: https://pixelisolate.online/background-remover
+- 8K AI Image Upscaler: https://pixelisolate.online/image-upscaler
 - Technical Blog: https://pixelisolate.online/blog
 - Sitemap: https://pixelisolate.online/sitemap.xml
 - API Health Endpoint: https://pixelisolate-backend.onrender.com/api/health
